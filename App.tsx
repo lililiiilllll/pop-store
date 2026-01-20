@@ -372,20 +372,24 @@ const App: React.FC = () => {
       }
   };
 useEffect(() => {
-  window.kakao.maps.load(() => {
-    const container = document.getElementById('map');
-    const options = {
-      center: new window.kakao.maps.LatLng(37.5665, 126.9780),
-      level: 3
-    };
-    const map = new window.kakao.maps.Map(container, options);
-    // ... 나머지 지도 설정 코드
-  });
+  // 1. 카카오 객체가 있는지 먼저 확인
+  if (window.kakao && window.kakao.maps) {
+    
+    // 2. autoload=false일 때는 반드시 load 함수를 먼저 실행해야 합니다.
+    window.kakao.maps.load(() => {
+      const container = document.getElementById('map'); // 지도가 담길 HTML 요소
+      const options = {
+        center: new window.kakao.maps.LatLng(37.5665, 126.9780), // 서울 시청 기준 좌표
+        level: 3
+      };
+      
+      // 3. 이제 안전하게 지도를 생성합니다.
+      const map = new window.kakao.maps.Map(container, options);
+      
+      // 여기에 마커를 찍거나 Supabase 데이터를 불러오는 코드를 이어서 작성하세요.
+    });
+  }
 }, []);
-  useEffect(() => {
-      if (sheetOpen) sheetControls.start({ y: 0 });
-      else sheetControls.start({ y: 'calc(100% - 130px)' }); // Show header peek
-  }, [sheetOpen, sheetControls]);
 
   const handleStoreSelect = (id: string) => {
       const s = allStores?.find(st => st.id === id);
