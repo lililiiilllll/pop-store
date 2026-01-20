@@ -371,7 +371,17 @@ const App: React.FC = () => {
           setSheetOpen(true); // Swipe up -> Open
       }
   };
-
+useEffect(() => {
+  window.kakao.maps.load(() => {
+    const container = document.getElementById('map');
+    const options = {
+      center: new window.kakao.maps.LatLng(37.5665, 126.9780),
+      level: 3
+    };
+    const map = new window.kakao.maps.Map(container, options);
+    // ... 나머지 지도 설정 코드
+  });
+}, []);
   useEffect(() => {
       if (sheetOpen) sheetControls.start({ y: 0 });
       else sheetControls.start({ y: 'calc(100% - 130px)' }); // Show header peek
