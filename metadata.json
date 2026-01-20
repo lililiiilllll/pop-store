@@ -1,0 +1,7 @@
+{
+  "name": "Supabase Motion Starter",
+  "description": "A modern, high-performance React starter template featuring Framer Motion animations, Lucide icons, and a pre-configured Supabase client structure. Includes a responsive dashboard layout with interactive UI components.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

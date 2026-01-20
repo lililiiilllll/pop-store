@@ -1,0 +1,168 @@
+import { createClient } from '@supabase/supabase-js';
+import { UserProfile, Task } from '../types';
+
+// 환경 변수 처리
+// Handle missing env vars gracefully to prevent crash
+// In Vite, use import.meta.env.VITE_SUPABASE_URL, but we support process.env for compatibility if configured.
+const getEnv = (key: string) => {
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore
+      return import.meta.env[key] || import.meta.env[`VITE_${key}`];
+    }
+  } catch (e) {}
+  
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env[key] || process.env[`VITE_${key}`];
+    }
+  } catch (e) {}
+
+  return '';
+};
+
+const rawSupabaseUrl = getEnv('SUPABASE_URL');
+const rawSupabaseKey = getEnv('SUPABASE_ANON_KEY');
+
+// Use provided keys as fallback
+const supabaseUrl = rawSupabaseUrl || 'https://rfnigedsfgnaqrsxjdaz.supabase.co';
+const supabaseKey = rawSupabaseKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmbmlnZWRzZmduYXFyc3hqZGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODUxOTMsImV4cCI6MjA4Mzc2MTE5M30.JqGG--Zbbivx0MbSRqWDMU6aRdgHscz60ZQ2gzLXxos';
+
+export const isSupabaseConfigured = !!supabaseUrl && !!supabaseKey;
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// --- API Functions ---
+
+/**
+ * 사용자 프로필 가져오기
+ */
+export const getProfile = async (userId: string) => {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return null;
+    }
+    return data as UserProfile;
+  } catch (err) {
+    console.error('Unexpected error in getProfile:', err);
+    return null;
+  }
+};
+
+/**
+ * 프로필 업데이트
+ */
+export const updateProfile = async (userId: string, updates: Partial<UserProfile>) => {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+/**
+ * 알림 목록 가져오기
+ */
+export const fetchNotifications = async (userId: string) => {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error('Error fetching notifications:', error);
+    return [];
+  }
+  return data;
+};
+
+/**
+ * 알림 읽음 처리
+ */
+export const markNotificationAsRead = async (notificationId: string) => {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', notificationId);
+  
+  if (error) {
+    console.error('Error marking notification as read:', error);
+  }
+};
+
+/**
+ * 팝업 스토어 목록 가져오기 (필터링 포함)
+ */
+export const fetchPopupStores = async (category?: string) => {
+  if (!isSupabaseConfigured) return [];
+  let query = supabase.from('popup_stores').select('*');
+
+  if (category && category !== 'all') {
+    query = query.eq('category', category);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching popup stores:', error);
+    return [];
+  }
+  return data;
+};
+
+/**
+ * 팝업 스토어 좋아요 토글
+ */
+export const toggleLikeStore = async (userId: string, storeId: string) => {
+  if (!isSupabaseConfigured) return { liked: false, error: null };
+  // 먼저 좋아요 여부 확인
+  const { data: existing } = await supabase
+    .from('likes')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('store_id', storeId)
+    .single();
+
+  if (existing) {
+    // 이미 좋아요 상태면 삭제
+    const { error } = await supabase
+      .from('likes')
+      .delete()
+      .eq('id', existing.id);
+    return { liked: false, error };
+  } else {
+    // 좋아요 추가
+    const { error } = await supabase
+      .from('likes')
+      .insert({ user_id: userId, store_id: storeId });
+    return { liked: true, error };
+  }
+};
+
+/**
+ * 헬퍼: 현재 로그인한 세션 확인
+ */
+export const getCurrentSession = async () => {
+  if (!isSupabaseConfigured) return null;
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) return null;
+  return session;
+};
