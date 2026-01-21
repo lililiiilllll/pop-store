@@ -38,7 +38,7 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
 };
 
 const checkIsOpenNow = (store: PopupStore) => {
-  if (!store?.openTime || !store?.closeTime) return true; // 정보 없으면 일단 표시
+  if (!store?.openTime || !store?.closeTime) return true;
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   try {
@@ -54,21 +54,17 @@ const App: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<string>('전체');
   const [allStores, setAllStores] = useState<PopupStore[]>([]);
   const [sheetOpen, setSheetOpen] = useState(true);
-  const dragControls = useDragControls();
 
   const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [likedStoreIds, setLikedStoreIds] = useState<Set<string>>(new Set());
-  const [notifiedStoreIds, setNotifiedStoreIds] = useState<Set<string>>(new Set());
   const [showLikedOnly, setShowLikedOnly] = useState(false);
   
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLocationSelectorOpen, setIsLocationSelectorOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [alertConfig, setAlertConfig] = useState({ isOpen: false, title: '', message: '' });
   const [successConfig, setSuccessConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: undefined as any });
@@ -83,14 +79,11 @@ const App: React.FC = () => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // --- 알림/토스트 핸들러 ---
   const showToast = useCallback((msg: string) => { setToastMessage(msg); setTimeout(() => setToastMessage(null), 3000); }, []);
-  const showAlert = useCallback((title: string, message: string) => { setAlertConfig({ isOpen: true, title, message }); }, []);
   const handleShowSuccess = useCallback((title: string, message: string, onConfirm?: () => void) => {
       setSuccessConfig({ isOpen: true, title, message, onConfirm });
   }, []);
 
-  // --- 데이터 패칭 ---
   const fetchStores = async () => {
     setIsLoading(true);
     try {
@@ -115,23 +108,16 @@ const App: React.FC = () => {
     }
   };
 
-  const fetchUserData = async (userId: string) => {
-    try {
-      const { data: favs } = await supabase.from('favorites').select('store_id').eq('user_id', userId);
-      if (favs) setLikedStoreIds(new Set(favs.map(f => f.store_id.toString())));
-      const notifs = await fetchNotifications(userId);
-      setNotifications(notifs);
-    } catch (e) { console.error(e); }
-  };
-
-  // --- 인증 감지 ---
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         const profile = await getProfile(session.user.id);
         setUserProfile(profile as UserProfile);
-        fetchUserData(session.user.id);
+        const { data: favs } = await supabase.from('favorites').select('store_id').eq('user_id', session.user.id);
+        if (favs) setLikedStoreIds(new Set(favs.map(f => f.store_id.toString())));
+        const notifs = await fetchNotifications(session.user.id);
+        setNotifications(notifs);
       } else {
         setUserProfile(null);
         setLikedStoreIds(new Set());
@@ -141,48 +127,40 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- 핵심 필터링 로직 ---
   const { displayStores, isFallback } = useMemo(() => {
-    // 1. 상태 필터 (찜하기, 지금 오픈 등)
     let filtered = allStores.filter(s => {
       const likedMatch = !showLikedOnly || likedStoreIds.has(s.id);
       let statusMatch = true;
       if (selectedFilter === '지금 오픈') statusMatch = checkIsOpenNow(s);
       else if (selectedFilter === '무료 입장') statusMatch = s.isFree;
       else if (selectedFilter === '예약 필수') statusMatch = s.isReservationRequired;
-      
       return likedMatch && statusMatch;
     });
 
-    // 2. 지도 영역 필터링
     if (currentBounds) {
       const inBounds = filtered.filter(s => 
         s.lat >= currentBounds.minLat && s.lat <= currentBounds.maxLat &&
         s.lng >= currentBounds.minLng && s.lng <= currentBounds.maxLng
       );
-
-      // 3. 영역 내 데이터가 없으면 가까운 곳 추천
       if (inBounds.length === 0 && filtered.length > 0) {
         const withDist = filtered.map(s => ({
           ...s,
           distance: getDistance(currentMapCenter.lat, currentMapCenter.lng, s.lat, s.lng)
         })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
-        
         return { displayStores: withDist.slice(0, 5), isFallback: true };
       }
       return { displayStores: inBounds, isFallback: false };
     }
-
     return { displayStores: filtered, isFallback: false };
   }, [allStores, currentBounds, currentMapCenter, showLikedOnly, likedStoreIds, selectedFilter]);
 
-  // --- 핸들러 ---
   const handleStoreSelect = (id: string) => {
     const s = allStores.find(st => st.id === id);
     if (s) {
       setSelectedStoreId(id);
       setDetailStore(s);
       setMapCenter({ lat: s.lat, lng: s.lng });
+      // 모바일에서는 스토어 선택 시 바텀 시트를 닫아 지도가 잘 보이게 함
       if (window.innerWidth < 1024) setSheetOpen(false);
     }
   };
@@ -230,51 +208,61 @@ const App: React.FC = () => {
       </div>
 
       {/* 2. 메인 지도 영역 */}
-      <div className="flex-1 relative overflow-hidden bg-gray-50">
-        {/* 모바일 상단 UI */}
-        <div className="lg:hidden absolute top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm shadow-sm">
-          <Header 
-             location={currentLocationName}
-             userProfile={userProfile}
-             onSearchClick={() => setIsSearchOpen(true)}
-             onProfileClick={() => !user ? setIsLoginModalOpen(true) : setIsProfileModalOpen(true)}
-             onLocationClick={() => setIsLocationSelectorOpen(true)}
-          />
-          <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} showLikedOnly={showLikedOnly} onToggleLiked={() => setShowLikedOnly(!showLikedOnly)} />
+      <div className="flex-1 relative overflow-hidden bg-gray-50 h-full">
+        {/* 모바일 상단 UI - 지도를 가리지 않게 z-index와 배경 처리 */}
+        <div className="lg:hidden absolute top-0 left-0 right-0 z-30 pointer-events-none">
+          <div className="pointer-events-auto bg-white/95 backdrop-blur-sm shadow-sm">
+            <Header 
+                location={currentLocationName}
+                userProfile={userProfile}
+                onSearchClick={() => setIsSearchOpen(true)}
+                onProfileClick={() => !user ? setIsLoginModalOpen(true) : setIsProfileModalOpen(true)}
+                onLocationClick={() => setIsLocationSelectorOpen(true)}
+            />
+            <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} showLikedOnly={showLikedOnly} onToggleLiked={() => setShowLikedOnly(!showLikedOnly)} />
+          </div>
         </div>
 
-        {/* 실제 지도 */}
-        <MapArea
-          stores={allStores}
-          selectedStoreId={selectedStoreId}
-          onMarkerClick={handleMarkerClick}
-          onMapIdle={(bounds, center) => {
-            setCurrentBounds(bounds);
-            setCurrentMapCenter(center);
-          }}
-          mapCenter={mapCenter}
-          onMapClick={() => { setSelectedStoreId(null); setDetailStore(null); }}
-        />
+        {/* 실제 지도 - 꽉 차게 배치 */}
+        <div className="w-full h-full">
+            <MapArea
+              stores={allStores}
+              selectedStoreId={selectedStoreId}
+              onMarkerClick={handleMarkerClick}
+              onMapIdle={(bounds, center) => {
+                setCurrentBounds(bounds);
+                setCurrentMapCenter(center);
+              }}
+              mapCenter={mapCenter}
+              onMapClick={() => { setSelectedStoreId(null); setDetailStore(null); }}
+            />
+        </div>
 
-        {/* 3. 모바일 바텀 시트 (터치 간섭 방지 적용) */}
+        {/* 3. 모바일 바텀 시트 (터치 간섭 해결의 핵심) */}
         {activeTab === 'home' && (
           <motion.div
             initial={false}
-            animate={{ y: sheetOpen ? 0 : 'calc(100% - 120px)' }}
+            animate={{ y: sheetOpen ? 0 : 'calc(100% - 130px)' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            /* pointer-events-none: 시트 외부(지도 영역)의 터치를 허용 */
             className="lg:hidden absolute inset-0 z-40 flex flex-col pointer-events-none"
           >
-            <div className="mt-auto w-full h-[70vh] bg-white rounded-t-[24px] shadow-[0_-10px_30px_rgba(0,0,0,0.1)] flex flex-col pointer-events-auto">
+            {/* mt-auto를 통해 아래쪽에 배치, pointer-events-auto로 리스트 내부 터치만 살림 */}
+            <div className="mt-auto w-full h-[70vh] bg-white rounded-t-[24px] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] flex flex-col pointer-events-auto">
               <div 
-                className="h-10 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none" 
+                className="h-12 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none" 
                 onClick={() => setSheetOpen(!sheetOpen)}
               >
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
               </div>
-              <div className="flex-1 overflow-y-auto p-4 bg-[#f9fafb] pb-24">
+              <div className="flex-1 overflow-y-auto p-4 bg-[#f9fafb] pb-32">
                 <div className="flex justify-between items-center mb-4 px-1">
-                  <h3 className="font-bold text-gray-800">{isFallback ? "근처 추천 팝업" : "주변 팝업 리스트"}</h3>
-                  <span className="text-xs text-gray-400">{displayStores.length}개</span>
+                  <h3 className="font-bold text-gray-800 text-lg">
+                    {isFallback ? "근처 추천 팝업" : "주변 팝업 리스트"}
+                  </h3>
+                  <span className="text-xs font-medium text-tossBlue bg-blue-50 px-2 py-1 rounded-md">
+                    {displayStores.length}개
+                  </span>
                 </div>
                 <PopupList stores={displayStores} selectedStoreId={selectedStoreId} onStoreSelect={handleStoreSelect} />
               </div>
@@ -282,9 +270,9 @@ const App: React.FC = () => {
           </motion.div>
         )}
 
-        {/* 모바일 하단 네비게이션 */}
-        <div className="lg:hidden absolute bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100">
-           <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+        {/* 모바일 하단 네비게이션 - 바텀시트보다 위에 위치 */}
+        <div className="lg:hidden absolute bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 pb-safe">
+            <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       </div>
 
@@ -327,7 +315,7 @@ const App: React.FC = () => {
       />
       
       {toastMessage && (
-        <div className="fixed bottom-28 lg:bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-gray-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full text-sm font-medium shadow-2xl animate-in fade-in slide-in-from-bottom-4">
+        <div className="fixed bottom-28 lg:bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-gray-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full text-sm font-medium shadow-2xl">
           {toastMessage}
         </div>
       )}
