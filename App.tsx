@@ -6,20 +6,19 @@ import { Icons, POPUP_STORES, DEFAULT_POPUP_IMAGE } from './constants';
 import { PopupStore, UserProfile } from './types';
 import { supabase, getProfile } from './lib/supabase';
 
-// 2. 컴포넌트
+// 2. 컴포넌트 (DetailModal은 Named Import로 가져옵니다)
 import Header from './components/Header';
 import MapArea from './components/MapArea';
 import PopupList from './components/PopupList';
 import CategoryFilter from './components/CategoryFilter';
 import AdminDashboard from './components/AdminDashboard';
-import DetailModal from './components/DetailModal';
+import { DetailModal } from './components/DetailModal'; // 중괄호 필수
 import SearchOverlay from './components/SearchOverlay';
 import LocationSelector from './components/LocationSelector';
 import SuccessModal from './components/SuccessModal';
 import LoginModal from './components/LoginModal';
 import ProfileModal from './components/ProfileModal';
 import BottomNav from './components/BottomNav';
-import SavedView from './components/SavedView';
 
 // --- 유틸리티 함수 ---
 const DEFAULT_LOCATION = { lat: 37.5547, lng: 126.9706 };
@@ -148,7 +147,7 @@ const App: React.FC = () => {
   return (
     <div className="relative flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white font-sans text-gray-900">
       
-      {/* 1. 사이드바 (데스크탑 전용) */}
+      {/* 1. 사이드바 (데스크탑) */}
       <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-gray-100 shadow-xl overflow-hidden">
         <Header location={currentLocationName} userProfile={userProfile} onSearchClick={() => setIsSearchOpen(true)} onAdminClick={() => setIsAdminOpen(true)} onProfileClick={() => !user ? setIsLoginModalOpen(true) : setIsProfileModalOpen(true)} onLocationClick={() => setIsLocationSelectorOpen(true)} />
         <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} showLikedOnly={showLikedOnly} onToggleLiked={() => setShowLikedOnly(!showLikedOnly)} />
@@ -162,7 +161,7 @@ const App: React.FC = () => {
       <main className="flex-1 relative z-0">
         <MapArea stores={allStores} selectedStoreId={selectedStoreId} onMarkerClick={handleStoreSelect} onMapIdle={setCurrentBounds} mapCenter={mapCenter} onMapClick={() => setSelectedStoreId(null)} userLocation={userCoords} onDetailOpen={setDetailStore} />
         
-        {/* 모바일 하단 리스트 레이어 */}
+        {/* 모바일 하단 리스트 */}
         <div className="lg:hidden absolute inset-0 pointer-events-none z-20 overflow-hidden">
           <motion.div animate={{ y: sheetOpen ? 0 : 'calc(100% - 120px)' }} transition={{ type: 'spring', damping: 25 }} className="mt-auto w-full h-[70vh] bg-white rounded-t-[32px] shadow-2xl pointer-events-auto flex flex-col overflow-hidden border-t border-gray-100">
             <div className="h-8 flex items-center justify-center cursor-pointer" onClick={() => setSheetOpen(!sheetOpen)}>
@@ -175,25 +174,26 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* 3. 최상위 상세 모달 레이어 (Portal 방식) */}
+      {/* 3. 최상위 상세 모달 레이어 */}
       <AnimatePresence>
         {detailStore && (
           <div className="fixed inset-0 z-[1000] flex items-end lg:items-center justify-center">
-            {/* 어두운 배경 */}
+            {/* Backdrop */}
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }} 
               onClick={() => { setDetailStore(null); setSelectedStoreId(null); }} 
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto" 
             />
-            {/* 모달 콘텐츠 */}
+            
+            {/* Modal Body */}
             <motion.div 
               initial={{ y: "100%" }} 
               animate={{ y: 0 }} 
               exit={{ y: "100%" }} 
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="relative w-full lg:max-w-xl bg-white rounded-t-[32px] lg:rounded-2xl overflow-hidden shadow-2xl z-10"
+              className="relative w-full lg:max-w-xl bg-white rounded-t-[32px] lg:rounded-2xl overflow-hidden shadow-2xl z-10 pointer-events-auto"
             >
               <DetailModal 
                 store={detailStore} 
@@ -206,14 +206,12 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* 기타 전역 모달 */}
-      <AnimatePresence>
-        {isSearchOpen && <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} stores={allStores} onSelectResult={handleStoreSelect} />}
-        {isLocationSelectorOpen && <LocationSelector isOpen={isLocationSelectorOpen} onClose={() => setIsLocationSelectorOpen(false)} onSelect={(loc) => { setCurrentLocationName(loc.name); setMapCenter({ lat: loc.lat, lng: loc.lng }); setIsLocationSelectorOpen(false); }} />}
-        {isLoginModalOpen && <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />}
-        {isProfileModalOpen && <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} userProfile={userProfile} />}
-        {successConfig.isOpen && <SuccessModal isOpen={successConfig.isOpen} title={successConfig.title} message={successConfig.message} onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} />}
-      </AnimatePresence>
+      {/* 기타 오버레이 */}
+      {isSearchOpen && <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} stores={allStores} onSelectResult={handleStoreSelect} />}
+      {isLocationSelectorOpen && <LocationSelector isOpen={isLocationSelectorOpen} onClose={() => setIsLocationSelectorOpen(false)} onSelect={(loc) => { setCurrentLocationName(loc.name); setMapCenter({ lat: loc.lat, lng: loc.lng }); setIsLocationSelectorOpen(false); }} />}
+      {isLoginModalOpen && <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />}
+      {isProfileModalOpen && <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} userProfile={userProfile} />}
+      {successConfig.isOpen && <SuccessModal isOpen={successConfig.isOpen} title={successConfig.title} message={successConfig.message} onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} />}
     </div>
   );
 };
