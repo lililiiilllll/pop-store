@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // 1. 설정 및 타입 파일
 import { Icons, POPUP_STORES, DEFAULT_POPUP_IMAGE } from './constants';
 import { PopupStore, UserProfile, AppNotification } from './types';
 import { supabase, getProfile, fetchNotifications } from './lib/supabase';
 
-// 2. 컴포넌트
+// 2. 컴포넌트 (절대 경로 및 파일 존재 여부 확인 필수)
 import Header from './components/Header';
 import MapArea from './components/MapArea';
 import PopupList from './components/PopupList';
@@ -96,30 +96,24 @@ const App: React.FC = () => {
       }));
       setAllStores(processed);
     } catch (err) {
+      console.error("Supabase 로드 실패, 로컬 데이터를 사용합니다:", err);
       setAllStores(POPUP_STORES);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // [기능: 인증 상태 감지 및 프로필 로드]
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         const profile = await getProfile(session.user.id);
         setUserProfile(profile as UserProfile);
-        
-        // 즐겨찾기 연동
         const { data: favs } = await supabase.from('favorites').select('store_id').eq('user_id', session.user.id);
         if (favs) setLikedStoreIds(new Set(favs.map(f => f.store_id.toString())));
-        
-        // 알림 연동
         const notifs = await fetchNotifications(session.user.id);
         setNotifications(notifs);
-
-        // 로그인 성공 시 모달 닫기
-        setIsLoginModalOpen(false);
+        setIsLoginModalOpen(false); // 로그인 성공 시 모달 닫기
       } else {
         setUserProfile(null);
         setLikedStoreIds(new Set());
@@ -129,7 +123,6 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // [기능: 지도 내 리스트 필터링]
   const { displayStores, isFallback } = useMemo(() => {
     let filtered = allStores.filter(s => {
       const likedMatch = !showLikedOnly || likedStoreIds.has(s.id);
@@ -145,7 +138,6 @@ const App: React.FC = () => {
         s.lat >= currentBounds.minLat && s.lat <= currentBounds.maxLat &&
         s.lng >= currentBounds.minLng && s.lng <= currentBounds.maxLng
       );
-      
       if (inBounds.length === 0 && filtered.length > 0) {
         const withDist = filtered.map(s => ({
           ...s,
@@ -158,19 +150,14 @@ const App: React.FC = () => {
     return { displayStores: filtered, isFallback: false };
   }, [allStores, currentBounds, currentMapCenter, showLikedOnly, likedStoreIds, selectedFilter]);
 
-  // [기능: 검색 및 리스트 아이템 선택 시 동작]
   const handleStoreSelect = useCallback((id: string) => {
     const s = allStores.find(st => st.id === id);
     if (s) {
       setSelectedStoreId(id);
       setDetailStore(s);
-      setMapCenter({ lat: s.lat, lng: s.lng }); // 지도를 해당 팝업 위치로 이동
-      setIsSearchOpen(false); // 검색창 닫기
-      
-      // 모바일인 경우 바텀 시트를 닫아 지도가 보이게 함
-      if (window.innerWidth < 1024) {
-        setSheetOpen(false);
-      }
+      setMapCenter({ lat: s.lat, lng: s.lng });
+      setIsSearchOpen(false);
+      if (window.innerWidth < 1024) setSheetOpen(false);
     }
   }, [allStores]);
 
@@ -179,9 +166,9 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white font-sans antialiased text-gray-900">
+    <div className="flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white">
       {/* 1. 데스크탑 사이드바 */}
-      <div className="hidden lg:flex w-[400px] xl:w-[440px] flex-col z-40 bg-white border-r border-gray-100 shadow-xl">
+      <div className="hidden lg:flex w-[400px] xl:w-[440px] flex-col z-40 bg-white border-r border-gray-200">
         <Header 
           location={currentLocationName}
           userProfile={userProfile} 
@@ -195,8 +182,8 @@ const App: React.FC = () => {
           {activeTab === 'home' ? (
             <>
               {isFallback && (
-                <div className="mb-4 p-3 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold flex items-center gap-2 border border-blue-100 animate-pulse">
-                  <Icons.Info size={14} /> 현재 지도 영역 근처의 팝업을 추천해드려요.
+                <div className="mb-4 p-3 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold flex items-center gap-2 border border-blue-100">
+                  <Icons.Info size={14} /> 현재 지도 영역에 팝업이 없어 근처를 추천해요.
                 </div>
               )}
               <PopupList stores={displayStores} selectedStoreId={selectedStoreId} onStoreSelect={handleStoreSelect} />
@@ -210,9 +197,8 @@ const App: React.FC = () => {
 
       {/* 2. 메인 지도 영역 */}
       <div className="flex-1 relative bg-gray-50 h-full overflow-hidden">
-        {/* 모바일 상단 UI */}
         <div className="lg:hidden absolute top-0 left-0 right-0 z-30 pointer-events-none p-0">
-          <div className="pointer-events-auto bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100">
+          <div className="pointer-events-auto bg-white/95 backdrop-blur-md shadow-sm">
             <Header 
                 location={currentLocationName}
                 userProfile={userProfile}
@@ -224,18 +210,11 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* 실제 지도 레이어 */}
         <div className="absolute inset-0 z-0 h-full w-full">
             <MapArea
               stores={allStores}
               selectedStoreId={selectedStoreId}
-              onMarkerClick={(id) => {
-                const s = allStores.find(st => st.id === id);
-                if (s) {
-                  setSelectedStoreId(id);
-                  // 핀 클릭 시 바텀 시트가 열려있다면 닫지 않음
-                }
-              }}
+              onMarkerClick={(id) => setSelectedStoreId(id)}
               onMapIdle={(bounds, center) => {
                 setCurrentBounds(bounds);
                 setCurrentMapCenter(center);
@@ -247,7 +226,6 @@ const App: React.FC = () => {
             />
         </div>
 
-        {/* 모바일 바텀 시트 */}
         {activeTab === 'home' && (
           <motion.div
             initial={false}
@@ -256,29 +234,17 @@ const App: React.FC = () => {
             className="lg:hidden absolute inset-0 z-40 flex flex-col pointer-events-none"
           >
             <div className="mt-auto w-full h-[70vh] bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] flex flex-col pointer-events-auto border-t border-gray-100">
-              <div 
-                className="h-10 w-full flex items-center justify-center cursor-pointer touch-none" 
-                onClick={() => setSheetOpen(!sheetOpen)}
-              >
+              <div className="h-10 w-full flex items-center justify-center cursor-pointer touch-none" onClick={() => setSheetOpen(!sheetOpen)}>
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
               </div>
               <div className="flex-1 overflow-y-auto p-4 bg-[#f9fafb] pb-36">
-                {/* 모바일 전용 검색바 */}
-                <div 
-                  onClick={() => setIsSearchOpen(true)}
-                  className="mb-6 flex items-center gap-3 bg-white border border-gray-200 px-4 py-3.5 rounded-2xl shadow-sm cursor-pointer active:scale-[0.98] transition-all"
-                >
+                <div onClick={() => setIsSearchOpen(true)} className="mb-6 flex items-center gap-3 bg-white border border-gray-200 px-4 py-3 rounded-2xl shadow-sm cursor-pointer">
                   <Icons.Search size={18} className="text-gray-400" />
                   <span className="text-gray-400 text-[15px]">팝업스토어를 검색해보세요</span>
                 </div>
-
                 <div className="flex justify-between items-center mb-5 px-1">
-                  <h3 className="font-bold text-gray-900 text-lg">
-                    {isFallback ? "근처 추천 팝업" : "주변 팝업 리스트"}
-                  </h3>
-                  <span className="text-[11px] font-semibold text-tossBlue bg-blue-50 px-2 py-1 rounded-full">
-                    {displayStores.length}개 발견
-                  </span>
+                  <h3 className="font-bold text-gray-900 text-lg">{isFallback ? "근처 추천 팝업" : "주변 팝업 리스트"}</h3>
+                  <span className="text-[11px] font-semibold text-tossBlue bg-blue-50 px-2 py-1 rounded-full">{displayStores.length}개 발견</span>
                 </div>
                 <PopupList stores={displayStores} selectedStoreId={selectedStoreId} onStoreSelect={handleStoreSelect} />
               </div>
@@ -286,19 +252,22 @@ const App: React.FC = () => {
           </motion.div>
         )}
 
-        {/* 모바일 하단 네비게이션 */}
         <div className="lg:hidden absolute bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-100 pointer-events-auto">
             <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       </div>
 
-      {/* 3. 오버레이 및 모달 (포털 역할) */}
-      <DetailModal 
-        store={detailStore} 
-        onClose={() => setDetailStore(null)} 
-        onShowSuccess={handleShowSuccess} 
-        isLiked={detailStore ? likedStoreIds.has(detailStore.id) : false}
-      />
+      {/* 3. 오버레이 및 모달 (안정적인 렌더링을 위해 조건부 렌더링 최적화) */}
+      <AnimatePresence>
+        {detailStore && (
+          <DetailModal 
+            store={detailStore} 
+            onClose={() => setDetailStore(null)} 
+            onShowSuccess={handleShowSuccess} 
+            isLiked={likedStoreIds.has(detailStore.id)}
+          />
+        )}
+      </AnimatePresence>
       
       {isSearchOpen && (
         <SearchOverlay 
@@ -309,17 +278,24 @@ const App: React.FC = () => {
         />
       )}
       
-      <LocationSelector 
-        isOpen={isLocationSelectorOpen} 
-        onClose={() => setIsLocationSelectorOpen(false)} 
-        onSelect={(loc) => {
-          setCurrentLocationName(loc.name);
-          setMapCenter({ lat: loc.lat, lng: loc.lng });
-          setIsLocationSelectorOpen(false);
-        }}
-      />
+      {isLocationSelectorOpen && (
+        <LocationSelector 
+          isOpen={isLocationSelectorOpen} 
+          onClose={() => setIsLocationSelectorOpen(false)} 
+          onSelect={(loc) => {
+            setCurrentLocationName(loc.name);
+            setMapCenter({ lat: loc.lat, lng: loc.lng });
+            setIsLocationSelectorOpen(false);
+          }}
+        />
+      )}
 
-      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
+      {isLoginModalOpen && (
+        <LoginModal 
+          isOpen={isLoginModalOpen} 
+          onClose={() => setIsLoginModalOpen(false)} 
+        />
+      )}
       
       {isProfileModalOpen && (
         <ProfileModal 
@@ -329,15 +305,17 @@ const App: React.FC = () => {
         />
       )}
 
-      <SuccessModal 
-        isOpen={successConfig.isOpen} 
-        title={successConfig.title} 
-        message={successConfig.message} 
-        onClose={() => {
-          setSuccessConfig(prev => ({...prev, isOpen: false}));
-          if (successConfig.onConfirm) successConfig.onConfirm();
-        }} 
-      />
+      {successConfig.isOpen && (
+        <SuccessModal 
+          isOpen={successConfig.isOpen} 
+          title={successConfig.title} 
+          message={successConfig.message} 
+          onClose={() => {
+            setSuccessConfig(prev => ({...prev, isOpen: false}));
+            if (successConfig.onConfirm) successConfig.onConfirm();
+          }} 
+        />
+      )}
       
       {toastMessage && (
         <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[100] bg-gray-900/90 text-white px-6 py-3 rounded-full text-sm font-medium shadow-xl">
