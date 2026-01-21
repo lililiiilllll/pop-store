@@ -9,7 +9,7 @@ interface MapAreaProps {
   mapCenter?: { lat: number; lng: number };
   userLocation: { lat: number; lng: number } | null;
   onMapIdle?: (bounds: any, center: { lat: number; lng: number }) => void;
-  onDetailOpen: (store: PopupStore) => void; // 상세 페이지 연결을 위한 프롭 추가
+  onDetailOpen: (store: PopupStore) => void;
 }
 
 const MapArea: React.FC<MapAreaProps> = ({ 
@@ -24,9 +24,9 @@ const MapArea: React.FC<MapAreaProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const markersRef = useRef<Map<string, any>>(new Map()); // 마커 관리를 Map 객체로 변경
   const userMarkerRef = useRef<any>(null);
-  const overlayRef = useRef<any>(null); // 현재 열려있는 커스텀 오버레이 관리
+  const overlayRef = useRef<any>(null); 
 
   // 1. 지도 초기화
   useEffect(() => {
@@ -34,23 +34,26 @@ const MapArea: React.FC<MapAreaProps> = ({
     if (!kakao || !mapContainerRef.current) return;
 
     kakao.maps.load(() => {
+      const initialCenter = new kakao.maps.LatLng(
+        mapCenter?.lat || 37.5547, 
+        mapCenter?.lng || 126.9706
+      );
+      
       const options = {
-        center: new kakao.maps.LatLng(mapCenter?.lat || 37.5665, mapCenter?.lng || 126.9780),
+        center: initialCenter,
         level: 3,
       };
       
       const map = new kakao.maps.Map(mapContainerRef.current, options);
-      map.setDraggable(true); 
-      map.setZoomable(true);
       mapRef.current = map;
 
-      setTimeout(() => map.relayout(), 100);
-
+      // 지도 클릭 이벤트
       kakao.maps.event.addListener(map, 'click', () => {
-        if (overlayRef.current) overlayRef.current.setMap(null); // 지도 클릭 시 오버레이 닫기
+        if (overlayRef.current) overlayRef.current.setMap(null);
         onMapClick();
       });
 
+      // 지도 이동 완료(idle) 이벤트
       kakao.maps.event.addListener(map, 'idle', () => {
         if (onMapIdle) {
           const bounds = map.getBounds();
@@ -69,7 +72,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     });
   }, []);
 
-  // 2. 중심 좌표 변경 시 이동
+  // 2. 중심 좌표 변경 시 부드러운 이동 (검색 결과 반영)
   useEffect(() => {
     if (mapRef.current && mapCenter) {
       const { kakao } = window as any;
@@ -78,93 +81,105 @@ const MapArea: React.FC<MapAreaProps> = ({
     }
   }, [mapCenter]);
 
-  // 3. 마커 및 커스텀 오버레이 업데이트
+  // 3. 마커 생성 및 관리
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao) return;
 
-    // 기존 마커 제거
+    // 기존 마커 전체 제거
     markersRef.current.forEach(m => m.setMap(null));
-    markersRef.current = [];
+    markersRef.current.clear();
 
     stores.forEach((store) => {
       const latlng = new kakao.maps.LatLng(store.lat, store.lng);
-      const isSelected = store.id === selectedStoreId;
       
       const marker = new kakao.maps.Marker({
         position: latlng,
         map: mapRef.current,
-        zIndex: isSelected ? 10 : 1 
+        title: store.name
       });
 
-      // [지도 핀 기능 1 & 2 구현]
       kakao.maps.event.addListener(marker, 'click', () => {
         onMarkerClick(store.id);
-
-        // 기존 오버레이 제거
-        if (overlayRef.current) overlayRef.current.setMap(null);
-
-        // 커스텀 오버레이 생성 (HTML 문자열 방식)
-        const content = document.createElement('div');
-        content.className = "relative mb-10 group";
-        content.innerHTML = `
-          <div class="bg-white px-4 py-2 rounded-2xl shadow-xl border border-gray-100 flex items-center gap-2 min-w-[120px] active:scale-95 transition-transform cursor-pointer">
-            <div class="flex flex-col">
-              <span class="text-[11px] text-tossBlue font-bold leading-none mb-1">상세보기</span>
-              <span class="text-sm font-bold text-gray-900 truncate max-w-[150px]">${store.name}</span>
-            </div>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><path d="M9 18l6-6-6-6"/></svg>
-          </div>
-          <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-white rotate-45 border-r border-b border-gray-100"></div>
-        `;
-
-        // 안내 메시지 클릭 시 상세페이지 노출
-        content.onclick = (e) => {
-          e.stopPropagation();
-          onDetailOpen(store); 
-        };
-
-        const overlay = new kakao.maps.CustomOverlay({
-          content: content,
-          position: latlng,
-          yAnchor: 1.2,
-          zIndex: 20
-        });
-
-        overlay.setMap(mapRef.current);
-        overlayRef.current = overlay;
       });
 
-      markersRef.current.push(marker);
+      markersRef.current.set(store.id, marker);
     });
-  }, [stores, selectedStoreId]);
+  }, [stores]);
 
-  // 4. 내 위치 마커
+  // 4. 선택된 스토어 변경 시 오버레이 처리 (중요: 검색 결과 클릭 시 호출됨)
+  useEffect(() => {
+    const { kakao } = window as any;
+    if (!mapRef.current || !kakao || !selectedStoreId) {
+      if (overlayRef.current) overlayRef.current.setMap(null);
+      return;
+    }
+
+    const store = stores.find(s => s.id === selectedStoreId);
+    if (!store) return;
+
+    // 기존 오버레이 제거
+    if (overlayRef.current) overlayRef.current.setMap(null);
+
+    const latlng = new kakao.maps.LatLng(store.lat, store.lng);
+
+    // 커스텀 오버레이 엘리먼트 생성
+    const content = document.createElement('div');
+    content.className = "custom-overlay-container";
+    content.innerHTML = `
+      <div style="margin-bottom: 45px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));">
+        <div style="background: white; padding: 12px 16px; border-radius: 20px; border: 1px solid #f0f0f0; display: flex; items-center; gap: 10px; cursor: pointer; min-width: 140px;">
+          <div style="display: flex; flex-direction: column;">
+            <span style="font-size: 10px; color: #3182f6; font-weight: 800; margin-bottom: 2px;">상세보기</span>
+            <span style="font-size: 14px; font-weight: 700; color: #191f28; white-space: nowrap;">${store.name}</span>
+          </div>
+          <div style="display: flex; align-items: center; margin-left: auto;">
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#adb5bd" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </div>
+        <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 12px; height: 12px; background: white; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0;"></div>
+      </div>
+    `;
+
+    content.onclick = (e) => {
+      e.stopPropagation();
+      onDetailOpen(store);
+    };
+
+    const overlay = new kakao.maps.CustomOverlay({
+      content: content,
+      position: latlng,
+      yAnchor: 1,
+      zIndex: 30
+    });
+
+    overlay.setMap(mapRef.current);
+    overlayRef.current = overlay;
+
+  }, [selectedStoreId, stores]);
+
+  // 5. 사용자 내 위치 마커
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao || !userLocation) return;
     if (userMarkerRef.current) userMarkerRef.current.setMap(null);
 
-    const imageSize = new kakao.maps.Size(24, 24);
-    const markerImage = new kakao.maps.MarkerImage(
-      'https://t1.daumcdn.net/localimg/localimages/07/2012/img/marker_p.png',
-      imageSize
-    );
-
-    const marker = new kakao.maps.Marker({
+    const circle = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
-      map: mapRef.current,
-      image: markerImage
+      content: `<div style="width: 16px; height: 16px; background: #3182f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(49,130,246,0.5);"></div>`,
+      zIndex: 10
     });
-    userMarkerRef.current = marker;
+
+    circle.setMap(mapRef.current);
+    userMarkerRef.current = circle;
   }, [userLocation]);
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-gray-100">
+    <div className="w-full h-full relative bg-gray-50">
       <div 
         ref={mapContainerRef} 
         className="w-full h-full absolute inset-0"
-        style={{ touchAction: 'auto', zIndex: 0 }}
+        style={{ touchAction: 'pan-x pan-y' }}
       />
     </div>
   );
