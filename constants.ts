@@ -58,7 +58,8 @@ export const DEFAULT_IMAGES = {
   PLACEHOLDER: 'https://images.unsplash.com/photo-1572916198730-798b375b4306?q=80&w=600&auto=format&fit=crop'
 };
 
-export const DEFAULT_POPUP_IMAGE = DEFAULT_IMAGES.STORE_THUMBNAIL;
+export const DEFAULT_POPUP_IMAGE = "https://images.unsplash.com/photo-1531050171669-0101272b1416?q=80&w=800&auto=format&fit=crop"; 
+// 또는 프로젝트 public 폴더에 이미지를 넣고 "/default-popup.png" 로 설정하세요.
 
 // 팝업 스토어 카테고리
 export const CATEGORIES = [
