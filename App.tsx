@@ -24,14 +24,11 @@ import SavedView from './components/SavedView';
 // --- 유틸리티 함수 ---
 const DEFAULT_LOCATION = { lat: 37.5547, lng: 126.9706 };
 
-// [거리 계산] Haversine 공식 사용
 const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371; // 지구 반지름 (km)
+  const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) + 
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const d = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
   return d;
 };
@@ -41,25 +38,16 @@ const formatDistance = (km: number) => {
   return `${km.toFixed(1)}km`;
 };
 
-// [영업 상태 판단] 현재 시간 기준
 const getStatusInfo = (store: PopupStore) => {
   if (!store?.openTime || !store?.closeTime) return { isOpen: true, text: '정보없음' };
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  
-  const parseTime = (timeStr: string) => {
-    const [h, m] = timeStr.split(':').map(Number);
-    return h * 60 + m;
-  };
-
-  const openMinutes = parseTime(store.openTime);
-  const closeMinutes = parseTime(store.closeTime);
-  
+  const [openH, openM] = store.openTime.split(':').map(Number);
+  const [closeH, closeM] = store.closeTime.split(':').map(Number);
+  const openMinutes = openH * 60 + openM;
+  const closeMinutes = closeH * 60 + closeM;
   const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
-  return {
-    isOpen,
-    text: isOpen ? '영업 중' : '영업 종료'
-  };
+  return { isOpen, text: isOpen ? '영업 중' : '영업 종료' };
 };
 
 const App: React.FC = () => {
@@ -93,7 +81,7 @@ const App: React.FC = () => {
       setSuccessConfig({ isOpen: true, title, message, onConfirm });
   }, []);
 
-  // 1. 사용자 위치 초기화
+  // 초기 로드: 위치 및 데이터
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -101,15 +89,14 @@ const App: React.FC = () => {
         () => setUserCoords(DEFAULT_LOCATION)
       );
     }
+    fetchStores();
   }, []);
 
-  // 2. Supabase 데이터 로드
   const fetchStores = async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.from('popup_stores').select('*').order('created_at', { ascending: false });
       if (error) throw error;
-      
       const processed = (data || []).map((item: any) => ({
         ...item,
         id: item.id.toString(),
@@ -131,33 +118,12 @@ const App: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchStores();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const profile = await getProfile(session.user.id);
-        setUserProfile(profile as UserProfile);
-        const { data: favs } = await supabase.from('favorites').select('store_id').eq('user_id', session.user.id);
-        if (favs) setLikedStoreIds(new Set(favs.map(f => f.store_id.toString())));
-        setIsLoginModalOpen(false); 
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // 3. 필터링 및 거리 정보 데이터 가공
+  // 데이터 가공 (리스트용)
   const displayStores = useMemo(() => {
     let baseData = allStores.map(s => {
       const dist = userCoords ? getDistance(userCoords.lat, userCoords.lng, s.lat, s.lng) : 0;
       const status = getStatusInfo(s);
-      return {
-        ...s,
-        distanceText: formatDistance(dist),
-        distanceValue: dist,
-        statusText: status.text,
-        isOpenNow: status.isOpen
-      };
+      return { ...s, distanceText: formatDistance(dist), distanceValue: dist, statusText: status.text, isOpenNow: status.isOpen };
     });
 
     let filtered = baseData.filter(s => {
@@ -180,84 +146,56 @@ const App: React.FC = () => {
     return filtered;
   }, [allStores, currentBounds, userCoords, showLikedOnly, likedStoreIds, selectedFilter]);
 
-  // --- [핵심: 상세 모달 노출 로직] ---
+  // --- [수정: 클릭 핸들러 - 상세 모달 활성화] ---
   const handleStoreSelect = useCallback((id: string) => {
-    // 1. 전체 데이터에서 원본 찾기
-    const rawStore = allStores.find(st => st.id === id);
-    if (!rawStore) return;
-
-    // 2. 거리/영업 정보 병합
-    const enrichedStore = displayStores.find(st => st.id === id) || {
-      ...rawStore,
-      distanceText: userCoords ? formatDistance(getDistance(userCoords.lat, userCoords.lng, rawStore.lat, rawStore.lng)) : '거리 정보 없음',
-      statusText: getStatusInfo(rawStore).text,
-      isOpenNow: getStatusInfo(rawStore).isOpen
-    };
-
-    setSelectedStoreId(id);
-    setDetailStore(enrichedStore); // 상세 모달 데이터 주입
-    setMapCenter({ lat: rawStore.lat, lng: rawStore.lng });
-    
-    // 모바일 바텀 시트 내리기
-    if (window.innerWidth < 1024) {
-      setSheetOpen(false);
+    const store = displayStores.find(st => st.id === id) || allStores.find(st => st.id === id);
+    if (store) {
+      setSelectedStoreId(id);
+      setDetailStore(store); // 이 값이 null이 아니어야 모달이 뜸
+      setMapCenter({ lat: store.lat, lng: store.lng });
+      if (window.innerWidth < 1024) setSheetOpen(false);
+      console.log("Selected:", store.name); // 확인용 로그
     }
-  }, [allStores, displayStores, userCoords]);
+  }, [displayStores, allStores]);
 
   if (isAdminOpen) return <AdminDashboard allStores={allStores} onBack={() => setIsAdminOpen(false)} onRefresh={fetchStores} />;
 
   return (
     <div className="relative flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white font-sans text-gray-900">
       
-      {/* 데스크탑 사이드바 (z-10) */}
+      {/* 1. 데스크탑 사이드바 */}
       <aside className="hidden lg:flex w-[420px] flex-col z-10 bg-white border-r border-gray-100 shadow-xl">
         <Header location={currentLocationName} userProfile={userProfile} onSearchClick={() => setIsSearchOpen(true)} onAdminClick={() => setIsAdminOpen(true)} onProfileClick={() => !user ? setIsLoginModalOpen(true) : setIsProfileModalOpen(true)} onLocationClick={() => setIsLocationSelectorOpen(true)} />
         <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} showLikedOnly={showLikedOnly} onToggleLiked={() => setShowLikedOnly(!showLikedOnly)} />
         <div className="flex-1 overflow-y-auto bg-gray-50/50 p-4 custom-scrollbar">
-          {activeTab === 'home' ? (
-            <div className="pb-10">
-              <PopupList stores={displayStores} selectedStoreId={selectedStoreId} onStoreSelect={handleStoreSelect} />
-            </div>
-          ) : (
-            <SavedView stores={allStores.filter(s => likedStoreIds.has(s.id))} onStoreClick={handleStoreSelect} />
-          )}
+          <PopupList stores={displayStores} selectedStoreId={selectedStoreId} onStoreSelect={handleStoreSelect} />
         </div>
         <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       </aside>
 
-      {/* 지도 및 모바일 UI 영역 (z-0) */}
-      <main className="flex-1 relative z-0 bg-gray-100">
-        <div className="lg:hidden absolute top-0 left-0 right-0 z-20 bg-white/95 backdrop-blur-md">
-            <Header location={currentLocationName} userProfile={userProfile} onSearchClick={() => setIsSearchOpen(true)} onProfileClick={() => !user ? setIsLoginModalOpen(true) : setIsProfileModalOpen(true)} onLocationClick={() => setIsLocationSelectorOpen(true)} />
-            <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} showLikedOnly={showLikedOnly} onToggleLiked={() => setShowLikedOnly(!showLikedOnly)} />
-        </div>
-
+      {/* 2. 지도 및 모바일 바텀시트 */}
+      <main className="flex-1 relative z-0">
         <MapArea stores={allStores} selectedStoreId={selectedStoreId} onMarkerClick={handleStoreSelect} onMapIdle={(b) => setCurrentBounds(b)} mapCenter={mapCenter} onMapClick={() => setSelectedStoreId(null)} userLocation={userCoords} onDetailOpen={setDetailStore} />
+        
+        {/* 모바일 바텀시트 */}
+        <div className="lg:hidden absolute inset-0 pointer-events-none z-20">
+            <motion.div animate={{ y: sheetOpen ? 0 : 'calc(100% - 140px)' }} className="mt-auto w-full h-[70vh] bg-white rounded-t-[32px] shadow-2xl pointer-events-auto overflow-hidden flex flex-col">
+              <div className="h-8 flex items-center justify-center cursor-pointer" onClick={() => setSheetOpen(!sheetOpen)}><div className="w-12 h-1.5 bg-gray-200 rounded-full" /></div>
+              <div className="flex-1 overflow-y-auto px-4 pb-20"><PopupList stores={displayStores} selectedStoreId={selectedStoreId} onStoreSelect={handleStoreSelect} /></div>
+            </motion.div>
+        </div>
+      </aside>
 
-        {activeTab === 'home' && (
-          <motion.div animate={{ y: sheetOpen ? 0 : 'calc(100% - 140px)' }} className="lg:hidden absolute inset-0 z-30 flex flex-col pointer-events-none">
-            <div className="mt-auto w-full h-[75vh] bg-white rounded-t-[32px] shadow-2xl flex flex-col pointer-events-auto border-t border-gray-100">
-              <div className="h-8 w-full flex items-center justify-center cursor-pointer" onClick={() => setSheetOpen(!sheetOpen)}>
-                <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
-              </div>
-              <div className="flex-1 overflow-y-auto px-4 pb-32">
-                <PopupList stores={displayStores} selectedStoreId={selectedStoreId} onStoreSelect={handleStoreSelect} />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </main>
-
-      {/* 상세 모달 레이어 (z-50으로 최상단 보장) */}
+      {/* 3. 전역 상세 페이지 모달 (최상위 z-index) */}
       <AnimatePresence>
         {detailStore && (
-          <div className="fixed inset-0 z-50 overflow-hidden">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center">
+            {/* 배경 어둡게 처리 */}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDetailStore(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            {/* 모달 본체 */}
             <DetailModal 
               store={detailStore} 
-              onClose={() => {
-                setDetailStore(null);
-                setSelectedStoreId(null);
-              }} 
+              onClose={() => { setDetailStore(null); setSelectedStoreId(null); }} 
               onShowSuccess={handleShowSuccess} 
               isLiked={likedStoreIds.has(detailStore.id)} 
             />
@@ -265,7 +203,7 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* 기타 오버레이 모달들 */}
+      {/* 기타 모달 레이어 */}
       {isSearchOpen && <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} stores={allStores} onSelectResult={handleStoreSelect} />}
       {isLocationSelectorOpen && <LocationSelector isOpen={isLocationSelectorOpen} onClose={() => setIsLocationSelectorOpen(false)} onSelect={(loc) => { setCurrentLocationName(loc.name); setMapCenter({ lat: loc.lat, lng: loc.lng }); setIsLocationSelectorOpen(false); }} />}
       {isLoginModalOpen && <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />}
