@@ -1,30 +1,25 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useAnimation, useDragControls, PanInfo, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 // 1. 설정 및 타입 파일
 import { Icons, POPUP_STORES, DEFAULT_POPUP_IMAGE } from './constants';
 import { PopupStore, UserProfile, AppNotification } from './types';
-import { supabase, isSupabaseConfigured, getProfile, fetchNotifications, markNotificationAsRead } from './lib/supabase';
+import { supabase, getProfile, fetchNotifications } from './lib/supabase';
 
 // 2. 컴포넌트
 import Header from './components/Header';
 import MapArea from './components/MapArea';
 import PopupList from './components/PopupList';
 import CategoryFilter from './components/CategoryFilter';
-import ReportModal from './components/ReportModal';
 import AdminDashboard from './components/AdminDashboard';
 import DetailModal from './components/DetailModal';
 import SearchOverlay from './components/SearchOverlay';
 import LocationSelector from './components/LocationSelector';
-import AlertModal from './components/AlertModal';
 import SuccessModal from './components/SuccessModal';
 import LoginModal from './components/LoginModal';
 import ProfileModal from './components/ProfileModal';
-import NicknameModal from './components/NicknameModal';
 import BottomNav from './components/BottomNav';
 import SavedView from './components/SavedView';
-import NotificationList from './components/NotificationList';
-import AdminPinModal from './components/AdminPinModal';
 
 // --- 유틸리티 함수 ---
 const DEFAULT_LOCATION = { lat: 37.5547, lng: 126.9706 };
@@ -65,8 +60,6 @@ const App: React.FC = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [alertConfig, setAlertConfig] = useState({ isOpen: false, title: '', message: '' });
   const [successConfig, setSuccessConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: undefined as any });
 
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -127,6 +120,7 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // [기능: 지도 내 리스트 필터링]
   const { displayStores, isFallback } = useMemo(() => {
     let filtered = allStores.filter(s => {
       const likedMatch = !showLikedOnly || likedStoreIds.has(s.id);
@@ -142,6 +136,8 @@ const App: React.FC = () => {
         s.lat >= currentBounds.minLat && s.lat <= currentBounds.maxLat &&
         s.lng >= currentBounds.minLng && s.lng <= currentBounds.maxLng
       );
+      
+      // [기능: 범위 내 팝업 없을 시 근처 추천]
       if (inBounds.length === 0 && filtered.length > 0) {
         const withDist = filtered.map(s => ({
           ...s,
@@ -154,6 +150,7 @@ const App: React.FC = () => {
     return { displayStores: filtered, isFallback: false };
   }, [allStores, currentBounds, currentMapCenter, showLikedOnly, likedStoreIds, selectedFilter]);
 
+  // [기능: 팝업 선택 처리 - 리스트 및 지도 공용]
   const handleStoreSelect = (id: string) => {
     const s = allStores.find(st => st.id === id);
     if (s) {
@@ -162,12 +159,6 @@ const App: React.FC = () => {
       setMapCenter({ lat: s.lat, lng: s.lng });
       if (window.innerWidth < 1024) setSheetOpen(false);
     }
-  };
-
-  const handleMarkerClick = (id: string) => {
-    setSelectedStoreId(id);
-    const s = allStores.find(st => st.id === id);
-    if (s) setDetailStore(s);
   };
 
   if (isAdminOpen) {
@@ -185,8 +176,6 @@ const App: React.FC = () => {
           onAdminClick={() => setIsAdminOpen(true)}
           onProfileClick={() => !user ? setIsLoginModalOpen(true) : setIsProfileModalOpen(true)}
           onLocationClick={() => setIsLocationSelectorOpen(true)}
-          onNotificationClick={() => setIsNotificationOpen(true)}
-          hasUnreadNotifications={notifications.some(n => !n.is_read)}
         />
         <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} showLikedOnly={showLikedOnly} onToggleLiked={() => setShowLikedOnly(!showLikedOnly)} />
         <div className="flex-1 overflow-y-auto bg-[#f2f4f6] p-4 custom-scrollbar">
@@ -206,10 +195,10 @@ const App: React.FC = () => {
         <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      {/* 2. 메인 지도 영역 (모바일 조작 중심) */}
+      {/* 2. 메인 지도 영역 */}
       <div className="flex-1 relative bg-gray-50 h-full overflow-hidden">
         
-        {/* [수정] 모바일 상단 UI: 컨테이너에 pointer-events-none을 주어 지도를 가리지 않게 함 */}
+        {/* 모바일 상단 UI */}
         <div className="lg:hidden absolute top-0 left-0 right-0 z-30 pointer-events-none p-0">
           <div className="pointer-events-auto bg-white/95 backdrop-blur-md shadow-sm">
             <Header 
@@ -223,22 +212,26 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* [수정] 지도 레이어: z-index를 0으로 낮추고 absolute inset-0으로 배치 */}
+        {/* 실제 지도 레이어 */}
         <div className="absolute inset-0 z-0 h-full w-full">
             <MapArea
               stores={allStores}
               selectedStoreId={selectedStoreId}
-              onMarkerClick={handleMarkerClick}
+              onMarkerClick={(id) => setSelectedStoreId(id)}
               onMapIdle={(bounds, center) => {
                 setCurrentBounds(bounds);
                 setCurrentMapCenter(center);
               }}
               mapCenter={mapCenter}
-              onMapClick={() => { setSelectedStoreId(null); setDetailStore(null); }}
+              onMapClick={() => { setSelectedStoreId(null); }}
+              userLocation={null}
+              onDetailOpen={(store) => {
+                setDetailStore(store); // [기능: 핀 안내메시지 클릭 시 상세페이지 노출]
+              }}
             />
         </div>
 
-        {/* [수정] 모바일 바텀 시트: 상위 motion.div에 pointer-events-none 필수 */}
+        {/* 모바일 바텀 시트 */}
         {activeTab === 'home' && (
           <motion.div
             initial={false}
@@ -246,7 +239,6 @@ const App: React.FC = () => {
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="lg:hidden absolute inset-0 z-40 flex flex-col pointer-events-none"
           >
-            {/* 실제 시트 몸체에만 pointer-events-auto 부여 */}
             <div className="mt-auto w-full h-[70vh] bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] flex flex-col pointer-events-auto border-t border-gray-100">
               <div 
                 className="h-12 w-full flex items-center justify-center cursor-pointer touch-none" 
@@ -269,13 +261,13 @@ const App: React.FC = () => {
           </motion.div>
         )}
 
-        {/* [수정] 모바일 하단 네비게이션: 항상 노출되도록 pointer-events-auto */}
+        {/* 모바일 하단 네비게이션 */}
         <div className="lg:hidden absolute bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-100 pointer-events-auto">
             <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       </div>
 
-      {/* 4. 모달 레이어 (이들은 z-index가 가장 높아야 함) */}
+      {/* 4. 모달 및 오버레이 레이어 */}
       <DetailModal 
         store={detailStore} 
         onClose={() => setDetailStore(null)} 
@@ -303,6 +295,15 @@ const App: React.FC = () => {
       />
 
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
+      
+      {isProfileModalOpen && (
+        <ProfileModal 
+          isOpen={isProfileModalOpen} 
+          onClose={() => setIsProfileModalOpen(false)} 
+          userProfile={userProfile}
+        />
+      )}
+
       <SuccessModal 
         isOpen={successConfig.isOpen} 
         title={successConfig.title} 
