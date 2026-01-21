@@ -10,19 +10,19 @@ interface LoginModalProps {
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [loadingProvider, setLoadingProvider] = useState<'kakao' | 'google' | null>(null);
 
+  // --- 안전한 아이콘 참조 (Icons.LogIn이 없으면 기본 아이콘이나 텍스트 출력) ---
+  const LogInIcon = Icons.LogIn || Icons.User || (() => <span>🔑</span>);
+
   if (!isOpen) return null;
 
   const handleLogin = async (provider: 'kakao' | 'google') => {
     try {
       setLoadingProvider(provider);
       
-      // Supabase OAuth 로그인 시도
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          // 중요: 배포 환경이라면 배포된 URL이, 로컬이라면 로컬 URL이 들어갑니다.
           redirectTo: window.location.origin,
-          // 카카오의 경우 별도의 scope가 필요할 수 있습니다.
           queryParams: provider === 'kakao' ? {
             access_type: 'offline',
             prompt: 'consent',
@@ -31,13 +31,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       });
 
       if (error) throw error;
-      
-      // 성공 시 브라우저가 공급자(카카오/구글) 페이지로 이동하므로 
-      // 이후 로직은 필요하지 않으나 모달은 닫아줍니다.
       onClose();
     } catch (error: any) {
       console.error('Login Error:', error);
-      alert('로그인 시도 중 오류가 발생했습니다. Supabase 대시보드 설정을 확인해주세요.\n' + error.message);
+      alert('로그인 시도 중 오류가 발생했습니다: ' + error.message);
     } finally {
       setLoadingProvider(null);
     }
@@ -45,18 +42,16 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[110] flex items-end lg:items-center justify-center p-4">
-      {/* 배경 오버레이 */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" 
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
         onClick={onClose} 
       />
       
-      {/* 모달 콘텐츠 */}
-      <div className="relative w-full max-w-[400px] bg-white rounded-[32px] overflow-hidden shadow-2xl animate-in slide-in-from-bottom-10 duration-500">
+      <div className="relative w-full max-w-[400px] bg-white rounded-[32px] overflow-hidden shadow-2xl">
         <div className="p-8 pb-12">
-          {/* 로고 영역 */}
+          {/* Icons.LogIn 대신 LogInIcon 사용 */}
           <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-6">
-            <Icons.LogIn className="text-tossBlue" size={28} />
+            <LogInIcon className="text-blue-500" size={28} />
           </div>
           
           <h2 className="text-2xl font-bold text-gray-900 mb-2 leading-tight">
@@ -67,7 +62,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
           </p>
 
           <div className="space-y-3">
-            {/* 카카오 로그인 버튼 */}
             <button 
               onClick={() => handleLogin('kakao')}
               disabled={!!loadingProvider}
@@ -83,7 +77,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
               카카오로 시작하기
             </button>
             
-            {/* 구글 로그인 버튼 */}
             <button 
               onClick={() => handleLogin('google')}
               disabled={!!loadingProvider}
