@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { PopupStore } from '../types';
+import { PopupStore } from './types'; // 경로 수정
 
 interface MapAreaProps {
   stores: PopupStore[];
@@ -9,43 +9,31 @@ interface MapAreaProps {
   mapCenter?: { lat: number; lng: number };
   userLocation: { lat: number; lng: number } | null;
   onMapIdle?: (bounds: any, center: { lat: number; lng: number }) => void;
-  // App.tsx에서 전달하지만 현재 사용하지 않는 props들도 에러 방지를 위해 추가
+  // 나머지 props (에러 방지용)
   onLongPress?: (data: any) => void;
   onOverlayClick?: (id: string) => void;
   isSelectingLocation?: boolean;
   onSelectLocation?: (data: any) => void;
 }
 
-const MapArea: React.FC<MapAreaProps> = ({
-  stores,
-  onMarkerClick,
-  onMapClick,
-  mapCenter,
-  onMapIdle
-}) => {
+const MapArea: React.FC<MapAreaProps> = ({ stores, onMarkerClick, onMapClick, mapCenter, onMapIdle }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]); // 마커 관리용
+  const markersRef = useRef<any[]>([]);
 
   useEffect(() => {
     const { kakao } = window as any;
     if (!kakao || !mapContainerRef.current) return;
 
-    // autoload=false 대응을 위한 load 콜백 사용
     kakao.maps.load(() => {
       const options = {
-        center: new kakao.maps.LatLng(
-          mapCenter?.lat || 37.5665,
-          mapCenter?.lng || 126.9780
-        ),
+        center: new kakao.maps.LatLng(mapCenter?.lat || 37.5665, mapCenter?.lng || 126.9780),
         level: 3
       };
-
       const map = new kakao.maps.Map(mapContainerRef.current, options);
       mapRef.current = map;
 
       kakao.maps.event.addListener(map, 'click', onMapClick);
-
       kakao.maps.event.addListener(map, 'idle', () => {
         if (onMapIdle) {
           const bounds = map.getBounds();
@@ -64,12 +52,9 @@ const MapArea: React.FC<MapAreaProps> = ({
     });
   }, []);
 
-  // 마커 업데이트 (데이터 변경 시)
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao) return;
-
-    // 기존 마커 지우기
     markersRef.current.forEach(m => m.setMap(null));
     markersRef.current = [];
 
@@ -78,29 +63,17 @@ const MapArea: React.FC<MapAreaProps> = ({
         position: new kakao.maps.LatLng(store.lat, store.lng),
         map: mapRef.current
       });
-
-      kakao.maps.event.addListener(marker, 'click', () => {
-        onMarkerClick(store.id);
-      });
-
+      kakao.maps.event.addListener(marker, 'click', () => onMarkerClick(store.id));
       markersRef.current.push(marker);
     });
   }, [stores]);
 
-  // 지도 중심 이동
-  useEffect(() => {
-    const { kakao } = window as any;
-    if (!mapRef.current || !mapCenter || !kakao) return;
-    const moveLatLon = new kakao.maps.LatLng(mapCenter.lat, mapCenter.lng);
-    mapRef.current.panTo(moveLatLon);
-  }, [mapCenter]);
-
   return (
-    <div className="w-full h-full relative" style={{ minHeight: '400px' }}>
+    <div className="w-full h-full relative" style={{ minHeight: '100vh' }}>
       <div 
         ref={mapContainerRef} 
         className="w-full h-full" 
-        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}
       />
     </div>
   );
