@@ -160,7 +160,6 @@ const App: React.FC = () => {
       setSelectedStoreId(id);
       setDetailStore(s);
       setMapCenter({ lat: s.lat, lng: s.lng });
-      // 모바일에서는 스토어 선택 시 바텀 시트를 닫아 지도가 잘 보이게 함
       if (window.innerWidth < 1024) setSheetOpen(false);
     }
   };
@@ -207,11 +206,12 @@ const App: React.FC = () => {
         <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      {/* 2. 메인 지도 영역 */}
-      <div className="flex-1 relative overflow-hidden bg-gray-50 h-full">
-        {/* 모바일 상단 UI - 지도를 가리지 않게 z-index와 배경 처리 */}
-        <div className="lg:hidden absolute top-0 left-0 right-0 z-30 pointer-events-none">
-          <div className="pointer-events-auto bg-white/95 backdrop-blur-sm shadow-sm">
+      {/* 2. 메인 지도 영역 (모바일 조작 중심) */}
+      <div className="flex-1 relative bg-gray-50 h-full overflow-hidden">
+        
+        {/* [수정] 모바일 상단 UI: 컨테이너에 pointer-events-none을 주어 지도를 가리지 않게 함 */}
+        <div className="lg:hidden absolute top-0 left-0 right-0 z-30 pointer-events-none p-0">
+          <div className="pointer-events-auto bg-white/95 backdrop-blur-md shadow-sm">
             <Header 
                 location={currentLocationName}
                 userProfile={userProfile}
@@ -223,8 +223,8 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* 실제 지도 - 꽉 차게 배치 */}
-        <div className="w-full h-full">
+        {/* [수정] 지도 레이어: z-index를 0으로 낮추고 absolute inset-0으로 배치 */}
+        <div className="absolute inset-0 z-0 h-full w-full">
             <MapArea
               stores={allStores}
               selectedStoreId={selectedStoreId}
@@ -238,30 +238,29 @@ const App: React.FC = () => {
             />
         </div>
 
-        {/* 3. 모바일 바텀 시트 (터치 간섭 해결의 핵심) */}
+        {/* [수정] 모바일 바텀 시트: 상위 motion.div에 pointer-events-none 필수 */}
         {activeTab === 'home' && (
           <motion.div
             initial={false}
             animate={{ y: sheetOpen ? 0 : 'calc(100% - 130px)' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            /* pointer-events-none: 시트 외부(지도 영역)의 터치를 허용 */
             className="lg:hidden absolute inset-0 z-40 flex flex-col pointer-events-none"
           >
-            {/* mt-auto를 통해 아래쪽에 배치, pointer-events-auto로 리스트 내부 터치만 살림 */}
-            <div className="mt-auto w-full h-[70vh] bg-white rounded-t-[24px] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] flex flex-col pointer-events-auto">
+            {/* 실제 시트 몸체에만 pointer-events-auto 부여 */}
+            <div className="mt-auto w-full h-[70vh] bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] flex flex-col pointer-events-auto border-t border-gray-100">
               <div 
-                className="h-12 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none" 
+                className="h-12 w-full flex items-center justify-center cursor-pointer touch-none" 
                 onClick={() => setSheetOpen(!sheetOpen)}
               >
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
               </div>
-              <div className="flex-1 overflow-y-auto p-4 bg-[#f9fafb] pb-32">
-                <div className="flex justify-between items-center mb-4 px-1">
-                  <h3 className="font-bold text-gray-800 text-lg">
+              <div className="flex-1 overflow-y-auto p-4 bg-[#f9fafb] pb-36">
+                <div className="flex justify-between items-center mb-5 px-1">
+                  <h3 className="font-bold text-gray-900 text-lg">
                     {isFallback ? "근처 추천 팝업" : "주변 팝업 리스트"}
                   </h3>
-                  <span className="text-xs font-medium text-tossBlue bg-blue-50 px-2 py-1 rounded-md">
-                    {displayStores.length}개
+                  <span className="text-[11px] font-semibold text-tossBlue bg-blue-50 px-2 py-1 rounded-full">
+                    {displayStores.length}개 발견
                   </span>
                 </div>
                 <PopupList stores={displayStores} selectedStoreId={selectedStoreId} onStoreSelect={handleStoreSelect} />
@@ -270,13 +269,13 @@ const App: React.FC = () => {
           </motion.div>
         )}
 
-        {/* 모바일 하단 네비게이션 - 바텀시트보다 위에 위치 */}
-        <div className="lg:hidden absolute bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 pb-safe">
+        {/* [수정] 모바일 하단 네비게이션: 항상 노출되도록 pointer-events-auto */}
+        <div className="lg:hidden absolute bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-100 pointer-events-auto">
             <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       </div>
 
-      {/* 4. 모달 및 오버레이 */}
+      {/* 4. 모달 레이어 (이들은 z-index가 가장 높아야 함) */}
       <DetailModal 
         store={detailStore} 
         onClose={() => setDetailStore(null)} 
@@ -315,7 +314,7 @@ const App: React.FC = () => {
       />
       
       {toastMessage && (
-        <div className="fixed bottom-28 lg:bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-gray-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full text-sm font-medium shadow-2xl">
+        <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[100] bg-gray-900/90 text-white px-6 py-3 rounded-full text-sm font-medium shadow-xl">
           {toastMessage}
         </div>
       )}
