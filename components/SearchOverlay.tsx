@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Icons } from '../constants';
 import { PopupStore } from '../types';
 
@@ -10,53 +10,54 @@ interface SearchOverlayProps {
   onSelectResult: (id: string) => void;
 }
 
-const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, stores, onSelectResult }) => {
+const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, stores = [], onSelectResult }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // --- [방어 코드] 아이콘이 undefined일 경우 대비 ---
+  // 모달 오픈 시 자동 포커스
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => inputRef.current?.focus(), 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  // 검색 로직: 이름, 지역, 카테고리 통합 검색
+  const filteredResults = searchQuery.trim() === '' 
+    ? [] 
+    : stores.filter(store => {
+        const query = searchQuery.toLowerCase();
+        return (
+          store.name?.toLowerCase().includes(query) ||
+          store.location?.toLowerCase().includes(query) ||
+          store.category?.toLowerCase().includes(query)
+        );
+      });
+
+  const handleItemClick = (storeId: string) => {
+    onSelectResult(storeId); // 부모(App.tsx)의 이동 로직 호출
+    onClose(); // 검색창 닫기
+    setSearchQuery(''); // 검색어 초기화
+  };
+
+  // 아이콘 안전장치
   const ArrowLeftIcon = Icons?.ArrowLeft || (() => <span>←</span>);
   const XIcon = Icons?.X || (() => <span>✕</span>);
   const SearchIcon = Icons?.Search || (() => <span>🔍</span>);
   const ChevronRightIcon = Icons?.ChevronRight || (() => <span>&gt;</span>);
 
-  useEffect(() => {
-    if (isOpen) {
-      const timer = setTimeout(() => inputRef.current?.focus(), 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  // 검색 필터링 (데이터 누락 대비 Optional Chaining 사용)
-  const filteredResults = searchQuery.trim() === '' 
-    ? [] 
-    : (stores || []).filter(store => 
-        store?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        store?.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        store?.category?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-
-  const handleItemClick = (store: PopupStore) => {
-    if (!store?.id) return;
-    onSelectResult(store.id);
-    onClose();
-  };
-
   if (!isOpen) return null;
 
   return (
     <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
       className="fixed inset-0 z-[120] bg-white flex flex-col"
     >
-      {/* 검색 상단 바 */}
+      {/* 상단 검색바 */}
       <div className="flex items-center gap-3 p-4 border-b border-gray-100">
-        <button 
-          onClick={onClose}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-        >
+        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
           <ArrowLeftIcon size={24} className="text-gray-700" />
         </button>
         
@@ -67,12 +68,12 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, stores, 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="팝업스토어 이름, 지역 검색"
-            className="w-full bg-gray-100 border-none rounded-2xl px-5 py-3 text-[16px] focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+            className="w-full bg-gray-100 border-none rounded-2xl px-5 py-3.5 text-[16px] focus:ring-2 focus:ring-blue-100 outline-none transition-all"
           />
           {searchQuery && (
             <button 
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-gray-300 rounded-full"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 bg-gray-300 rounded-full hover:bg-gray-400 transition-colors"
             >
               <XIcon size={12} className="text-white" />
             </button>
@@ -81,59 +82,60 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, stores, 
       </div>
 
       {/* 검색 결과 영역 */}
-      <div className="flex-1 overflow-y-auto bg-white">
+      <div className="flex-1 overflow-y-auto">
         {searchQuery.trim() === '' ? (
-          <div className="p-8 text-center text-gray-400">
-            <SearchIcon size={48} className="mx-auto mb-4 opacity-20" />
-            <p className="text-sm font-medium">찾으시는 팝업스토어를 입력해 보세요</p>
+          <div className="p-12 text-center text-gray-400">
+            <SearchIcon size={56} className="mx-auto mb-4 opacity-10" />
+            <p className="text-[15px] font-medium">가고 싶은 팝업을 찾아보세요</p>
           </div>
         ) : filteredResults.length > 0 ? (
           <div className="p-2">
-            <p className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
-              검색 결과 {filteredResults.length}
-            </p>
+            <div className="px-4 py-3 flex justify-between items-center">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">검색 결과 {filteredResults.length}</span>
+            </div>
             {filteredResults.map((store) => (
               <button
                 key={store.id}
-                onClick={() => handleItemClick(store)}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 active:bg-gray-100 rounded-2xl transition-colors text-left"
+                onClick={() => handleItemClick(store.id)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-blue-50/50 active:bg-blue-50 rounded-2xl transition-colors text-left group"
               >
-                <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
+                <div className="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-50">
                   <img 
                     src={store.imageUrl} 
                     alt="" 
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Popup';
-                    }}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/150?text=Popup')}
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-gray-900 truncate">{store.name || '정보 없음'}</h4>
-                  <p className="text-sm text-gray-500 truncate">{store.location || '위치 미정'}</p>
+                  <h4 className="font-bold text-gray-900 truncate mb-0.5">{store.name}</h4>
+                  <p className="text-[13px] text-gray-500 truncate flex items-center gap-1">
+                    <span className="inline-block w-1 h-1 bg-gray-300 rounded-full" />
+                    {store.location}
+                  </p>
                 </div>
-                <ChevronRightIcon size={18} className="text-gray-300" />
+                <ChevronRightIcon size={18} className="text-gray-300 group-hover:text-blue-400 transition-colors" />
               </button>
             ))}
           </div>
         ) : (
           <div className="p-12 text-center">
             <p className="text-gray-500 font-medium">검색 결과가 없어요 🥲</p>
-            <p className="text-sm text-gray-400 mt-1">철자가 맞는지 확인해 보세요.</p>
+            <p className="text-sm text-gray-400 mt-1">철자가 맞는지 다시 확인해 볼까요?</p>
           </div>
         )}
       </div>
 
-      {/* 추천 키워드 */}
+      {/* 하단 추천 키워드 */}
       {searchQuery.trim() === '' && (
-        <div className="p-6 border-t border-gray-50 bg-gray-50/30">
-          <h5 className="text-sm font-bold text-gray-900 mb-4">인기 검색어</h5>
+        <div className="p-8 border-t border-gray-50 bg-gray-50/30">
+          <h5 className="text-[13px] font-bold text-gray-400 mb-4 px-1 uppercase tracking-wider">인기 키워드</h5>
           <div className="flex flex-wrap gap-2">
-            {['성수', '서울숲', '전시', '무료'].map(keyword => (
+            {['성수', '서울숲', '한정판', '무료전시'].map(keyword => (
               <button 
                 key={keyword}
                 onClick={() => setSearchQuery(keyword)}
-                className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-600 hover:border-blue-500 hover:text-blue-500 transition-all"
+                className="px-4 py-2 bg-white border border-gray-200 rounded-full text-[14px] font-medium text-gray-600 hover:border-blue-500 hover:text-blue-500 transition-all shadow-sm"
               >
                 # {keyword}
               </button>
