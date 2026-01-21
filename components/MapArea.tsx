@@ -9,10 +9,6 @@ interface MapAreaProps {
   mapCenter?: { lat: number; lng: number };
   userLocation: { lat: number; lng: number } | null;
   onMapIdle?: (bounds: any, center: { lat: number; lng: number }) => void;
-  onLongPress?: (data: any) => void;
-  onOverlayClick?: (id: string) => void;
-  isSelectingLocation?: boolean;
-  onSelectLocation?: (data: any) => void;
 }
 
 const MapArea: React.FC<MapAreaProps> = ({ 
@@ -29,7 +25,7 @@ const MapArea: React.FC<MapAreaProps> = ({
   const markersRef = useRef<any[]>([]);
   const userMarkerRef = useRef<any>(null);
 
-  // 1. 지도 초기화
+  // 1. 지도 초기화 (최초 1회)
   useEffect(() => {
     const { kakao } = window as any;
     if (!kakao || !mapContainerRef.current) return;
@@ -42,11 +38,16 @@ const MapArea: React.FC<MapAreaProps> = ({
       
       const map = new kakao.maps.Map(mapContainerRef.current, options);
       
-      // [핵심 수정] 모바일 드래그 및 확대 축소 강제 활성화
+      // 모바일 드래그 및 확대 축소 명시적 활성화
       map.setDraggable(true); 
       map.setZoomable(true);
       
       mapRef.current = map;
+
+      // [추가] 모바일에서 지도가 잘리거나 안 움직이는 현상 방지
+      setTimeout(() => {
+        map.relayout();
+      }, 100);
 
       kakao.maps.event.addListener(map, 'click', onMapClick);
 
@@ -66,9 +67,9 @@ const MapArea: React.FC<MapAreaProps> = ({
         }
       });
     });
-  }, []);
+  }, []); // 초기화는 1회만
 
-  // 2. 지도 중심 이동
+  // 2. 중심 좌표 변경 시 부드럽게 이동
   useEffect(() => {
     if (mapRef.current && mapCenter) {
       const { kakao } = window as any;
@@ -77,11 +78,12 @@ const MapArea: React.FC<MapAreaProps> = ({
     }
   }, [mapCenter]);
 
-  // 3. 마커 업데이트
+  // 3. 마커 업데이트 (stores가 바뀔 때만 실행)
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao) return;
 
+    // 기존 마커 삭제
     markersRef.current.forEach(m => m.setMap(null));
     markersRef.current = [];
 
@@ -98,7 +100,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     });
   }, [stores, selectedStoreId]);
 
-  // 4. 내 위치 마커
+  // 4. 내 위치 마커 업데이트
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao || !userLocation) return;
@@ -127,9 +129,9 @@ const MapArea: React.FC<MapAreaProps> = ({
         ref={mapContainerRef} 
         className="w-full h-full absolute inset-0"
         style={{ 
-          /* [핵심 수정] touchAction을 auto로 설정하여 카카오 지도의 내부 터치 로직이 우선하게 함 */
+          /* pointer-events를 auto로 명시하여 터치 이벤트를 지도가 가로채도록 함 */
           touchAction: 'auto', 
-          zIndex: 1 
+          zIndex: 0 
         }}
       />
     </div>
