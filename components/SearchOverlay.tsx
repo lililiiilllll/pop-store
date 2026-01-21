@@ -79,4 +79,58 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, stores, 
       </div>
 
       {/* 결과 영역 */}
-      <div className="flex-1 overflow-y
+      <div className="flex-1 overflow-y-auto bg-white">
+        {searchQuery.trim() === '' ? (
+          <div className="p-8 text-center text-gray-400">
+            <SearchIcon size={48} className="mx-auto mb-4 opacity-20" />
+            <p className="text-sm">찾으시는 팝업스토어를 입력해 보세요</p>
+          </div>
+        ) : filteredResults.length > 0 ? (
+          <div className="p-2">
+            <p className="px-4 py-2 text-xs font-bold text-gray-400 uppercase">검색 결과 {filteredResults.length}</p>
+            {filteredResults.map((store) => (
+              <button
+                key={store.id}
+                onClick={() => handleItemClick(store)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 rounded-2xl text-left"
+              >
+                <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
+                  <img src={store.imageUrl} alt="" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-gray-900 truncate">{store.name}</h4>
+                  <p className="text-sm text-gray-500 truncate">{store.location}</p>
+                </div>
+                <ChevronRightIcon size={18} className="text-gray-300" />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="p-12 text-center">
+            <p className="text-gray-500 font-medium">검색 결과가 없어요 🥲</p>
+          </div>
+        )}
+      </div>
+
+      {/* 추천 키워드 */}
+      {searchQuery.trim() === '' && (
+        <div className="p-6 border-t border-gray-50">
+          <h5 className="text-sm font-bold text-gray-900 mb-4">인기 검색어</h5>
+          <div className="flex flex-wrap gap-2">
+            {['성수', '서울숲', '전시', '무료'].map(keyword => (
+              <button 
+                key={keyword}
+                onClick={() => setSearchQuery(keyword)}
+                className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium text-gray-600"
+              >
+                # {keyword}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+export default SearchOverlay;
