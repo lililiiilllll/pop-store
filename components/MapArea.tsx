@@ -24,7 +24,7 @@ const MapArea: React.FC<MapAreaProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
-  const markersRef = useRef<Map<string, any>>(new Map()); // 마커 관리를 Map 객체로 변경
+  const markersRef = useRef<Map<string, any>>(new Map());
   const userMarkerRef = useRef<any>(null);
   const overlayRef = useRef<any>(null); 
 
@@ -47,13 +47,11 @@ const MapArea: React.FC<MapAreaProps> = ({
       const map = new kakao.maps.Map(mapContainerRef.current, options);
       mapRef.current = map;
 
-      // 지도 클릭 이벤트
       kakao.maps.event.addListener(map, 'click', () => {
         if (overlayRef.current) overlayRef.current.setMap(null);
         onMapClick();
       });
 
-      // 지도 이동 완료(idle) 이벤트
       kakao.maps.event.addListener(map, 'idle', () => {
         if (onMapIdle) {
           const bounds = map.getBounds();
@@ -72,7 +70,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     });
   }, []);
 
-  // 2. 중심 좌표 변경 시 부드러운 이동 (검색 결과 반영)
+  // 2. 중심 좌표 변경 시 이동
   useEffect(() => {
     if (mapRef.current && mapCenter) {
       const { kakao } = window as any;
@@ -81,7 +79,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     }
   }, [mapCenter]);
 
-  // 3. 마커 생성 및 관리
+  // 3. 마커 생성 및 관리 (💡 에러 수정 완료)
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao) return;
@@ -99,36 +97,36 @@ const MapArea: React.FC<MapAreaProps> = ({
         title: store.name
       });
 
-      kakao.maps.event.addListener(marker, 'click', () => { if(typeof onMarkerClick === 'function') onMarkerClick(store.id); });
+      // 마커 클릭 이벤트
+      kakao.maps.event.addListener(marker, 'click', () => { 
+        if(typeof onMarkerClick === 'function') onMarkerClick(store.id); 
       });
 
+      // 💡 마커를 Map 객체에 저장 (반복문 안으로 이동)
       markersRef.current.set(store.id, marker);
     });
-  }, [stores]);
+  }, [stores, onMarkerClick]);
 
-  // 4. 선택된 스토어 변경 시 오버레이 처리 (중요: 검색 결과 클릭 시 호출됨)
+  // 4. 선택된 스토어 변경 시 오버레이 처리
   useEffect(() => {
     const { kakao } = window as any;
-    if (!mapRef.current || !kakao || !selectedStoreId) {
-      if (overlayRef.current) overlayRef.current.setMap(null);
-      return;
-    }
+    if (!mapRef.current || !kakao) return;
+
+    // 기존 오버레이 제거
+    if (overlayRef.current) overlayRef.current.setMap(null);
+    if (!selectedStoreId) return;
 
     const store = stores.find(s => s.id === selectedStoreId);
     if (!store) return;
 
-    // 기존 오버레이 제거
-    if (overlayRef.current) overlayRef.current.setMap(null);
-
     const latlng = new kakao.maps.LatLng(store.lat, store.lng);
 
-    // 커스텀 오버레이 엘리먼트 생성
     const content = document.createElement('div');
     content.className = "custom-overlay-container";
     content.innerHTML = `
       <div style="margin-bottom: 45px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));">
-        <div style="background: white; padding: 12px 16px; border-radius: 20px; border: 1px solid #f0f0f0; display: flex; items-center; gap: 10px; cursor: pointer; min-width: 140px;">
-          <div style="display: flex; flex-direction: column;">
+        <div style="background: white; padding: 12px 16px; border-radius: 20px; border: 1px solid #f0f0f0; display: flex; align-items: center; gap: 10px; cursor: pointer; min-width: 140px;">
+          <div style="display: flex; flex-direction: column; text-align: left;">
             <span style="font-size: 10px; color: #3182f6; font-weight: 800; margin-bottom: 2px;">상세보기</span>
             <span style="font-size: 14px; font-weight: 700; color: #191f28; white-space: nowrap;">${store.name}</span>
           </div>
@@ -155,7 +153,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     overlay.setMap(mapRef.current);
     overlayRef.current = overlay;
 
-  }, [selectedStoreId, stores]);
+  }, [selectedStoreId, stores, onDetailOpen]);
 
   // 5. 사용자 내 위치 마커
   useEffect(() => {
