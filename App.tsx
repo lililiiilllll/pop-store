@@ -31,7 +31,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
-  // 모달 제어 상태 (검색기능 포함)
+  // 모달 제어 상태
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLocationSelectorOpen, setIsLocationSelectorOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -72,14 +72,15 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // --- 핸들러 ---
+  // --- 핸들러 (모달 미작동 해결 핵심 포인트) ---
   const handleStoreSelect = useCallback((id: string) => {
     const store = allStores.find(st => st.id === id);
     if (store) {
-      setDetailStore(store);
+      // 💡 새로운 객체로 복사하여 상태 변화를 강제 알림 (렌더링 트리거)
+      setDetailStore({ ...store }); 
       setSelectedStoreId(id);
-      setMapCenter({ lat: store.lat, lng: store.lng }); // 선택한 장소로 지도 이동
-      setIsSearchOpen(false); // 검색창 열려있을 경우 닫기
+      setMapCenter({ lat: store.lat, lng: store.lng });
+      setIsSearchOpen(false); 
     }
   }, [allStores]);
 
@@ -93,7 +94,7 @@ const App: React.FC = () => {
         <Header 
           location={currentLocationName} 
           userProfile={userProfile} 
-          onSearchClick={() => setIsSearchOpen(true)} // 검색 실행
+          onSearchClick={() => setIsSearchOpen(true)}
           onAdminClick={() => setIsAdminOpen(true)} 
           onProfileClick={() => !user ? setIsLoginModalOpen(true) : setIsProfileModalOpen(true)} 
           onLocationClick={() => setIsLocationSelectorOpen(true)} 
@@ -113,23 +114,28 @@ const App: React.FC = () => {
           onMarkerClick={handleStoreSelect} 
           mapCenter={mapCenter} 
           userLocation={userCoords} 
-          onDetailOpen={setDetailStore} 
+          onDetailOpen={(store) => handleStoreSelect(store.id)} // 일관된 핸들러 사용
         />
       </main>
 
-      {/* 3. 오버레이 모달 레이어 (검색창 포함) */}
-      <AnimatePresence>
-        {/* 상세 모달 */}
+      {/* 3. 오버레이 모달 레이어 */}
+      <AnimatePresence mode="wait">
+        {/* 상세 모달 (가장 높은 우선순위) */}
         {detailStore && (
-          <div className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center">
+          <div key={`detail-${detailStore.id}`} className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center overflow-hidden">
             <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
               onClick={() => { setDetailStore(null); setSelectedStoreId(null); }}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto"
             />
             <motion.div 
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              className="relative w-full lg:max-w-xl bg-white shadow-2xl z-10 rounded-t-[32px] lg:rounded-2xl overflow-hidden pointer-events-auto"
+              initial={{ y: "100%", opacity: 0 }} 
+              animate={{ y: 0, opacity: 1 }} 
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full lg:max-w-xl bg-white shadow-2xl z-[10000] rounded-t-[32px] lg:rounded-2xl overflow-hidden pointer-events-auto"
             >
               <DetailModal 
                 store={detailStore} 
@@ -141,9 +147,10 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* 검색 오버레이 복구 */}
+        {/* 검색 오버레이 */}
         {isSearchOpen && (
           <SearchOverlay 
+            key="search-overlay"
             isOpen={isSearchOpen} 
             onClose={() => setIsSearchOpen(false)} 
             stores={allStores} 
@@ -154,6 +161,7 @@ const App: React.FC = () => {
         {/* 위치 선택 오버레이 */}
         {isLocationSelectorOpen && (
           <LocationSelector 
+            key="location-selector"
             isOpen={isLocationSelectorOpen} 
             onClose={() => setIsLocationSelectorOpen(false)} 
             onSelect={(loc: any) => { 
@@ -165,9 +173,17 @@ const App: React.FC = () => {
         )}
 
         {/* 기타 인증/성공 모달 */}
-        {isLoginModalOpen && <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />}
-        {isProfileModalOpen && <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} userProfile={userProfile} />}
-        {successConfig.isOpen && <SuccessModal isOpen={successConfig.isOpen} title={successConfig.title} message={successConfig.message} onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} />}
+        {isLoginModalOpen && <LoginModal key="login-modal" isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />}
+        {isProfileModalOpen && <ProfileModal key="profile-modal" isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} userProfile={userProfile} />}
+        {successConfig.isOpen && (
+          <SuccessModal 
+            key="success-modal"
+            isOpen={successConfig.isOpen} 
+            title={successConfig.title} 
+            message={successConfig.message} 
+            onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} 
+          />
+        )}
       </AnimatePresence>
     </div>
   );
