@@ -371,25 +371,47 @@ const App: React.FC = () => {
           setSheetOpen(true); // Swipe up -> Open
       }
   };
-useEffect(() => {
-  // 1. 카카오 객체가 있는지 먼저 확인
-  if (window.kakao && window.kakao.maps) {
-    
-    // 2. autoload=false일 때는 반드시 load 함수를 먼저 실행해야 합니다.
-    window.kakao.maps.load(() => {
-      const container = document.getElementById('map'); // 지도가 담길 HTML 요소
-      const options = {
-        center: new window.kakao.maps.LatLng(37.5665, 126.9780), // 서울 시청 기준 좌표
-        level: 3
-      };
-      
-      // 3. 이제 안전하게 지도를 생성합니다.
-      const map = new window.kakao.maps.Map(container, options);
-      
-      // 여기에 마커를 찍거나 Supabase 데이터를 불러오는 코드를 이어서 작성하세요.
-    });
-  }
-}, []);
+import { useEffect, useState } from 'react';
+
+// ... 생략 ...
+
+const MapComponent = () => {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // 1. 카카오 객체가 로드될 때까지 기다리는 안전 장치
+    const initMap = () => {
+      if (window.kakao && window.kakao.maps) {
+        window.kakao.maps.load(() => {
+          const container = document.getElementById('map');
+          if (!container) return;
+
+          const options = {
+            center: new window.kakao.maps.LatLng(37.5665, 126.9780), // 서울 기준
+            level: 3
+          };
+
+          const map = new window.kakao.maps.Map(container, options);
+          console.log("지도 생성 완료! 😎");
+          
+          // 여기서 Supabase 데이터를 불러오는 함수를 호출하세요.
+          // loadStores(map); 
+        });
+      }
+    };
+
+    // 스크립트가 아직 안 불러와졌을 수도 있으므로 살짝 지연 실행
+    const timer = setTimeout(initMap, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="relative w-full h-screen">
+      {/* id가 'map'인 div가 반드시 존재해야 합니다 */}
+      <div id="map" style={{ width: '100%', height: '100%' }}></div>
+    </div>
+  );
+};
 
   const handleStoreSelect = (id: string) => {
       const s = allStores?.find(st => st.id === id);
