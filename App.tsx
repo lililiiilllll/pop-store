@@ -21,6 +21,14 @@ import ProfileModal from './components/ProfileModal';
 import BottomNav from './components/BottomNav';
 import SavedView from './components/SavedView';
 
+// App.tsx 상단 임포트 부분 바로 아래에 추가
+console.log("체크 중:", { 
+  Header, MapArea, PopupList, CategoryFilter, 
+  AdminDashboard, DetailModal, SearchOverlay, 
+  LocationSelector, SuccessModal, LoginModal, 
+  ProfileModal, BottomNav, SavedView 
+});
+
 // --- 유틸리티 함수 ---
 const DEFAULT_LOCATION = { lat: 37.5547, lng: 126.9706 };
 
