@@ -3,9 +3,49 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>팝업스토어 지도</title>
-    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=fc77c8038bee1ed7394555078cad0f37&libraries=services&autoload=false"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Tailwind 테마 설정 (선택 사항: 앱의 메인 색상 등을 맞춤 설정할 수 있습니다)
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              tossBlue: '#3182f6',
+            }
+          }
+        }
+      }
+    </script>
+
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=fc77c8038bee1ed7394555078cad0f37&libraries=services"></script>
+
+    <style>
+      /* 기본 레이아웃 리셋: 지도가 화면을 꽉 채우도록 설정 */
+      body, html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden; /* 모바일 전체 스크롤 방지 */
+        -webkit-tap-highlight-color: transparent; /* 모바일 터치 하이라이트 제거 */
+      }
+      #root {
+        height: 100%;
+        width: 100%;
+      }
+      
+      /* 스크롤바 커스텀 (필요 시) */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #e5e7eb;
+        border-radius: 10px;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
