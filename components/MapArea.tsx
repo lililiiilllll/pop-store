@@ -99,8 +99,7 @@ const MapArea: React.FC<MapAreaProps> = ({
         title: store.name
       });
 
-      kakao.maps.event.addListener(marker, 'click', () => {
-        onMarkerClick(store.id);
+      kakao.maps.event.addListener(marker, 'click', () => { if(typeof onMarkerClick === 'function') onMarkerClick(store.id); });
       });
 
       markersRef.current.set(store.id, marker);
