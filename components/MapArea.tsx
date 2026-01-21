@@ -21,7 +21,8 @@ const MapArea: React.FC<MapAreaProps> = ({
   onMapClick, 
   mapCenter, 
   onMapIdle,
-  userLocation 
+  userLocation,
+  selectedStoreId // 선택된 스토어 강조를 위해 추가
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -37,8 +38,8 @@ const MapArea: React.FC<MapAreaProps> = ({
       const options = {
         center: new kakao.maps.LatLng(mapCenter?.lat || 37.5665, mapCenter?.lng || 126.9780),
         level: 3,
-        draggable: true, // 명시적으로 이동 가능 설정
-        scrollwheel: true // 확대/축소 가능 설정
+        draggable: true,
+        scrollwheel: true
       };
       
       const map = new kakao.maps.Map(mapContainerRef.current, options);
@@ -47,7 +48,7 @@ const MapArea: React.FC<MapAreaProps> = ({
       // 지도 클릭 이벤트
       kakao.maps.event.addListener(map, 'click', onMapClick);
 
-      // 지도 이동/확대 종료 시 이벤트
+      // 지도 이동/확대 종료 시 이벤트 (App.tsx의 필터링과 연동)
       kakao.maps.event.addListener(map, 'idle', () => {
         if (onMapIdle) {
           const bounds = map.getBounds();
@@ -75,7 +76,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     }
   }, [mapCenter]);
 
-  // 3. 상점 마커 업데이트
+  // 3. 상점 마커 업데이트 및 선택된 마커 강조
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao) return;
@@ -85,15 +86,20 @@ const MapArea: React.FC<MapAreaProps> = ({
     markersRef.current = [];
 
     stores.forEach((store) => {
+      const isSelected = store.id === selectedStoreId;
+      
+      // 마커 이미지 설정 (선택된 경우 다른 이미지나 색상 적용 가능)
+      // 기본 마커를 사용하되, 선택된 경우 zIndex를 높임
       const marker = new kakao.maps.Marker({
         position: new kakao.maps.LatLng(store.lat, store.lng),
-        map: mapRef.current
+        map: mapRef.current,
+        zIndex: isSelected ? 10 : 1 // 선택된 마커를 맨 위로
       });
 
       kakao.maps.event.addListener(marker, 'click', () => onMarkerClick(store.id));
       markersRef.current.push(marker);
     });
-  }, [stores]);
+  }, [stores, selectedStoreId]); // selectedStoreId가 바뀔 때마다 마커 레이어 업데이트
 
   // 4. 내 위치 마커 표시
   useEffect(() => {
@@ -104,22 +110,31 @@ const MapArea: React.FC<MapAreaProps> = ({
       userMarkerRef.current.setMap(null);
     }
 
-    // 내 위치는 별도의 파란색 마커나 커스텀 오버레이로 표현 가능 (여기선 기본 마커)
+    // 내 위치 마커 (파란색 원 이미지 등으로 커스텀 권장)
+    const imageSize = new kakao.maps.Size(24, 24);
+    const markerImage = new kakao.maps.MarkerImage(
+      'https://t1.daumcdn.net/localimg/localimages/07/2012/img/marker_p.png', // 예시 파란 마커
+      imageSize
+    );
+
     const marker = new kakao.maps.Marker({
       position: new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
       map: mapRef.current,
-      // 내 위치용 별도 이미지가 있다면 여기에 추가
+      image: markerImage
     });
     userMarkerRef.current = marker;
   }, [userLocation]);
 
   return (
-    /* 터치 이벤트가 자식 요소인 지도에 잘 전달되도록 h-full 사용 */
+    /* 모바일에서 지도가 짤리지 않도록 h-full 및 touchAction 설정 */
     <div className="w-full h-full relative overflow-hidden bg-gray-100">
       <div 
         ref={mapContainerRef} 
-        className="w-full h-full"
-        style={{ touchAction: 'auto' }} // 모바일 터치 조작 허용
+        className="w-full h-full absolute inset-0"
+        style={{ 
+          touchAction: 'pan-x pan-y', // 모바일 브라우저 기본 제스처와 지도 조작 호환
+          zIndex: 1 
+        }}
       />
     </div>
   );
