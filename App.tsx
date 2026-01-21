@@ -1,27 +1,30 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAnimation, useDragControls, PanInfo, motion } from 'framer-motion';
-// import 경로 수정: 현재 모든 파일이 루트에 있으므로 ./components/ 제거
+
+// 1. constants나 types, lib 같은 설정 파일들은 루트나 각자 위치에 맞게 (그대로 유지)
 import { Icons, POPUP_STORES, DEFAULT_POPUP_IMAGE } from './constants';
-import Header from './Header';
-import MapArea from './MapArea';
-import PopupList from './PopupList';
-import CategoryFilter from './CategoryFilter';
-import ReportModal from './ReportModal';
-import AdminDashboard from './AdminDashboard';
-import DetailModal from './DetailModal';
-import SearchOverlay from './SearchOverlay';
-import LocationSelector from './LocationSelector';
-import AlertModal from './AlertModal';
-import SuccessModal from './SuccessModal';
-import LoginModal from './LoginModal';
-import ProfileModal from './ProfileModal';
-import NicknameModal from './NicknameModal';
-import BottomNav from './BottomNav';
-import SavedView from './SavedView';
-import NotificationList from './NotificationList';
-import AdminPinModal from './AdminPinModal';
 import { PopupStore, UserProfile, AppNotification } from './types';
 import { supabase, isSupabaseConfigured, getProfile, fetchNotifications, markNotificationAsRead } from './lib/supabase';
+
+// 2. 컴포넌트들: 파일이 components 폴더 안에 있으므로 경로에 ./components/ 추가
+import Header from './components/Header';
+import MapArea from './components/MapArea';
+import PopupList from './components/PopupList';
+import CategoryFilter from './components/CategoryFilter';
+import ReportModal from './components/ReportModal';
+import AdminDashboard from './components/AdminDashboard';
+import DetailModal from './components/DetailModal';
+import SearchOverlay from './components/SearchOverlay';
+import LocationSelector from './components/LocationSelector';
+import AlertModal from './components/AlertModal';
+import SuccessModal from './components/SuccessModal';
+import LoginModal from './components/LoginModal';
+import ProfileModal from './components/ProfileModal';
+import NicknameModal from './components/NicknameModal';
+import BottomNav from './components/BottomNav';
+import SavedView from './components/SavedView';
+import NotificationList from './components/NotificationList';
+import AdminPinModal from './components/AdminPinModal';
 
 // 서울역 기본 좌표
 const DEFAULT_LOCATION = { lat: 37.5547, lng: 126.9706 };
