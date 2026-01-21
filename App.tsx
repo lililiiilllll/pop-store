@@ -12,7 +12,7 @@ import MapArea from './components/MapArea';
 import PopupList from './components/PopupList';
 import CategoryFilter from './components/CategoryFilter';
 import AdminDashboard from './components/AdminDashboard';
-import DetailModal from './components/DetailModal'; 
+import DetailModal from './components/DetailModal';
 import SearchOverlay from './components/SearchOverlay';
 import LocationSelector from './components/LocationSelector';
 import SuccessModal from './components/SuccessModal';
