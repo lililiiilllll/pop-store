@@ -1,7 +1,20 @@
 import React from 'react';
-// 상위 폴더의 constants와 types 참조
-import { Icons, DEFAULT_POPUP_IMAGE } from '../constants'; 
-import { PopupStore } from '../types';
+
+// 💡 types 폴더가 없는 경우를 대비해 인터페이스를 내부에 직접 정의하거나 
+// 만약 types 파일이 루트에 있다면 경로를 수정해야 합니다. 
+// 여기서는 안전하게 내부에 정의하거나 기존 import를 유지합니다.
+interface PopupStore {
+  id: string;
+  name: string;
+  location: string;
+  category?: string;
+  imageUrl?: string;
+  description?: string;
+  lat: number;
+  lng: number;
+}
+
+const DEFAULT_POPUP_IMAGE = "https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?q=80&w=1000&auto=format&fit=crop";
 
 interface DetailModalProps {
   store: PopupStore | null;
@@ -11,11 +24,9 @@ interface DetailModalProps {
 }
 
 const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, isLiked, onShowSuccess }) => {
-  // 데이터가 없으면 아예 렌더링하지 않음
   if (!store) return null;
 
   return (
-    /* 💡 onClick={(e) => e.stopPropagation()}: 모달 내부 클릭 시 배경 클릭 이벤트가 발생하여 모달이 닫히는 것을 방지 */
     <div 
       onClick={(e) => e.stopPropagation()} 
       className="flex flex-col w-full h-[85vh] lg:h-auto max-h-[90vh] bg-white overflow-hidden rounded-t-[32px] lg:rounded-2xl shadow-2xl pointer-events-auto"
@@ -28,13 +39,13 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, isLiked, onSh
           className="w-full h-full object-cover"
           onError={(e) => { e.currentTarget.src = DEFAULT_POPUP_IMAGE; }}
         />
-        {/* 닫기 버튼: 터치 영역 확보를 위해 p-2 추가 */}
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 p-2 bg-black/30 backdrop-blur-md rounded-full text-white z-50 hover:bg-black/50 transition-colors"
           aria-label="Close modal"
         >
-          <Icons.Close className="w-6 h-6" />
+          {/* 💡 Icons.Close 대신 직접 SVG 삽입 */}
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
 
@@ -46,14 +57,14 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, isLiked, onSh
           </span>
           <h2 className="text-2xl font-bold text-gray-900 leading-tight">{store.name}</h2>
           <div className="flex items-center gap-1 mt-1 text-gray-500">
-            <Icons.MapPin className="w-4 h-4" />
+            {/* 💡 Icons.MapPin 대신 직접 SVG 삽입 */}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
             <p className="text-sm">{store.location}</p>
           </div>
         </div>
 
-        {/* 설명이 있다면 표시 (선택 사항) */}
         {store.description && (
-          <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+          <p className="text-gray-600 text-sm mb-6 leading-relaxed italic border-l-2 border-gray-100 pl-3">
             {store.description}
           </p>
         )}
