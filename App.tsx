@@ -6,7 +6,7 @@ import { Icons, POPUP_STORES, DEFAULT_POPUP_IMAGE } from './constants';
 import { PopupStore, UserProfile, AppNotification } from './types';
 import { supabase, getProfile, fetchNotifications } from './lib/supabase';
 
-// 2. 컴포넌트
+// 2. 컴포넌트 (파일 내 export default가 반드시 있어야 합니다)
 import Header from './components/Header';
 import MapArea from './components/MapArea';
 import PopupList from './components/PopupList';
@@ -120,7 +120,6 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // [기능: 지도 내 리스트 필터링]
   const { displayStores, isFallback } = useMemo(() => {
     let filtered = allStores.filter(s => {
       const likedMatch = !showLikedOnly || likedStoreIds.has(s.id);
@@ -137,7 +136,6 @@ const App: React.FC = () => {
         s.lng >= currentBounds.minLng && s.lng <= currentBounds.maxLng
       );
       
-      // [기능: 범위 내 팝업 없을 시 근처 추천]
       if (inBounds.length === 0 && filtered.length > 0) {
         const withDist = filtered.map(s => ({
           ...s,
@@ -150,7 +148,6 @@ const App: React.FC = () => {
     return { displayStores: filtered, isFallback: false };
   }, [allStores, currentBounds, currentMapCenter, showLikedOnly, likedStoreIds, selectedFilter]);
 
-  // [기능: 팝업 선택 처리 - 리스트 및 지도 공용]
   const handleStoreSelect = (id: string) => {
     const s = allStores.find(st => st.id === id);
     if (s) {
@@ -183,7 +180,7 @@ const App: React.FC = () => {
             <>
               {isFallback && (
                 <div className="mb-4 p-3 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold flex items-center gap-2 border border-blue-100">
-                  <Icons.Info size={14} /> 현재 지도 영역에 팝업이 없어 근처의 팝업을 추천해요.
+                  <Icons.Info size={14} /> 현재 지도 영역에 팝업이 없어 근처를 추천해요.
                 </div>
               )}
               <PopupList stores={displayStores} selectedStoreId={selectedStoreId} onStoreSelect={handleStoreSelect} />
@@ -197,7 +194,6 @@ const App: React.FC = () => {
 
       {/* 2. 메인 지도 영역 */}
       <div className="flex-1 relative bg-gray-50 h-full overflow-hidden">
-        
         {/* 모바일 상단 UI */}
         <div className="lg:hidden absolute top-0 left-0 right-0 z-30 pointer-events-none p-0">
           <div className="pointer-events-auto bg-white/95 backdrop-blur-md shadow-sm">
@@ -212,7 +208,7 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* 실제 지도 레이어 */}
+        {/* 지도 레이어 */}
         <div className="absolute inset-0 z-0 h-full w-full">
             <MapArea
               stores={allStores}
@@ -225,9 +221,7 @@ const App: React.FC = () => {
               mapCenter={mapCenter}
               onMapClick={() => { setSelectedStoreId(null); }}
               userLocation={null}
-              onDetailOpen={(store) => {
-                setDetailStore(store); // [기능: 핀 안내메시지 클릭 시 상세페이지 노출]
-              }}
+              onDetailOpen={(store) => setDetailStore(store)}
             />
         </div>
 
@@ -241,12 +235,21 @@ const App: React.FC = () => {
           >
             <div className="mt-auto w-full h-[70vh] bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] flex flex-col pointer-events-auto border-t border-gray-100">
               <div 
-                className="h-12 w-full flex items-center justify-center cursor-pointer touch-none" 
+                className="h-10 w-full flex items-center justify-center cursor-pointer touch-none" 
                 onClick={() => setSheetOpen(!sheetOpen)}
               >
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
               </div>
               <div className="flex-1 overflow-y-auto p-4 bg-[#f9fafb] pb-36">
+                {/* [추가] 모바일 전용 검색 버튼 바 */}
+                <div 
+                  onClick={() => setIsSearchOpen(true)}
+                  className="mb-6 flex items-center gap-3 bg-white border border-gray-200 px-4 py-3 rounded-2xl shadow-sm cursor-pointer active:bg-gray-50 transition-all"
+                >
+                  <Icons.Search size={18} className="text-gray-400" />
+                  <span className="text-gray-400 text-[15px]">팝업스토어를 검색해보세요</span>
+                </div>
+
                 <div className="flex justify-between items-center mb-5 px-1">
                   <h3 className="font-bold text-gray-900 text-lg">
                     {isFallback ? "근처 추천 팝업" : "주변 팝업 리스트"}
@@ -267,7 +270,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. 모달 및 오버레이 레이어 */}
+      {/* 4. 모달 및 오버레이 */}
       <DetailModal 
         store={detailStore} 
         onClose={() => setDetailStore(null)} 
