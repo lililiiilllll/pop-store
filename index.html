@@ -22,7 +22,6 @@
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=fc77c8038bee1ed7394555078cad0f37&libraries=services&autoload=false"></script>
 
     <style>
-      /* 모바일 최적화 레이아웃 */
       body, html {
         margin: 0;
         padding: 0;
@@ -30,29 +29,20 @@
         width: 100%;
         overflow: hidden; 
         -webkit-tap-highlight-color: transparent; 
-        /* iOS 상단바/하단바 스크롤 튕김 방지 */
         position: fixed; 
       }
-      
       #root {
         height: 100%;
         width: 100%;
         display: flex;
         flex-direction: column;
       }
-      
-      /* 스크롤바 커스텀 */
       .custom-scrollbar::-webkit-scrollbar {
         width: 5px;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb {
         background-color: #e5e7eb;
         border-radius: 10px;
-      }
-
-      .kakao-map-container {
-        width: 100%;
-        height: 100%;
       }
     </style>
   </head>
