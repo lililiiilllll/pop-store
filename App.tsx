@@ -123,8 +123,9 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 필터링된 스토어 계산
+  // --- [핵심 로직: 리스트 필터링 및 근처 팝업 추천] ---
   const { displayStores, isFallback } = useMemo(() => {
+    // 1. 기본 필터 (좋아요, 카테고리 등)
     let filtered = allStores.filter(s => {
       const likedMatch = !showLikedOnly || likedStoreIds.has(s.id);
       let statusMatch = true;
@@ -134,16 +135,20 @@ const App: React.FC = () => {
       return likedMatch && statusMatch;
     });
 
+    // 2. 현재 지도 영역 내 필터링
     if (currentBounds) {
       const inBounds = filtered.filter(s => 
         s.lat >= currentBounds.minLat && s.lat <= currentBounds.maxLat &&
         s.lng >= currentBounds.minLng && s.lng <= currentBounds.maxLng
       );
+
+      // 3. 만약 영역 내에 없다면 가장 가까운 순으로 추천
       if (inBounds.length === 0 && filtered.length > 0) {
         const withDist = filtered.map(s => ({
           ...s,
           distance: getDistance(currentMapCenter.lat, currentMapCenter.lng, s.lat, s.lng)
         })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
+        
         return { displayStores: withDist.slice(0, 5), isFallback: true };
       }
       return { displayStores: inBounds, isFallback: false };
@@ -151,22 +156,17 @@ const App: React.FC = () => {
     return { displayStores: filtered, isFallback: false };
   }, [allStores, currentBounds, currentMapCenter, showLikedOnly, likedStoreIds, selectedFilter]);
 
-  // --- [핵심 수정: 검색 결과 선택 및 목록 클릭 시 핸들러] ---
+  // --- [핵심 로직: 클릭 시 상세페이지 노출 및 지도 이동] ---
   const handleStoreSelect = useCallback((id: string) => {
     const s = allStores.find(st => st.id === id);
     if (s) {
-      // 1. 상태 업데이트
       setSelectedStoreId(id);
-      setDetailStore(s); // 상세 모달 열기
+      setDetailStore(s); // 상세 페이지(모달) 노출
+      setMapCenter({ lat: s.lat, lng: s.lng }); // 지도 중심 이동
+      setIsSearchOpen(false);
       
-      // 2. 지도를 해당 좌표로 이동 (MapArea에서 mapCenter 감지)
-      setMapCenter({ lat: s.lat, lng: s.lng });
-      
-      // 3. UI 정리
-      setIsSearchOpen(false); 
-      if (window.innerWidth < 1024) {
-        setSheetOpen(false); // 모바일에서 리스트 시트 접기
-      }
+      // 모바일인 경우 리스트 시트 접기
+      if (window.innerWidth < 1024) setSheetOpen(false);
     }
   }, [allStores]);
 
@@ -190,6 +190,16 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto bg-[#f2f4f6] p-4 custom-scrollbar">
           {activeTab === 'home' ? (
             <>
+              {/* 리스트 헤더 정보 */}
+              <div className="px-1 mb-4 flex justify-between items-end">
+                <h3 className="font-bold text-gray-900 text-lg">
+                  {isFallback ? "근처 추천 팝업" : "현재 위치 팝업"}
+                </h3>
+                <span className="text-[12px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full">
+                  {displayStores.length}개
+                </span>
+              </div>
+
               {isFallback && (
                 <div className="mb-4 p-3 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold flex items-center gap-2 border border-blue-100">
                   <Icons.Info size={14} /> 현재 지도 영역에 팝업이 없어 근처를 추천해요.
@@ -206,7 +216,6 @@ const App: React.FC = () => {
 
       {/* 2. 메인 지도 영역 */}
       <div className="flex-1 relative bg-gray-50 h-full overflow-hidden">
-        {/* 모바일 상단 바 */}
         <div className="lg:hidden absolute top-0 left-0 right-0 z-30 pointer-events-none p-0">
           <div className="pointer-events-auto bg-white/95 backdrop-blur-md shadow-sm">
             <Header 
@@ -220,27 +229,22 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* 지도 컴포넌트 */}
         <div className="absolute inset-0 z-0 h-full w-full">
             <MapArea
               stores={allStores}
               selectedStoreId={selectedStoreId}
-              onMarkerClick={(id) => handleStoreSelect(id)} // 마커 클릭 시에도 동일한 상세 로직 실행
+              onMarkerClick={(id) => handleStoreSelect(id)} // 마커 클릭 시에도 상세페이지 노출
               onMapIdle={(bounds, center) => {
                 setCurrentBounds(bounds);
                 setCurrentMapCenter(center);
               }}
               mapCenter={mapCenter}
-              onMapClick={() => { 
-                setSelectedStoreId(null); 
-                setDetailStore(null); // 지도 바탕 클릭 시 상세창 닫기
-              }}
+              onMapClick={() => { setSelectedStoreId(null); }}
               userLocation={null}
               onDetailOpen={(store) => setDetailStore(store)}
             />
         </div>
 
-        {/* 모바일 바텀 시트 */}
         {activeTab === 'home' && (
           <motion.div
             initial={false}
@@ -272,7 +276,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. 오버레이 및 모달 영역 */}
+      {/* 3. 오버레이 및 모달 */}
       <AnimatePresence>
         {detailStore && (
           <DetailModal 
@@ -284,13 +288,12 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
       
-      {/* 검색창 컴포넌트 */}
       {isSearchOpen && (
         <SearchOverlay 
           isOpen={isSearchOpen} 
           onClose={() => setIsSearchOpen(false)} 
           stores={allStores} 
-          onSelectResult={handleStoreSelect} // 검색 결과 선택 시 실행
+          onSelectResult={handleStoreSelect} 
         />
       )}
       
