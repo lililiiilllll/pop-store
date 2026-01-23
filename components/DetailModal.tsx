@@ -54,16 +54,45 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
       <div className="flex-1 overflow-y-auto p-6 pb-28 text-left space-y-7 custom-scrollbar">
         {/* 타이틀 및 배지 */}
         <div>
-          <div className="flex flex-wrap gap-2 mb-3">
-            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded uppercase">
-              {store.category || 'EVENT'}
-            </span>
-            {store.subway_info && (
-              <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded">
-                {store.subway_info}
-              </span>
-            )}
-          </div>
+          {/* 팝업 제목 및 배지 영역 */}
+<div className="px-5 py-4 bg-white">
+  <div className="flex flex-col gap-3">
+    <h2 className="text-[22px] font-bold text-[#191f28]">{store.title}</h2>
+    
+    <div className="flex flex-wrap gap-2">
+      {/* 🚇 가까운 역 정보 */}
+      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-full">
+        <span className="text-[12px] font-bold text-[#3182f6]">🚇 {store.station || '정보 없음'} 도보 {store.walk_time || '0'}분</span>
+      </div>
+
+      {/* 💰 입장료 정보 */}
+      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${store.is_free ? 'bg-green-50' : 'bg-gray-100'}`}>
+        <span className={`text-[12px] font-bold ${store.is_free ? 'text-green-600' : 'text-gray-500'}`}>
+          {store.is_free ? '🎁 무료입장' : '유료입장'}
+        </span>
+      </div>
+
+      {/* 📅 예약 정보 */}
+      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 rounded-full">
+        <span className="text-[12px] font-bold text-purple-600">
+          {store.is_reservation_required ? '📅 예약필수' : '✅ 상시입장'}
+        </span>
+      </div>
+
+      {/* 🌐 공식 링크 (배지 형태) */}
+      {store.official_url && (
+        <a 
+          href={store.official_url} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 rounded-full hover:bg-black transition-colors"
+        >
+          <span className="text-[12px] font-bold text-white">🌐 공식 홈페이지</span>
+        </a>
+      )}
+    </div>
+  </div>
+</div>
           
           {/* 💡 [수정] 팝업 이름 출력 (DB의 title 컬럼 사용) */}
           <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
