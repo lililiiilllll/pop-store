@@ -380,10 +380,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
 
               {/* 기본 정보 입력 */}
               <div className="space-y-4">
-                <input value={editingStore.title} onChange={e => setEditingStore({...editingStore, title: e.target.value})} className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" placeholder="팝업명" />
-                <input value={editingStore.address} onChange={e => setEditingStore({...editingStore, address: e.target.value})} className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" placeholder="주소" />
-                <textarea rows={3} value={editingStore.description} onChange={e => setEditingStore({...editingStore, description: e.target.value})} className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[14px] outline-none resize-none" placeholder="설명" />
-              </div>
+                {/* 팝업 이름 입력창 */}
+              <input 
+                value={editingStore.title} 
+                onChange={e => setEditingStore({...editingStore, title: e.target.value})} 
+                className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" 
+                placeholder="팝업명" 
+                />
+
+                {/* 주소 입력창 */}
+                <input 
+                value={editingStore.address} 
+                onChange={e => setEditingStore({...editingStore, address: e.target.value})} 
+                className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" 
+                placeholder="주소" 
+                />
+
+                {/* 상세 내용 입력창 (내용이 길 수 있어 textarea 사용) */}
+                <textarea 
+                rows={3} 
+                value={editingStore.description} 
+                onChange={e => setEditingStore({...editingStore, description: e.target.value})} 
+                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[14px] outline-none resize-none" 
+                placeholder="설명" 
+                />
             </div>
 
             {/* 기능 추가: 3단 버튼 레이아웃 (취소 | 승인대기 | 저장) */}
