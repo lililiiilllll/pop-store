@@ -186,33 +186,75 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
       </nav>
 
       <main className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-5xl mx-auto">
+        div className="max-w-5xl mx-auto">
           {activeTab === 'approval' && (
             <>
+              {/* 서브탭 디자인 최적화 */}
               <div className="flex gap-2 mb-6">
-                <button onClick={() => setApprovalSubTab('pending')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] ${approvalSubTab === 'pending' ? 'bg-[#3182f6] text-white' : 'bg-white text-gray-400'}`}>대기중</button>
-                <button onClick={() => setApprovalSubTab('verified')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] ${approvalSubTab === 'verified' ? 'bg-[#3182f6] text-white' : 'bg-white text-gray-400'}`}>승인됨</button>
+                <button 
+                  onClick={() => setApprovalSubTab('pending')} 
+                  className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] transition-all ${approvalSubTab === 'pending' ? 'bg-[#3182f6] text-white shadow-sm' : 'bg-white text-gray-400'}`}
+                >
+                  대기중 {allStores.filter(s => !s.is_verified).length}
+                </button>
+                <button 
+                  onClick={() => setApprovalSubTab('verified')} 
+                  className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] transition-all ${approvalSubTab === 'verified' ? 'bg-[#3182f6] text-white shadow-sm' : 'bg-white text-gray-400'}`}
+                >
+                  승인됨
+                </button>
               </div>
+
               <div className="space-y-3">
-                {allStores.filter(s => approvalSubTab === 'pending' ? !s.is_verified : s.is_verified).map(store => (
-                  <div key={store.id} className="bg-white p-5 rounded-[28px] flex items-center justify-between shadow-sm border border-white hover:border-blue-50">
-                    <div className="flex items-center gap-5">
-                      <img src={store.imageUrl} className="w-16 h-16 rounded-2xl object-cover bg-gray-50" alt="" />
-                      <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[11px] font-bold text-[#3182f6]">{store.category}</span>
+                {allStores
+                  .filter(s => approvalSubTab === 'pending' ? !s.is_verified : s.is_verified)
+                  .map(store => (
+                    <div key={store.id} className="bg-white p-4 rounded-[24px] flex items-center justify-between shadow-sm border border-white hover:border-gray-100 transition-colors">
+                      {/* [정보 최소화] 왼쪽 정보 영역 */}
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <img 
+                          src={store.imageUrl} 
+                          className="w-14 h-14 rounded-xl object-cover bg-gray-50 flex-shrink-0" 
+                          alt="" 
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-[10px] font-bold text-[#3182f6] bg-blue-50 px-1.5 py-0.5 rounded-md uppercase">
+                              {store.category}
+                            </span>
+                          </div>
+                          <h3 className="text-[15px] font-bold text-[#191f28] truncate pr-2">{store.title}</h3>
+                          <p className="text-[12px] text-gray-400 truncate pr-2">{store.address}</p>
                         </div>
-                        <h3 className="text-[16px] font-bold">{store.title}</h3>
-                        <p className="text-[13px] text-gray-400 line-clamp-1">{store.address}</p>
+                      </div>
+
+                      {/* [버튼 균일화] 오른쪽 액션 영역 */}
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button 
+                          onClick={() => { setEditingStore({...store}); setIsEditModalOpen(true); }} 
+                          className="w-[54px] h-[36px] flex items-center justify-center bg-gray-50 text-gray-600 rounded-xl font-bold text-[13px] hover:bg-gray-100"
+                        >
+                          수정
+                        </button>
+                        
+                        {approvalSubTab === 'pending' && (
+                          <button 
+                            onClick={() => handleApprove(store.id)} 
+                            className="w-[54px] h-[36px] flex items-center justify-center bg-[#3182f6] text-white rounded-xl font-bold text-[13px] hover:bg-blue-600"
+                          >
+                            승인
+                          </button>
+                        )}
+
+                        <button 
+                          onClick={() => handleDelete(store.id)} 
+                          className="w-[54px] h-[36px] flex items-center justify-center bg-red-50 text-red-500 rounded-xl font-bold text-[13px] hover:bg-red-100"
+                        >
+                          삭제
+                        </button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setEditingStore({...store}); setIsEditModalOpen(true); }} className="px-5 py-2.5 bg-gray-50 text-gray-600 rounded-xl font-bold text-[13px]">수정</button>
-                      {approvalSubTab === 'pending' && <button onClick={() => handleApprove(store.id)} className="px-5 py-2.5 bg-[#3182f6] text-white rounded-xl font-bold text-[13px]">승인</button>}
-                      <button onClick={() => handleDelete(store.id)} className="px-5 py-2.5 bg-red-50 text-red-500 rounded-xl font-bold text-[13px]">삭제</button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </>
           )}
