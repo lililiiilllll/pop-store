@@ -54,24 +54,27 @@ const App: React.FC = () => {
   const XIcon = Icons.X || Icons.Square || 'div';
 
   // --- 💡 임시 로그인 핸들러 ---
-  const handleAdminLogin = () => {
-    setIsAdminLoggedIn(true);
-    setSuccessConfig({
-      isOpen: true,
-      title: '관리자 인증',
-      message: '관리자 권한이 활성화되었습니다.'
-    });
-  };
+const handleAdminLogin = () => {
+  setIsAdminLoggedIn(true); // 1. 권한 부여
+  setIsAdminOpen(true);     // 2. 대시보드 화면으로 즉시 전환
+  
+  setSuccessConfig({
+    isOpen: true,
+    title: '관리자 인증 성공',
+    message: '관리자 모드로 즉시 진입합니다.'
+  });
+};
 
-  const handleUserLogin = () => {
-    setIsAdminLoggedIn(false);
-    setIsAdminOpen(false);
-    setSuccessConfig({
-      isOpen: true,
-      title: '일반 유저 모드',
-      message: '테스트 계정으로 전환되었습니다.'
-    });
-  };
+const handleUserLogin = () => {
+  setIsAdminLoggedIn(false); // 권한 해제
+  setIsAdminOpen(false);     // 대시보드 닫기
+  
+  setSuccessConfig({
+    isOpen: true,
+    title: '테스트 계정 모드',
+    message: '일반 유저 권한으로 전환되었습니다.'
+  });
+};
 
   const toggleSaveStore = useCallback((id: string) => {
     setSavedStoreIds(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
