@@ -10,20 +10,24 @@ const categories = ["전체", "무료입장", "이벤트", "체험/전시", "게
 
 const CategoryFilter: React.FC<CategoryFilterProps> = ({ selected, onSelect }) => {
   return (
-    <div className="flex items-center gap-2 overflow-x-auto px-5 py-3 no-scrollbar border-b border-gray-50 bg-white">
-      {categories.map((cat) => (
-        <button
-          key={cat}
-          onClick={() => onSelect(cat)}
-          className={`px-4 py-1.5 rounded-full text-[13px] font-bold whitespace-nowrap transition-all
-            ${selected === cat 
-              ? 'bg-blue-600 text-white shadow-md' 
-              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}
-        >
-          {cat}
-        </button>
-      ))}
+    <div className="bg-white">
+      <div className="flex items-center gap-2 overflow-x-auto px-5 py-3 no-scrollbar active:cursor-grabbing">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => onSelect(cat)}
+            className={`px-4 py-2 rounded-full text-[14px] font-semibold whitespace-nowrap transition-all duration-200
+              ${selected === cat 
+                ? 'bg-[#3182f6] text-white shadow-sm' // 토스 메인 블루 컬러
+                : 'bg-[#f2f4f6] text-[#4e5968] hover:bg-[#ebedf0]' // 토스 연회색 배경 및 텍스트 컬러
+              }`}
+          >
+            {cat}
+          </button>
+        ))}
+        {/* 우측 끝 여백 확보를 위한 더미 div */}
+        <div className="min-w-[20px] h-1" />
+      </div>
     </div>
   );
 };
