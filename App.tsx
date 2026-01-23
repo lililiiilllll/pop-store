@@ -101,7 +101,7 @@ const App: React.FC = () => {
         />
         <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} />
         <div className="flex-1 overflow-y-auto bg-gray-50/30 p-4">
-          <PopupList stores={allStores} selectedStoreId={selectedStoreId} onStoreSelect={handleStoreSelect} />
+          <PopupList stores={filteredStores} onStoreClick={handleStoreClick} userLocation={userLocation} />
         </div>
         <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       </aside>
