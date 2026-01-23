@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // 1. 설정 및 타입
-import { Icons, POPUP_STORES, DEFAULT_POPUP_IMAGE } from './constants';
+import { Icons, POPUP_STORES } from './constants';
 import { PopupStore, UserProfile } from './types';
 import { supabase } from './lib/supabase';
 
@@ -31,10 +31,11 @@ const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
-  // 지도 영역 및 센터 관리
+  // 지도 및 리스트 제어
   const [mapBounds, setMapBounds] = useState<any>(null);
   const [mapCenter, setMapCenter] = useState<{lat: number, lng: number} | undefined>(undefined);
   const [currentLocationName, setCurrentLocationName] = useState('성수/서울숲');
+  const [isMobileListOpen, setIsMobileListOpen] = useState(false); // 💡 모바일 리스트 열림 상태
 
   // 모달 제어
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -46,37 +47,30 @@ const App: React.FC = () => {
   const [detailStore, setDetailStore] = useState<PopupStore | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
-  // --- 거리 계산 로직 (가장 가까운 팝업 찾기용) ---
+  // --- 거리 계산 로직 ---
   const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
     return Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lng2 - lng1, 2));
   };
 
-  // --- 💡 핵심: 필터링 및 "가장 가까운 곳 찾기" 로직 ---
+  // --- 필터링 로직 ---
   const visibleStores = useMemo(() => {
     let filtered = allStores;
-
-    // 1. 카테고리 필터
     if (selectedFilter !== '전체') {
       filtered = filtered.filter(s => s.category === selectedFilter);
     }
 
-    // 2. 지도 영역 내 필터
     if (mapBounds) {
       const inBounds = filtered.filter(s => 
         s.lat >= mapBounds.minLat && s.lat <= mapBounds.maxLat && 
         s.lng >= mapBounds.minLng && s.lng <= mapBounds.maxLng
       );
 
-      // 💡 [기능 추가] 영역 내에 팝업이 하나도 없고, 전체 스토어가 있을 때
       if (inBounds.length === 0 && filtered.length > 0 && mapCenter) {
-        // 현재 지도 중심에서 가장 가까운 스토어 찾기
         const closest = filtered.reduce((prev, curr) => {
           const prevDist = calculateDistance(mapCenter.lat, mapCenter.lng, prev.lat, prev.lng);
           const currDist = calculateDistance(mapCenter.lat, mapCenter.lng, curr.lat, curr.lng);
           return prevDist < currDist ? prev : curr;
         });
-        
-        // 검색 결과가 너무 멀지 않다면 리스트에는 일단 전체 혹은 가장 가까운 것 하나를 보여줌
         return [closest]; 
       }
       return inBounds;
@@ -92,6 +86,8 @@ const App: React.FC = () => {
         setAllStores(data.map((s: any) => ({ 
           ...s, 
           id: String(s.id), 
+          // 💡 DB의 title 컬럼이 이름이므로 title 우선 사용
+          title: s.title || s.name, 
           imageUrl: s.image_url && s.image_url.startsWith('http') 
             ? s.image_url 
             : 'https://via.placeholder.com/400x400?text=No+Image'
@@ -121,7 +117,8 @@ const App: React.FC = () => {
       setDetailStore({ ...store }); 
       setSelectedStoreId(id);
       setMapCenter({ lat: store.lat, lng: store.lng });
-      setIsSearchOpen(false); 
+      setIsSearchOpen(false);
+      setIsMobileListOpen(false); // 💡 상세 보기 시 리스트는 내림
     }
   }, [allStores]);
 
@@ -130,23 +127,12 @@ const App: React.FC = () => {
     setMapCenter(center);
   };
 
-  const findNearestStore = () => {
-    if (allStores.length > 0 && mapCenter) {
-      const closest = allStores.reduce((prev, curr) => {
-        const prevDist = calculateDistance(mapCenter.lat, mapCenter.lng, prev.lat, prev.lng);
-        const currDist = calculateDistance(mapCenter.lat, mapCenter.lng, curr.lat, curr.lng);
-        return prevDist < currDist ? prev : curr;
-      });
-      setMapCenter({ lat: closest.lat, lng: closest.lng });
-    }
-  };
-
   if (isAdminOpen) return <AdminDashboard allStores={allStores} onBack={() => setIsAdminOpen(false)} onRefresh={fetchStores} />;
 
   return (
     <div className="relative flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white text-gray-900">
       
-      {/* 1. 사이드바 (리스트 영역) */}
+      {/* 1. PC 사이드바 (데스크톱에서만 보임) */}
       <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-gray-100 shadow-xl overflow-hidden">
         <Header 
           location={currentLocationName} 
@@ -162,12 +148,6 @@ const App: React.FC = () => {
           {visibleStores.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
               <p className="text-gray-400 text-sm mb-4">현재 영역에 팝업이 없습니다.</p>
-              <button 
-                onClick={findNearestStore}
-                className="text-sm font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors"
-              >
-                가장 가까운 팝업 보기
-              </button>
             </div>
           ) : (
             <PopupList 
@@ -189,19 +169,65 @@ const App: React.FC = () => {
           mapCenter={mapCenter} 
           userLocation={userCoords} 
           onMapIdle={handleMapIdle}
-          onMapClick={() => { setDetailStore(null); setSelectedStoreId(null); }}
+          onMapClick={() => { 
+            setDetailStore(null); 
+            setSelectedStoreId(null); 
+            setIsMobileListOpen(false); // 💡 지도 클릭 시 모바일 리스트 내림
+          }}
           onDetailOpen={(store) => handleStoreSelect(store.id)}
         />
         
-        {/* 모바일용 플로팅 리스트 버튼 (선택사항) */}
-        <div className="lg:hidden absolute bottom-24 left-1/2 -translate-x-1/2 z-10">
-           <button onClick={() => {/* 모바일 리스트 토글 로직 */}} className="bg-black text-white px-6 py-3 rounded-full shadow-2xl font-bold text-sm flex items-center gap-2">
-             <Icons.List size={18} /> 목록보기
-           </button>
+        {/* 모바일 상단 헤더 & 필터 (지도를 가리지 않게 플로팅) */}
+        <div className="lg:hidden absolute top-0 left-0 right-0 z-20 bg-white/80 backdrop-blur-md pb-2">
+          <Header 
+            location={currentLocationName} 
+            userProfile={userProfile} 
+            onSearchClick={() => setIsSearchOpen(true)}
+            onAdminClick={() => setIsAdminOpen(true)} 
+            onProfileClick={() => !user ? setIsLoginModalOpen(true) : setIsProfileModalOpen(true)} 
+            onLocationClick={() => setIsLocationSelectorOpen(true)} 
+          />
+          <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} />
+        </div>
+
+        {/* 💡 3. 모바일 전용 바텀 시트 리스트 */}
+        <div className="lg:hidden">
+          <motion.div
+            initial={{ y: "70%" }}
+            animate={{ y: isMobileListOpen ? "15%" : "72%" }} // 72% 정도일 때 2개 정도 보임
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y < -50) setIsMobileListOpen(true);
+              if (info.offset.y > 50) setIsMobileListOpen(false);
+            }}
+            className="fixed inset-x-0 bottom-0 z-40 bg-white rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col h-[85vh]"
+          >
+            {/* 드래그 핸들 */}
+            <div className="w-full flex justify-center py-4">
+              <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
+            </div>
+            
+            <div className="px-5 pb-2">
+              <h2 className="text-lg font-bold text-gray-900">주변 팝업 리스트</h2>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pb-32">
+              <PopupList 
+                stores={visibleStores} 
+                onStoreClick={(s) => handleStoreSelect(s.id)} 
+                userLocation={userCoords} 
+              />
+            </div>
+          </motion.div>
+          
+          {/* 모바일 하단 네비게이션 */}
+          <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       </main>
 
-      {/* 3. 오버레이 모달 레이어 */}
+      {/* 4. 오버레이 모달 레이어 */}
       <AnimatePresence>
         {detailStore && (
           <div className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center overflow-hidden">
@@ -213,7 +239,7 @@ const App: React.FC = () => {
             <motion.div 
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative w-full lg:max-w-xl bg-white rounded-t-[32px] lg:rounded-2xl overflow-hidden"
+              className="relative w-full lg:max-w-xl bg-white rounded-t-[32px] lg:rounded-2xl overflow-hidden shadow-2xl"
             >
               <DetailModal 
                 store={detailStore} 
