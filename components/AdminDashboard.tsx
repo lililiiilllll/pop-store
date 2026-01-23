@@ -13,33 +13,28 @@ interface AdminDashboardProps {
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRefresh }) => {
   // --- [상태 관리] ---
-  const [activeTab, setActiveTab] = useState<'approval' | 'edit_request' | 'reviews'>('approval');
+  // keywords 탭을 추가했습니다.
+  const [activeTab, setActiveTab] = useState<'approval' | 'keywords' | 'edit_request' | 'reviews'>('approval');
   const [approvalSubTab, setApprovalSubTab] = useState<'pending' | 'verified'>('pending');
   const [editingStore, setEditingStore] = useState<PopupStore | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDirectInput, setIsDirectInput] = useState(false);
+  
+  // 키워드 입력을 위한 로컬 상태
+  const [keywordInput, setKeywordInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- [이미지 업로드 핸들러] ---
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingStore) return;
-
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `popups/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('popup-images')
-        .upload(filePath, file);
-
+      const { error: uploadError } = await supabase.storage.from('popup-images').upload(filePath, file);
       if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('popup-images')
-        .getPublicUrl(filePath);
-
+      const { data: { publicUrl } } = supabase.storage.from('popup-images').getPublicUrl(filePath);
       setEditingStore({ ...editingStore, imageUrl: publicUrl });
       alert('이미지가 성공적으로 업로드되었습니다.');
     } catch (error: any) {
@@ -47,11 +42,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     }
   };
 
+  // --- [키워드 관리 로직] ---
+  const addKeyword = () => {
+    if (!keywordInput.trim() || !editingStore) return;
+    const cleanTag = keywordInput.trim().replace('#', ''); // # 입력 시 제거
+    if (editingStore.keywords?.includes(cleanTag)) {
+      alert('이미 존재하는 키워드입니다.');
+      return;
+    }
+    const updatedKeywords = [...(editingStore.keywords || []), cleanTag];
+    setEditingStore({ ...editingStore, keywords: updatedKeywords });
+    setKeywordInput('');
+  };
+
+  const removeKeyword = (tagToRemove: string) => {
+    if (!editingStore) return;
+    setEditingStore({
+      ...editingStore,
+      keywords: editingStore.keywords?.filter(tag => tag !== tagToRemove)
+    });
+  };
+
   // --- [저장 및 승인대기 핸들러] ---
   const handleUpdateStore = async (statusOverride?: boolean) => {
     if (!editingStore) return;
-    
-    // statusOverride가 false면 '승인대기(is_verified: false)', 없으면 현재 상태 유지
     const isVerified = statusOverride !== undefined ? statusOverride : editingStore.is_verified;
 
     const { error } = await supabase.from('popup_stores').update({
@@ -59,10 +73,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
       address: editingStore.address,
       category: editingStore.category,
       description: editingStore.description,
-      image_url: editingStore.imageUrl, // DB 컬럼명 매핑 확인
+      image_url: editingStore.imageUrl,
       is_free: editingStore.is_free,
       is_reservation_required: editingStore.is_reservation_required,
-      is_verified: isVerified
+      is_verified: isVerified,
+      keywords: editingStore.keywords // 추가된 키워드 배열 저장
     }).eq('id', editingStore.id);
 
     if (!error) {
@@ -70,7 +85,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
       setIsEditModalOpen(false);
       onRefresh();
     } else {
-      alert('데이터 저장 중 오류가 발생했습니다: ' + error.message);
+      alert('데이터 저장 중 오류 발생: ' + error.message);
     }
   };
 
@@ -98,17 +113,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
         </div>
       </header>
 
-      {/* 탭 네비게이션 */}
-      <nav className="bg-white px-6 flex border-b border-gray-50">
+      {/* 탭 네비게이션 (키워드 탭 추가) */}
+      <nav className="bg-white px-6 flex border-b border-gray-50 overflow-x-auto no-scrollbar">
         {[
           { id: 'approval', label: '승인 관리' },
+          { id: 'keywords', label: '키워드 관리' },
           { id: 'edit_request', label: '정보 수정 요청' },
           { id: 'reviews', label: '리뷰 관리' }
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-5 py-4 text-[15px] font-bold transition-all relative ${
+            className={`px-5 py-4 text-[15px] font-bold transition-all relative flex-shrink-0 ${
               activeTab === tab.id ? 'text-[#3182f6]' : 'text-gray-400'
             }`}
           >
@@ -120,36 +136,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
 
       <main className="flex-1 overflow-y-auto p-6">
         <div className="max-w-5xl mx-auto">
-          {/* 탭 내용 분기 */}
-          {activeTab === 'approval' ? (
+          {/* 승인 관리 및 키워드 관리 리스트 뷰 */}
+          {(activeTab === 'approval' || activeTab === 'keywords') ? (
             <>
-              <div className="flex gap-2 mb-6">
-                <button onClick={() => setApprovalSubTab('pending')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] transition-all ${approvalSubTab === 'pending' ? 'bg-[#3182f6] text-white shadow-md' : 'bg-white text-gray-400 shadow-sm'}`}>대기중</button>
-                <button onClick={() => setApprovalSubTab('verified')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] transition-all ${approvalSubTab === 'verified' ? 'bg-[#3182f6] text-white shadow-md' : 'bg-white text-gray-400 shadow-sm'}`}>승인됨</button>
-              </div>
+              {activeTab === 'approval' && (
+                <div className="flex gap-2 mb-6">
+                  <button onClick={() => setApprovalSubTab('pending')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] transition-all ${approvalSubTab === 'pending' ? 'bg-[#3182f6] text-white shadow-md' : 'bg-white text-gray-400 shadow-sm'}`}>대기중</button>
+                  <button onClick={() => setApprovalSubTab('verified')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] transition-all ${approvalSubTab === 'verified' ? 'bg-[#3182f6] text-white shadow-md' : 'bg-white text-gray-400 shadow-sm'}`}>승인됨</button>
+                </div>
+              )}
 
               <div className="space-y-3">
-                {allStores.filter(s => approvalSubTab === 'pending' ? !s.is_verified : s.is_verified).map(store => (
-                  <div key={store.id} className="bg-white p-5 rounded-[28px] flex items-center justify-between shadow-sm border border-white hover:border-blue-50 transition-colors">
-                    <div className="flex items-center gap-5">
-                      <img src={store.imageUrl} className="w-16 h-16 rounded-2xl object-cover bg-gray-50 flex-shrink-0" alt="" />
-                      <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[11px] font-bold text-[#3182f6]">{store.category}</span>
-                          {store.is_reservation_required && <span className="px-1.5 py-0.5 bg-red-50 text-red-500 text-[9px] rounded font-bold uppercase">예약필수</span>}
+                {allStores
+                  .filter(s => activeTab === 'keywords' ? s.is_verified : (approvalSubTab === 'pending' ? !s.is_verified : s.is_verified))
+                  .map(store => (
+                    <div key={store.id} className="bg-white p-5 rounded-[28px] flex items-center justify-between shadow-sm border border-white hover:border-blue-50 transition-colors">
+                      <div className="flex items-center gap-5">
+                        <img src={store.imageUrl} className="w-16 h-16 rounded-2xl object-cover bg-gray-50 flex-shrink-0" alt="" />
+                        <div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-[11px] font-bold text-[#3182f6]">{store.category}</span>
+                            <div className="flex gap-1">
+                                {store.keywords?.slice(0, 3).map(tag => (
+                                    <span key={tag} className="text-[10px] text-gray-400">#{tag}</span>
+                                ))}
+                            </div>
+                          </div>
+                          <h3 className="text-[16px] font-bold">{store.title}</h3>
+                          <p className="text-[13px] text-gray-400 line-clamp-1">{store.address}</p>
                         </div>
-                        <h3 className="text-[16px] font-bold">{store.title}</h3>
-                        <p className="text-[13px] text-gray-400">{store.address}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setEditingStore({...store}); setIsEditModalOpen(true); setIsDirectInput(false); }} className="px-5 py-2.5 bg-gray-50 text-gray-600 rounded-xl font-bold text-[13px] hover:bg-gray-100 transition-colors">
+                            {activeTab === 'keywords' ? '키워드 관리' : '수정'}
+                        </button>
+                        {activeTab === 'approval' && approvalSubTab === 'pending' && (
+                          <button onClick={() => handleApprove(store.id)} className="px-5 py-2.5 bg-[#3182f6] text-white rounded-xl font-bold text-[13px] hover:bg-blue-600 transition-colors">승인</button>
+                        )}
+                        <button onClick={() => handleDelete(store.id)} className="px-5 py-2.5 bg-red-50 text-red-500 rounded-xl font-bold text-[13px] hover:bg-red-100 transition-colors">삭제</button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setEditingStore({...store}); setIsEditModalOpen(true); setIsDirectInput(false); }} className="px-5 py-2.5 bg-gray-50 text-gray-600 rounded-xl font-bold text-[13px] hover:bg-gray-100 transition-colors">수정</button>
-                      {approvalSubTab === 'pending' && (
-                        <button onClick={() => handleApprove(store.id)} className="px-5 py-2.5 bg-[#3182f6] text-white rounded-xl font-bold text-[13px] hover:bg-blue-600 transition-colors">승인</button>
-                      )}
-                      <button onClick={() => handleDelete(store.id)} className="px-5 py-2.5 bg-red-50 text-red-500 rounded-xl font-bold text-[13px] hover:bg-red-100 transition-colors">삭제</button>
-                    </div>
-                  </div>
                 ))}
               </div>
             </>
@@ -161,13 +187,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
         </div>
       </main>
 
-      {/* --- [수정 에디터 모달] --- */}
+      {/* --- [수정 에디터 모달: 키워드 관리 포함] --- */}
       {isEditModalOpen && editingStore && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={() => setIsEditModalOpen(false)} />
           <div className="relative bg-white w-full max-w-[520px] rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
             <div className="p-7 border-b border-gray-50 flex justify-between items-center sticky top-0 bg-white z-10">
-              <h2 className="text-[20px] font-bold">팝업 정보 수정</h2>
+              <h2 className="text-[20px] font-bold">팝업 상세 수정</h2>
               <button onClick={() => setIsEditModalOpen(false)}><Icons.X size={22} className="text-gray-400"/></button>
             </div>
             
@@ -180,8 +206,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                   <div className="flex-1">
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
                     <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 bg-gray-50 text-[#3182f6] rounded-xl font-bold text-[13px] border border-blue-50">파일 선택 및 업로드</button>
-                    <p className="text-[11px] text-gray-400 mt-2 italic break-all">{editingStore.imageUrl}</p>
                   </div>
+                </div>
+              </div>
+
+              {/* [키워드 관리 추가 섹션] */}
+              <div>
+                <label className="text-[13px] font-bold text-gray-400 mb-2 block">검색 키워드 (해시태그)</label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {editingStore.keywords?.map(tag => (
+                    <span key={tag} className="px-3 py-1.5 bg-blue-50 text-[#3182f6] rounded-xl text-[13px] font-bold flex items-center gap-1.5">
+                      #{tag}
+                      <button onClick={() => removeKeyword(tag)} className="p-0.5 hover:bg-blue-100 rounded-full"><Icons.X size={14} /></button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    placeholder="키워드 입력 (엔터 또는 추가 버튼)" 
+                    className="flex-1 bg-gray-50 border-none rounded-xl p-3 text-[14px] outline-none focus:ring-2 focus:ring-[#3182f6]"
+                    value={keywordInput}
+                    onChange={(e) => setKeywordInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && addKeyword()}
+                  />
+                  <button onClick={addKeyword} className="px-4 bg-[#3182f6] text-white rounded-xl font-bold text-[13px]">추가</button>
                 </div>
               </div>
 
@@ -235,7 +283,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
               </div>
             </div>
 
-            {/* 버튼 바 */}
             <div className="p-7 bg-white border-t border-gray-50 grid grid-cols-3 gap-3 sticky bottom-0">
               <button onClick={() => setIsEditModalOpen(false)} className="h-14 bg-gray-100 text-gray-500 rounded-2xl font-bold">취소</button>
               <button onClick={() => handleUpdateStore(false)} className="h-14 bg-orange-50 text-orange-600 rounded-2xl font-bold">승인 대기</button>
