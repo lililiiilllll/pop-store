@@ -61,7 +61,7 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
           
           {/* 💡 [수정] 팝업 이름만 출력 */}
           <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
-            {store.name}
+            {store.샤}
           </h2>
           
           {/* 💡 [수정] 한 줄 설명 또는 이름 재출력 방지 */}
