@@ -18,6 +18,17 @@ interface SearchLog {
   updated_at: string;
 }
 
+// 리뷰 데이터 타입 정의
+interface Review {
+  id: number;
+  store_id: number;
+  user_id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+  popup_stores?: { title: string }; // 팝업 정보 조인
+}
+
 interface AdminDashboardProps {
   allStores: PopupStore[];
   onBack: () => void;
@@ -30,18 +41,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
   const [editingStore, setEditingStore] = useState<PopupStore | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
-  // 기능 추가: 기타 카테고리 입력을 위한 로컬 상태
   const [customCategory, setCustomCategory] = useState('');
-  
   const [recKeywords, setRecKeywords] = useState<RecommendedKeyword[]>([]);
   const [newRecKeyword, setNewRecKeyword] = useState('');
   const [searchLogs, setSearchLogs] = useState<SearchLog[]>([]);
+  
+  // 리뷰 상태 관리
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+
   const [keywordInput, setKeywordInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (activeTab === 'keywords') {
       fetchKeywordAdminData();
+    } else if (activeTab === 'reviews') {
+      fetchReviews();
     }
   }, [activeTab]);
 
@@ -60,6 +76,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
       if (logData) setSearchLogs(logData);
     } catch (err) {
       console.error('Data loading error:', err);
+    }
+  };
+
+  // 리뷰 불러오기 (Foreign Key 연동)
+  const fetchReviews = async () => {
+    setIsLoadingReviews(true);
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select(`
+          *,
+          popup_stores ( title )
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      if (data) setReviews(data);
+    } catch (err) {
+      console.error('Review fetch error:', err);
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  };
+
+  // 리뷰 삭제 기능
+  const handleDeleteReview = async (id: number) => {
+    if (confirm('이 리뷰를 정말 삭제하시겠습니까?')) {
+      const { error } = await supabase.from('reviews').delete().eq('id', id);
+      if (!error) {
+        fetchReviews();
+      }
     }
   };
 
@@ -119,7 +166,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
   const handleUpdateStore = async (statusOverride?: boolean) => {
     if (!editingStore) return;
 
-    // 기능 반영: 기타 카테고리 선택 시 직접 입력값 사용
     const finalCategory = (editingStore.category === '기타' && customCategory.trim() !== '') 
       ? customCategory.trim() 
       : editingStore.category;
@@ -141,7 +187,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     if (!error) {
       alert(statusOverride === false ? '승인 대기 상태로 변경되었습니다.' : '저장되었습니다.');
       setIsEditModalOpen(false);
-      setCustomCategory(''); // 초기화
+      setCustomCategory('');
       onRefresh();
     }
   };
@@ -273,14 +319,65 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
             </div>
           )}
 
-          {(activeTab === 'edit_request' || activeTab === 'reviews') && (
+          {activeTab === 'reviews' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-[18px] font-bold">전체 리뷰 관리 ({reviews.length})</h2>
+                <button onClick={fetchReviews} className="text-[#3182f6] text-[13px] font-bold">새로고침</button>
+              </div>
+              
+              {isLoadingReviews ? (
+                <div className="py-20 text-center text-gray-400 font-medium bg-white rounded-[32px] border border-dashed border-gray-200">
+                  리뷰 데이터를 불러오는 중...
+                </div>
+              ) : reviews.length > 0 ? (
+                <div className="grid gap-3">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="bg-white p-5 rounded-[24px] shadow-sm border border-white hover:border-gray-50 transition-all">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <span className="text-[11px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">
+                            {review.popup_stores?.title || '삭제된 팝업'}
+                          </span>
+                          <div className="flex items-center gap-1 mt-2">
+                            <span className="text-yellow-400 text-[14px]">★</span>
+                            <span className="font-bold text-[14px]">{review.rating}</span>
+                            <span className="text-gray-300 text-[12px] ml-2">{new Date(review.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => handleDeleteReview(review.id)}
+                          className="text-red-400 text-[12px] font-bold hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                      <p className="text-[14px] text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-2xl mt-2 whitespace-pre-wrap">
+                        {review.comment}
+                      </p>
+                      <div className="text-[11px] text-gray-400 mt-3 pl-1">
+                        유저 ID: {review.user_id}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-20 text-center text-gray-400 font-medium bg-white rounded-[32px] border border-dashed border-gray-200">
+                  아직 등록된 리뷰가 없습니다.
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'edit_request' && (
             <div className="py-20 text-center text-gray-400 font-medium bg-white rounded-[32px] border border-dashed border-gray-200">
-              데이터를 불러오는 중입니다.
+              수정 요청 데이터를 불러오는 중입니다.
             </div>
           )}
         </div>
       </main>
 
+      {/* 수정 모달 영역 (이전 대화에서 수정된 라벨 포함 버전 유지) */}
       {isEditModalOpen && editingStore && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={() => setIsEditModalOpen(false)} />
@@ -303,7 +400,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                 </div>
               </div>
 
-              {/* 기능 추가: 카테고리 선택 UI */}
+              {/* 카테고리 선택 UI */}
               <div>
                 <label className="text-[13px] font-bold text-gray-400 mb-2 block">카테고리 선택</label>
                 <div className="flex flex-wrap gap-2">
@@ -331,7 +428,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                 )}
               </div>
 
-              {/* 기능 추가: 무료/예약 토글 버튼 UI */}
+              {/* 무료/예약 토글 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[13px] font-bold text-gray-400 mb-2 block">입장료 유무</label>
@@ -378,55 +475,44 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                 </div>
               </div>
 
-              {/* 기본 정보 입력 */}
-              <div className="space-y-4">
-                {/* 팝업 이름 입력창 */}
-              <input 
-                value={editingStore.title} 
-                onChange={e => setEditingStore({...editingStore, title: e.target.value})} 
-                className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" 
-                placeholder="팝업명" 
-                />
-
-                {/* 주소 입력창 */}
-                <input 
-                value={editingStore.address} 
-                onChange={e => setEditingStore({...editingStore, address: e.target.value})} 
-                className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" 
-                placeholder="주소" 
-                />
-
-                {/* 상세 내용 입력창 (내용이 길 수 있어 textarea 사용) */}
-                <textarea 
-                rows={3} 
-                value={editingStore.description} 
-                onChange={e => setEditingStore({...editingStore, description: e.target.value})} 
-                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[14px] outline-none resize-none" 
-                placeholder="설명" 
-                />
+              {/* 기본 정보 입력 (라벨 명시 버전) */}
+              <div className="space-y-5">
+                <div>
+                  <label className="text-[13px] font-bold text-gray-400 mb-2 block">팝업 이름</label>
+                  <input 
+                    value={editingStore.title} 
+                    onChange={e => setEditingStore({...editingStore, title: e.target.value})} 
+                    className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" 
+                    placeholder="팝업명" 
+                  />
+                </div>
+                <div>
+                  <label className="text-[13px] font-bold text-gray-400 mb-2 block">주소</label>
+                  <input 
+                    value={editingStore.address} 
+                    onChange={e => setEditingStore({...editingStore, address: e.target.value})} 
+                    className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" 
+                    placeholder="주소" 
+                  />
+                </div>
+                <div>
+                  <label className="text-[13px] font-bold text-gray-400 mb-2 block">상세내용</label>
+                  <textarea 
+                    rows={3} 
+                    value={editingStore.description} 
+                    onChange={e => setEditingStore({...editingStore, description: e.target.value})} 
+                    className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[14px] outline-none resize-none" 
+                    placeholder="설명" 
+                  />
+                </div>
               </div>
             </div>
 
-            {/* 기능 추가: 3단 버튼 레이아웃 (취소 | 승인대기 | 저장) */}
+            {/* 하단 버튼 */}
             <div className="p-7 bg-white border-t border-gray-50 grid grid-cols-3 gap-3 sticky bottom-0">
-              <button 
-                onClick={() => setIsEditModalOpen(false)} 
-                className="h-14 bg-gray-100 text-gray-500 rounded-2xl font-bold hover:bg-gray-200 transition-colors"
-              >
-                취소
-              </button>
-              <button 
-                onClick={() => handleUpdateStore(false)} 
-                className="h-14 bg-orange-50 text-orange-600 rounded-2xl font-bold hover:bg-orange-100 transition-colors"
-              >
-                승인대기
-              </button>
-              <button 
-                onClick={() => handleUpdateStore()} 
-                className="h-14 bg-[#3182f6] text-white rounded-2xl font-bold shadow-lg shadow-blue-100 hover:bg-[#2a75e6] transition-colors"
-              >
-                저장하기
-              </button>
+              <button onClick={() => setIsEditModalOpen(false)} className="h-14 bg-gray-100 text-gray-500 rounded-2xl font-bold hover:bg-gray-200 transition-colors">취소</button>
+              <button onClick={() => handleUpdateStore(false)} className="h-14 bg-orange-50 text-orange-600 rounded-2xl font-bold hover:bg-orange-100 transition-colors">승인대기</button>
+              <button onClick={() => handleUpdateStore()} className="h-14 bg-[#3182f6] text-white rounded-2xl font-bold shadow-lg shadow-blue-100 hover:bg-[#2a75e6] transition-colors">저장하기</button>
             </div>
           </div>
         </div>
