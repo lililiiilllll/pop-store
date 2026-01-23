@@ -25,18 +25,21 @@ const DetailModal: React.FC<DetailModalProps> = ({
   store,
   onClose,
   onShowSuccess,
-  currentUser = { id: 'user123', name: '나' },
+  currentUser = { id: 'user123', name: '나' }, // 실서버 연동 시 부모로부터 전달받은 데이터 사용
   isAdmin = false
 }) => {
   const [isMapSelectOpen, setIsMapSelectOpen] = useState(false);
   
-  // 리뷰 관련 상태
+  // 리뷰 리스트 상태
   const [reviews, setReviews] = useState<Review[]>([
     { id: 1, user_id: 'user123', user_name: '김철수', rating: 5, comment: '정말 멋진 팝업이었어요!', likes_count: 12, dislikes_count: 0, is_blinded: false, created_at: new Date().toISOString() },
-    { id: 2, user_id: 'other', user_name: '관리자봇', rating: 3, comment: '블라인드 테스트용 리뷰입니다.', likes_count: 0, dislikes_count: 1, is_blinded: true, created_at: new Date().toISOString() }
+    { id: 2, user_id: 'other_user', user_name: '작성자A', rating: 4, comment: '웨이팅이 길지만 만족합니다.', likes_count: 3, dislikes_count: 1, is_blinded: false, created_at: new Date().toISOString() }
   ]);
+
+  // 내 반응 상태 (중복 방지용: 리뷰ID별로 'like', 'dislike', null 저장)
+  const [myReactions, setMyReactions] = useState<Record<number, 'like' | 'dislike' | null>>({});
   
-  // 리뷰 작성/수정 상태
+  // 리뷰 입력/수정 상태
   const [isWriting, setIsWriting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState('');
@@ -44,14 +47,20 @@ const DetailModal: React.FC<DetailModalProps> = ({
 
   if (!store) return null;
 
-  // --- 1. 자동 도보 계산 로직 (임시 시뮬레이션) ---
-  // 실제 서비스에선 Kakao/Naver Search API를 호출하여 store.address로 역 정보를 가져와야 합니다.
+  // --- 1. 자동 도보 계산 텍스트 ---
   const getAutoWalkTime = () => {
     if (store.station && store.walk_time) return `${store.station} 도보 ${store.walk_time}분`;
-    return "정보 확인 중...";
+    return "인근 지하철역 정보 없음";
   };
 
-  // --- 2. 리뷰 핸들러 ---
+  // --- 2. 리뷰 핸들러 (작성, 수정, 삭제) ---
+  const resetReviewState = () => {
+    setIsWriting(false);
+    setEditingId(null);
+    setEditContent('');
+    setEditRating(5);
+  };
+
   const handleAddReview = () => {
     if (!editContent.trim()) return alert("내용을 입력해주세요.");
     const newReview: Review = {
@@ -76,28 +85,41 @@ const DetailModal: React.FC<DetailModalProps> = ({
     onShowSuccess('수정 완료', '후기가 수정되었습니다.');
   };
 
-  const resetReviewState = () => {
-    setIsWriting(false);
-    setEditingId(null);
-    setEditContent('');
-    setEditRating(5);
+  const handleDeleteReview = (review: Review) => {
+    if (review.user_id !== currentUser?.id && !isAdmin) return alert("삭제 권한이 없습니다.");
+    if (window.confirm("이 후기를 삭제하시겠습니까?")) {
+      setReviews(reviews.filter(r => r.id !== review.id));
+      onShowSuccess('삭제 완료', '후기가 정상적으로 삭제되었습니다.');
+    }
   };
 
-  const handleReaction = (id: number, type: 'like' | 'dislike') => {
-    // 실제로는 reaction_history 테이블을 조회하여 1회 제한 로직을 체크해야 합니다.
+  // --- 3. 좋아요/싫어요 로직 (중복 방지 및 토글) ---
+  const handleReaction = (reviewId: number, type: 'like' | 'dislike') => {
+    const prevReaction = myReactions[reviewId];
+
     setReviews(reviews.map(r => {
-      if (r.id === id) {
-        return {
-          ...r,
-          likes_count: type === 'like' ? r.likes_count + 1 : r.likes_count,
-          dislikes_count: type === 'dislike' ? r.dislikes_count + 1 : r.dislikes_count
-        };
+      if (r.id === reviewId) {
+        let { likes_count, dislikes_count } = r;
+
+        // 1. 이미 같은 걸 눌렀을 때: 취소
+        if (prevReaction === type) {
+          type === 'like' ? likes_count-- : dislikes_count--;
+          setMyReactions({ ...myReactions, [reviewId]: null });
+        } 
+        // 2. 다른 걸 눌렀을 때: 기존 것 취소 후 새로운 것 반영
+        else {
+          if (prevReaction === 'like') likes_count--;
+          if (prevReaction === 'dislike') dislikes_count--;
+          type === 'like' ? likes_count++ : dislikes_count++;
+          setMyReactions({ ...myReactions, [reviewId]: type });
+        }
+
+        return { ...r, likes_count, dislikes_count };
       }
       return r;
     }));
   };
 
-  // --- 3. 길찾기 핸들러 ---
   const openMap = (type: 'naver' | 'kakao') => {
     const { lat, lng, title } = store;
     const targetName = title || "팝업스토어";
@@ -117,7 +139,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
   return (
     <div onClick={(e) => e.stopPropagation()} className="relative flex flex-col w-full h-[90vh] lg:h-auto lg:max-h-[85vh] bg-white overflow-hidden rounded-t-[32px] lg:rounded-2xl shadow-2xl">
       
-      {/* 상단 이미지 */}
+      {/* 1. 이미지 영역 */}
       <div className="relative h-60 lg:h-72 w-full flex-shrink-0 bg-gray-100">
         <img src={store.imageUrl} alt={store.title} className="w-full h-full object-cover" />
         <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black/30 backdrop-blur-md rounded-full text-white z-10">
@@ -125,9 +147,9 @@ const DetailModal: React.FC<DetailModalProps> = ({
         </button>
       </div>
 
-      {/* 컨텐츠 (스크롤) */}
-      <div className="flex-1 overflow-y-auto p-6 pb-28 text-left custom-scrollbar">
-        {/* 타이틀 및 배지 */}
+      {/* 2. 컨텐츠 영역 (스크롤 가능) */}
+      <div className="flex-1 overflow-y-auto p-6 pb-32 text-left custom-scrollbar">
+        {/* 헤더 정보 */}
         <div className="mb-6">
           <h2 className="text-[24px] font-extrabold text-[#191f28] mb-3">{store.title}</h2>
           <div className="flex flex-wrap gap-2 mb-4">
@@ -141,14 +163,9 @@ const DetailModal: React.FC<DetailModalProps> = ({
               {store.is_reservation_required ? '📅 예약필수' : '✅ 상시입장'}
             </div>
             {store.official_url && (
-              <a href={store.official_url} target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-gray-900 text-white rounded-full text-[12px] font-bold">🌐 공식 홈페이지</a>
+              <a href={store.official_url} target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-gray-900 text-white rounded-full text-[12px] font-bold transition-transform active:scale-95">🌐 공식 홈페이지</a>
             )}
           </div>
-        </div>
-
-        {/* 상세 설명 */}
-        <div className="mb-10">
-          <h3 className="font-bold text-gray-900 mb-2 text-base">상세 설명</h3>
           <p className="text-gray-600 text-[14px] leading-relaxed whitespace-pre-line">{store.description}</p>
         </div>
 
@@ -156,9 +173,9 @@ const DetailModal: React.FC<DetailModalProps> = ({
         <div className="pt-8 border-t-[8px] border-gray-50 -mx-6 px-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-[18px] font-bold">방문자 후기 <span className="text-[#3182f6] ml-1">{reviews.length}</span></h3>
-            {!isWriting && (
+            {!isWriting && editingId === null && (
               <button 
-                onClick={() => { setIsWriting(true); setEditingId(null); setEditContent(''); }}
+                onClick={() => setIsWriting(true)}
                 className="text-[#3182f6] text-[14px] font-bold px-4 py-2 bg-blue-50 rounded-full active:scale-95 transition-all"
               >
                 후기 작성하기
@@ -166,27 +183,27 @@ const DetailModal: React.FC<DetailModalProps> = ({
             )}
           </div>
 
-          {/* 리뷰 작성/수정 폼 (Inline) */}
+          {/* 인라인 입력창 (작성 및 수정 공용) */}
           {(isWriting || editingId !== null) && (
-            <div className="mb-8 p-5 bg-gray-50 rounded-2xl border border-blue-100 shadow-inner">
-              <div className="flex gap-1.5 mb-3">
-                {[1, 2, 3, 4, 5].map(num => (
-                  <button key={num} onClick={() => setEditRating(num)} className={`text-2xl ${editRating >= num ? 'text-yellow-400' : 'text-gray-200'}`}>★</button>
+            <div className="mb-8 p-5 bg-gray-50 rounded-2xl border border-blue-100 shadow-sm animate-in fade-in slide-in-from-top-2">
+              <div className="flex gap-2 mb-3">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button key={star} onClick={() => setEditRating(star)} className={`text-2xl ${editRating >= star ? 'text-yellow-400' : 'text-gray-200'}`}>★</button>
                 ))}
               </div>
               <textarea 
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                placeholder="이곳에서의 경험은 어떠셨나요?"
-                className="w-full h-28 p-4 bg-white rounded-xl border-none text-[14px] focus:ring-2 focus:ring-blue-500 shadow-sm"
+                placeholder="솔직한 후기를 남겨주세요."
+                className="w-full h-28 p-4 bg-white rounded-xl border-none text-[14px] focus:ring-2 focus:ring-blue-500 shadow-inner"
               />
               <div className="flex gap-2 mt-3">
-                <button onClick={resetReviewState} className="flex-1 py-3 bg-white text-gray-500 rounded-xl font-bold text-[13px]">취소</button>
+                <button onClick={resetReviewState} className="flex-1 py-3 bg-white text-gray-400 rounded-xl font-bold text-[13px]">취소</button>
                 <button 
-                  onClick={() => editingId ? handleUpdateReview(editingId) : handleAddReview()}
-                  className="flex-[2] py-3 bg-[#3182f6] text-white rounded-xl font-bold text-[13px]"
+                  onClick={() => editingId !== null ? handleUpdateReview(editingId) : handleAddReview()}
+                  className="flex-[2] py-3 bg-[#3182f6] text-white rounded-xl font-bold text-[13px] shadow-lg active:scale-[0.98]"
                 >
-                  {editingId ? "수정 완료" : "후기 등록하기"}
+                  {editingId !== null ? "수정 완료" : "등록하기"}
                 </button>
               </div>
             </div>
@@ -196,36 +213,48 @@ const DetailModal: React.FC<DetailModalProps> = ({
           <div className="divide-y divide-gray-100">
             {reviews.map((review) => {
               const isMyReview = currentUser?.id === review.user_id;
-              const canSee = !review.is_blinded || isMyReview || isAdmin;
-
-              if (!canSee) return (
-                <div key={review.id} className="py-5 text-gray-400 text-[13px] italic">비공개 처리된 리뷰입니다.</div>
-              );
+              const reaction = myReactions[review.id];
 
               return (
-                <div key={review.id} className={`py-6 flex flex-col ${review.is_blinded ? 'bg-red-50/20 px-4 rounded-xl my-2' : ''}`}>
+                <div key={review.id} className="py-6 flex flex-col">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-[15px]">{review.user_name}</span>
-                        {review.is_blinded && <span className="text-[10px] font-bold text-red-500 border border-red-200 px-1.5 py-0.5 rounded">BLIND</span>}
+                        <span className="font-bold text-[15px]">{review.user_name} {isMyReview && <span className="text-[11px] text-blue-500 font-medium">(나)</span>}</span>
                       </div>
-                      <div className="flex text-yellow-400 text-[12px]">
+                      <div className="flex text-yellow-400 text-[11px]">
                         {"★".repeat(review.rating)}
                         <span className="text-gray-300 ml-2 font-normal">{new Date(review.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
-                    {isMyReview && editingId !== review.id && (
+                    {/* 본인만 제어 가능한 버튼 */}
+                    {(isMyReview || isAdmin) && editingId !== review.id && (
                       <div className="flex gap-3 text-[12px] font-medium text-gray-400">
                         <button onClick={() => { setEditingId(review.id); setEditContent(review.comment); setEditRating(review.rating); }}>수정</button>
-                        <button onClick={() => setReviews(reviews.filter(r => r.id !== review.id))} className="text-red-400">삭제</button>
+                        <button onClick={() => handleDeleteReview(review)} className="text-red-400 hover:text-red-600">삭제</button>
                       </div>
                     )}
                   </div>
                   <p className="text-[14px] text-[#4e5968] leading-relaxed mb-4 whitespace-pre-wrap">{review.comment}</p>
+                  
+                  {/* 반응 버튼 (색상으로 활성화 표시) */}
                   <div className="flex gap-2">
-                    <button onClick={() => handleReaction(review.id, 'like')} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-100 rounded-xl text-[12px] font-bold text-gray-600 hover:bg-gray-50">👍 {review.likes_count}</button>
-                    <button onClick={() => handleReaction(review.id, 'dislike')} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-100 rounded-xl text-[12px] font-bold text-gray-600 hover:bg-gray-50">👎 {review.dislikes_count}</button>
+                    <button 
+                      onClick={() => handleReaction(review.id, 'like')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${
+                        reaction === 'like' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-100 text-gray-500'
+                      }`}
+                    >
+                      👍 {review.likes_count}
+                    </button>
+                    <button 
+                      onClick={() => handleReaction(review.id, 'dislike')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${
+                        reaction === 'dislike' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-100 text-gray-500'
+                      }`}
+                    >
+                      👎 {review.dislikes_count}
+                    </button>
                   </div>
                 </div>
               );
@@ -234,35 +263,35 @@ const DetailModal: React.FC<DetailModalProps> = ({
         </div>
       </div>
 
-      {/* 하단 버튼 */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white/95 backdrop-blur-lg flex gap-3 z-20">
-        <button onClick={() => onShowSuccess('제보 완료', '정보 수정 제보가 접수되었습니다.')} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-[13px]">정보 수정 요청</button>
-        <button onClick={() => setIsMapSelectOpen(true)} className="flex-[2.5] py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all">
+      {/* 3. 하단 고정 액션 바 */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white/95 backdrop-blur-lg flex gap-3 z-30">
+        <button onClick={() => onShowSuccess('제보 완료', '수정 제보가 정상적으로 접수되었습니다.')} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-[13px]">수정 요청</button>
+        <button onClick={() => setIsMapSelectOpen(true)} className="flex-[2.5] py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
           길찾기 시작
         </button>
       </div>
 
-      {/* 길찾기 선택 모달 */}
+      {/* 길찾기 앱 선택 모달 (AnimatePresence) */}
       <AnimatePresence>
         {isMapSelectOpen && (
           <div className="fixed inset-0 z-[10001] flex items-center justify-center p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMapSelectOpen(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-[280px] bg-white rounded-[28px] p-6 shadow-2xl text-center">
-              <h4 className="font-bold text-gray-900 mb-6 text-[15px]">어떤 지도로 안내할까요?</h4>
-              <div className="grid grid-cols-2 gap-6 mb-2">
+              <h4 className="font-bold text-gray-900 mb-6 text-[15px]">길찾기 앱 선택</h4>
+              <div className="grid grid-cols-2 gap-6">
                 <button onClick={() => openMap('naver')} className="flex flex-col items-center gap-2">
                   <div className="w-14 h-14 bg-[#03C75A] rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md">N</div>
-                  <span className="text-[11px] font-semibold text-gray-600">네이버 지도</span>
+                  <span className="text-[11px] font-semibold text-gray-600">네이버</span>
                 </button>
                 <button onClick={() => openMap('kakao')} className="flex flex-col items-center gap-2">
                   <div className="w-14 h-14 bg-[#FEE500] rounded-2xl flex items-center justify-center shadow-md">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="#3C1E1E"><path d="M12 3C6.477 3 2 6.477 2 10.75c0 2.79 1.857 5.232 4.636 6.643l-1.176 4.314c-.06.22.194.402.383.27l5.085-3.535c.348.037.702.058 1.072.058 5.523 0 10-3.477 10-7.75S17.523 3 12 3z"/></svg>
                   </div>
-                  <span className="text-[11px] font-semibold text-gray-600">카카오맵</span>
+                  <span className="text-[11px] font-semibold text-gray-600">카카오</span>
                 </button>
               </div>
-              <button onClick={() => setIsMapSelectOpen(false)} className="mt-4 text-gray-400 text-[13px] font-medium underline">닫기</button>
+              <button onClick={() => setIsMapSelectOpen(false)} className="mt-6 text-gray-400 text-[13px] font-medium">닫기</button>
             </motion.div>
           </div>
         )}
