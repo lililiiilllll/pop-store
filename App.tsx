@@ -24,6 +24,10 @@ const DEFAULT_LOCATION = { lat: 37.5547, lng: 126.9706 };
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1531050171669-7df9b2089206?q=80&w=400&auto=format&fit=crop';
 
 const App: React.FC = () => {
+  // --- 💡 관리자 및 테스트 관련 상태 추가 ---
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [isTestPanelOpen, setIsTestPanelOpen] = useState(true);
+
   const [activeTab, setActiveTab] = useState<'home' | 'saved'>('home');
   const [selectedFilter, setSelectedFilter] = useState<string>('전체');
   const [allStores, setAllStores] = useState<PopupStore[]>([]);
@@ -48,6 +52,26 @@ const App: React.FC = () => {
   const HeartIcon = Icons.Heart || Icons.Square || 'div';
   const ListIcon = Icons.List || Icons.Square || 'div';
   const XIcon = Icons.X || Icons.Square || 'div';
+
+  // --- 💡 임시 로그인 핸들러 ---
+  const handleAdminLogin = () => {
+    setIsAdminLoggedIn(true);
+    setSuccessConfig({
+      isOpen: true,
+      title: '관리자 인증',
+      message: '관리자 권한이 활성화되었습니다.'
+    });
+  };
+
+  const handleUserLogin = () => {
+    setIsAdminLoggedIn(false);
+    setIsAdminOpen(false);
+    setSuccessConfig({
+      isOpen: true,
+      title: '일반 유저 모드',
+      message: '테스트 계정으로 전환되었습니다.'
+    });
+  };
 
   const toggleSaveStore = useCallback((id: string) => {
     setSavedStoreIds(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
@@ -113,38 +137,71 @@ const App: React.FC = () => {
     }
   }, [allStores, activeTab]);
 
-  if (isAdminOpen) return <AdminDashboard allStores={allStores} onBack={() => setIsAdminOpen(false)} onRefresh={fetchStores} />;
+  // 관리자 권한이 있고, 관리자 창이 열렸을 때만 대시보드 표시
+  if (isAdminOpen && isAdminLoggedIn) {
+    return <AdminDashboard allStores={allStores} onBack={() => setIsAdminOpen(false)} onRefresh={fetchStores} />;
+  }
 
   return (
     <div className="relative flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white text-[#191f28]">
       
+      {/* 💡 개발용 임시 테스트 패널 (우측 상단 플로팅) */}
+      <AnimatePresence>
+        {isTestPanelOpen && (
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+            className="fixed top-24 right-6 z-[100] bg-white/90 backdrop-blur-xl p-4 rounded-[20px] shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-[#f2f4f6] flex flex-col gap-2 min-w-[160px]"
+          >
+            <div className="flex justify-between items-center mb-1 px-1">
+              <span className="text-[11px] font-bold text-[#3182f6] tracking-tight">DEBUG CONSOLE</span>
+              <button onClick={() => setIsTestPanelOpen(false)} className="text-[#8b95a1] hover:text-[#4e5968]"><XIcon size={14} /></button>
+            </div>
+            <button 
+              onClick={handleAdminLogin}
+              className={`px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all ${isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}
+            >
+              관리자 로그인
+            </button>
+            <button 
+              onClick={handleUserLogin}
+              className={`px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all ${!isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}
+            >
+              테스트 계정
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 1. PC 사이드바 */}
       <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-[#f2f4f6] shadow-sm overflow-hidden">
-        <Header location={currentLocationName} onSearchClick={() => setIsSearchOpen(true)} onAdminClick={() => setIsAdminOpen(true)} onProfileClick={() => setIsProfileModalOpen(true)} onLocationClick={() => setIsLocationSelectorOpen(true)} />
+        <Header 
+          location={currentLocationName} 
+          onSearchClick={() => setIsSearchOpen(true)} 
+          onAdminClick={() => {
+            if (isAdminLoggedIn) setIsAdminOpen(true);
+            else alert("관리자 권한이 필요합니다. 디버그 콘솔을 확인해주세요.");
+          }} 
+          onProfileClick={() => setIsProfileModalOpen(true)} 
+          onLocationClick={() => setIsLocationSelectorOpen(true)} 
+        />
         
-        {/* 토스 스타일 카테고리 필터 */}
         <div className="no-scrollbar overflow-x-auto">
            <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} />
         </div>
         
         <div className="px-5 py-4 bg-white border-b border-[#f9fafb]">
           <div className="flex bg-[#f2f4f6] p-1 rounded-[14px]">
-            <button 
-              onClick={() => setActiveTab('home')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 text-[14px] font-bold rounded-[12px] transition-all ${activeTab === 'home' ? 'bg-white shadow-sm text-[#3182f6]' : 'text-[#8b95a1]'}`}
-            >
+            <button onClick={() => setActiveTab('home')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 text-[14px] font-bold rounded-[12px] transition-all ${activeTab === 'home' ? 'bg-white shadow-sm text-[#3182f6]' : 'text-[#8b95a1]'}`}>
               <MapIcon size={16} /> 전체 팝업
             </button>
-            <button 
-              onClick={() => setActiveTab('saved')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 text-[14px] font-bold rounded-[12px] transition-all ${activeTab === 'saved' ? 'bg-white shadow-sm text-[#3182f6]' : 'text-[#8b95a1]'}`}
-            >
+            <button onClick={() => setActiveTab('saved')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 text-[14px] font-bold rounded-[12px] transition-all ${activeTab === 'saved' ? 'bg-white shadow-sm text-[#3182f6]' : 'text-[#8b95a1]'}`}>
               <HeartIcon size={16} className={activeTab === 'saved' ? 'fill-[#3182f6] text-[#3182f6]' : ''} /> 찜한 목록
             </button>
           </div>
         </div>
 
-        {/* 리스트 영역 커스텀 스크롤 */}
         <div className="flex-1 overflow-y-auto bg-white p-4 custom-scrollbar">
           <PopupList stores={visibleStores} onStoreClick={(s) => handleStoreSelect(s.id)} userLocation={userCoords} />
         </div>
@@ -158,7 +215,6 @@ const App: React.FC = () => {
           onMapClick={() => { setIsMobileListOpen(false); setDetailStore(null); }}
         />
         
-        {/* 모바일 상단: 블러 처리된 토스 스타일 헤더 */}
         <div className="lg:hidden absolute top-0 left-0 right-0 z-20 bg-white/80 backdrop-blur-xl border-b border-[#f2f4f6]">
           <Header location={currentLocationName} onSearchClick={() => setIsSearchOpen(true)} onLocationClick={() => setIsLocationSelectorOpen(true)} />
           <div className="no-scrollbar overflow-x-auto">
@@ -181,7 +237,6 @@ const App: React.FC = () => {
               <h2 className="text-[20px] font-bold text-[#191f28]">{activeTab === 'home' ? '주변 팝업 리스트' : '찜한 팝업 목록'}</h2>
               <button onClick={() => setIsMobileListOpen(false)} className="p-2 bg-[#f2f4f6] rounded-full text-[#4e5968]"><XIcon size={20} /></button>
             </div>
-            {/* 리스트 영역 스크롤바 숨김 */}
             <div className="flex-1 overflow-y-auto pb-32 no-scrollbar">
               <PopupList stores={visibleStores} onStoreClick={(s) => handleStoreSelect(s.id)} userLocation={userCoords} />
             </div>
@@ -200,7 +255,9 @@ const App: React.FC = () => {
             </motion.div>
           </div>
         )}
-        {/* ...기타 모달 생략 (동일한 로직) */}
+        {isSearchOpen && <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} stores={allStores} onSelectResult={handleStoreSelect} />}
+        {isLocationSelectorOpen && <LocationSelector isOpen={isLocationSelectorOpen} onClose={() => setIsLocationSelectorOpen(false)} onSelect={(loc: any) => { setCurrentLocationName(loc.name); setMapCenter({ lat: loc.lat, lng: loc.lng }); setIsLocationSelectorOpen(false); }} />}
+        {successConfig.isOpen && <SuccessModal isOpen={successConfig.isOpen} title={successConfig.title} message={successConfig.message} onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} />}
       </AnimatePresence>
     </div>
   );
