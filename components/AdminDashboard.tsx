@@ -404,6 +404,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                 className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[14px] outline-none resize-none" 
                 placeholder="설명" 
                 />
+              </div>
             </div>
 
             {/* 기능 추가: 3단 버튼 레이아웃 (취소 | 승인대기 | 저장) */}
