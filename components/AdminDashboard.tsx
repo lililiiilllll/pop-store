@@ -30,6 +30,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
   const [editingStore, setEditingStore] = useState<PopupStore | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
+  // 기능 추가: 기타 카테고리 입력을 위한 로컬 상태
+  const [customCategory, setCustomCategory] = useState('');
+  
   const [recKeywords, setRecKeywords] = useState<RecommendedKeyword[]>([]);
   const [newRecKeyword, setNewRecKeyword] = useState('');
   const [searchLogs, setSearchLogs] = useState<SearchLog[]>([]);
@@ -115,18 +118,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
 
   const handleUpdateStore = async (statusOverride?: boolean) => {
     if (!editingStore) return;
+
+    // 기능 반영: 기타 카테고리 선택 시 직접 입력값 사용
+    const finalCategory = (editingStore.category === '기타' && customCategory.trim() !== '') 
+      ? customCategory.trim() 
+      : editingStore.category;
+
     const isVerified = statusOverride !== undefined ? statusOverride : editingStore.is_verified;
+    
     const { error } = await supabase.from('popup_stores').update({
-      title: editingStore.title, address: editingStore.address,
-      category: editingStore.category, description: editingStore.description,
-      image_url: editingStore.imageUrl, is_free: editingStore.is_free,
+      title: editingStore.title, 
+      address: editingStore.address,
+      category: finalCategory, 
+      description: editingStore.description,
+      image_url: editingStore.imageUrl, 
+      is_free: editingStore.is_free,
       is_reservation_required: editingStore.is_reservation_required,
-      is_verified: isVerified, keywords: editingStore.keywords
+      is_verified: isVerified, 
+      keywords: editingStore.keywords
     }).eq('id', editingStore.id);
 
     if (!error) {
-      alert('저장되었습니다.');
+      alert(statusOverride === false ? '승인 대기 상태로 변경되었습니다.' : '저장되었습니다.');
       setIsEditModalOpen(false);
+      setCustomCategory(''); // 초기화
       onRefresh();
     }
   };
@@ -274,7 +289,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
               <h2 className="text-[20px] font-bold">팝업 상세 수정</h2>
               <button onClick={() => setIsEditModalOpen(false)}>{Icons.X ? <Icons.X size={22} className="text-gray-400"/> : 'X'}</button>
             </div>
-            <div className="p-7 overflow-y-auto space-y-6">
+            <div className="p-7 overflow-y-auto space-y-6 no-scrollbar">
+              
+              {/* 이미지 관리 */}
               <div>
                 <label className="text-[13px] font-bold text-gray-400 mb-2 block">대표 이미지</label>
                 <div className="flex gap-4 items-center">
@@ -285,6 +302,66 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                   </div>
                 </div>
               </div>
+
+              {/* 기능 추가: 카테고리 선택 UI */}
+              <div>
+                <label className="text-[13px] font-bold text-gray-400 mb-2 block">카테고리 선택</label>
+                <div className="flex flex-wrap gap-2">
+                  {CATEGORIES.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setEditingStore({...editingStore, category: cat})}
+                      className={`px-4 py-2 rounded-xl text-[13px] font-bold border transition-all ${
+                        editingStore.category === cat 
+                        ? 'bg-[#3182f6] border-[#3182f6] text-white' 
+                        : 'bg-white border-gray-100 text-gray-400 hover:bg-gray-50'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                {editingStore.category === '기타' && (
+                  <input 
+                    placeholder="카테고리를 직접 입력해주세요" 
+                    className="w-full mt-2 bg-gray-50 border-none rounded-xl p-3 text-[14px] outline-none border border-blue-100"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                  />
+                )}
+              </div>
+
+              {/* 기능 추가: 무료/예약 토글 버튼 UI */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[13px] font-bold text-gray-400 mb-2 block">입장료 유무</label>
+                  <div className="flex bg-gray-50 p-1 rounded-xl">
+                    <button 
+                      onClick={() => setEditingStore({...editingStore, is_free: true})}
+                      className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-all ${editingStore.is_free ? 'bg-white shadow-sm text-[#3182f6]' : 'text-gray-400'}`}
+                    >무료</button>
+                    <button 
+                      onClick={() => setEditingStore({...editingStore, is_free: false})}
+                      className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-all ${!editingStore.is_free ? 'bg-white shadow-sm text-[#3182f6]' : 'text-gray-400'}`}
+                    >유료</button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[13px] font-bold text-gray-400 mb-2 block">예약 필요성</label>
+                  <div className="flex bg-gray-50 p-1 rounded-xl">
+                    <button 
+                      onClick={() => setEditingStore({...editingStore, is_reservation_required: false})}
+                      className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-all ${!editingStore.is_reservation_required ? 'bg-white shadow-sm text-[#3182f6]' : 'text-gray-400'}`}
+                    >상시입장</button>
+                    <button 
+                      onClick={() => setEditingStore({...editingStore, is_reservation_required: true})}
+                      className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-all ${editingStore.is_reservation_required ? 'bg-white shadow-sm text-[#3182f6]' : 'text-gray-400'}`}
+                    >예약필수</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 태그 관리 */}
               <div>
                 <label className="text-[13px] font-bold text-gray-400 mb-2 block">검색 태그</label>
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -300,15 +377,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                   <button onClick={addKeyword} className="px-4 bg-[#3182f6] text-white rounded-xl font-bold text-[13px]">추가</button>
                 </div>
               </div>
+
+              {/* 기본 정보 입력 */}
               <div className="space-y-4">
                 <input value={editingStore.title} onChange={e => setEditingStore({...editingStore, title: e.target.value})} className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" placeholder="팝업명" />
                 <input value={editingStore.address} onChange={e => setEditingStore({...editingStore, address: e.target.value})} className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" placeholder="주소" />
                 <textarea rows={3} value={editingStore.description} onChange={e => setEditingStore({...editingStore, description: e.target.value})} className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[14px] outline-none resize-none" placeholder="설명" />
               </div>
             </div>
-            <div className="p-7 bg-white border-t border-gray-50 grid grid-cols-2 gap-3 sticky bottom-0">
-              <button onClick={() => setIsEditModalOpen(false)} className="h-14 bg-gray-100 text-gray-500 rounded-2xl font-bold">취소</button>
-              <button onClick={() => handleUpdateStore()} className="h-14 bg-[#3182f6] text-white rounded-2xl font-bold shadow-lg shadow-blue-100">저장하기</button>
+
+            {/* 기능 추가: 3단 버튼 레이아웃 (취소 | 승인대기 | 저장) */}
+            <div className="p-7 bg-white border-t border-gray-50 grid grid-cols-3 gap-3 sticky bottom-0">
+              <button 
+                onClick={() => setIsEditModalOpen(false)} 
+                className="h-14 bg-gray-100 text-gray-500 rounded-2xl font-bold hover:bg-gray-200 transition-colors"
+              >
+                취소
+              </button>
+              <button 
+                onClick={() => handleUpdateStore(false)} 
+                className="h-14 bg-orange-50 text-orange-600 rounded-2xl font-bold hover:bg-orange-100 transition-colors"
+              >
+                승인대기
+              </button>
+              <button 
+                onClick={() => handleUpdateStore()} 
+                className="h-14 bg-[#3182f6] text-white rounded-2xl font-bold shadow-lg shadow-blue-100 hover:bg-[#2a75e6] transition-colors"
+              >
+                저장하기
+              </button>
             </div>
           </div>
         </div>
