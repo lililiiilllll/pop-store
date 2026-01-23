@@ -24,7 +24,7 @@ const DEFAULT_LOCATION = { lat: 37.5547, lng: 126.9706 };
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1531050171669-7df9b2089206?q=80&w=400&auto=format&fit=crop';
 
 const App: React.FC = () => {
-  // --- 💡 관리자 및 테스트 관련 상태 추가 ---
+  // --- 관리자 및 테스트 관련 상태 ---
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isTestPanelOpen, setIsTestPanelOpen] = useState(true);
 
@@ -53,28 +53,31 @@ const App: React.FC = () => {
   const ListIcon = Icons.List || Icons.Square || 'div';
   const XIcon = Icons.X || Icons.Square || 'div';
 
-  // --- 💡 임시 로그인 핸들러 ---
-const handleAdminLogin = () => {
-  setIsAdminLoggedIn(true); // 1. 권한 부여
-  setIsAdminOpen(true);     // 2. 대시보드 화면으로 즉시 전환
-  
-  setSuccessConfig({
-    isOpen: true,
-    title: '관리자 인증 성공',
-    message: '관리자 모드로 즉시 진입합니다.'
-  });
-};
+  // --- 💡 작동이 보장되는 임시 로그인 핸들러 ---
+  const handleAdminLogin = useCallback(() => {
+    console.log("Admin login triggered");
+    setIsAdminLoggedIn(true);
+    // 권한 부여와 동시에 관리자 창을 열도록 설정
+    setIsAdminOpen(true); 
+    
+    setSuccessConfig({
+      isOpen: true,
+      title: '관리자 모드',
+      message: '관리자 인증이 완료되었습니다.'
+    });
+  }, []);
 
-const handleUserLogin = () => {
-  setIsAdminLoggedIn(false); // 권한 해제
-  setIsAdminOpen(false);     // 대시보드 닫기
-  
-  setSuccessConfig({
-    isOpen: true,
-    title: '테스트 계정 모드',
-    message: '일반 유저 권한으로 전환되었습니다.'
-  });
-};
+  const handleUserLogin = useCallback(() => {
+    console.log("User mode triggered");
+    setIsAdminLoggedIn(false);
+    setIsAdminOpen(false);
+    
+    setSuccessConfig({
+      isOpen: true,
+      title: '일반 모드',
+      message: '테스트 계정으로 전환되었습니다.'
+    });
+  }, []);
 
   const toggleSaveStore = useCallback((id: string) => {
     setSavedStoreIds(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
@@ -108,7 +111,8 @@ const handleUserLogin = () => {
 
   const fetchStores = async () => {
     try {
-      const { data } = await supabase.from('popup_stores').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('popup_stores').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
       if (data) {
         setAllStores(data.map((s: any) => ({ 
           ...s, id: String(s.id), title: s.title || s.name, 
@@ -116,15 +120,17 @@ const handleUserLogin = () => {
           imageUrl: s.image_url && s.image_url.startsWith('http') ? s.image_url : FALLBACK_IMAGE 
         })));
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Fetch Error:", e); }
   };
 
   useEffect(() => {
     fetchStores();
+    // Geolocation 오류 방지를 위해 cleanup 로직 포함 추천
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (p) => setUserCoords({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => setUserCoords(DEFAULT_LOCATION)
+        () => setUserCoords(DEFAULT_LOCATION),
+        { enableHighAccuracy: false, timeout: 5000 }
       );
     }
   }, []);
@@ -140,7 +146,7 @@ const handleUserLogin = () => {
     }
   }, [allStores, activeTab]);
 
-  // 관리자 권한이 있고, 관리자 창이 열렸을 때만 대시보드 표시
+  // 💡 관리자 대시보드 조건 (최우선 순위 렌더링)
   if (isAdminOpen && isAdminLoggedIn) {
     return <AdminDashboard allStores={allStores} onBack={() => setIsAdminOpen(false)} onRefresh={fetchStores} />;
   }
@@ -148,28 +154,28 @@ const handleUserLogin = () => {
   return (
     <div className="relative flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white text-[#191f28]">
       
-      {/* 💡 개발용 임시 테스트 패널 (우측 상단 플로팅) */}
+      {/* 💡 개발용 테스트 패널: z-index를 최상위로 조정 (z-[999]) */}
       <AnimatePresence>
         {isTestPanelOpen && (
           <motion.div 
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-            className="fixed top-24 right-6 z-[100] bg-white/90 backdrop-blur-xl p-4 rounded-[20px] shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-[#f2f4f6] flex flex-col gap-2 min-w-[160px]"
+            className="fixed top-24 right-6 z-[999] bg-white/95 backdrop-blur-xl p-5 rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-[#f2f4f6] flex flex-col gap-3 min-w-[200px]"
           >
             <div className="flex justify-between items-center mb-1 px-1">
-              <span className="text-[11px] font-bold text-[#3182f6] tracking-tight">DEBUG CONSOLE</span>
-              <button onClick={() => setIsTestPanelOpen(false)} className="text-[#8b95a1] hover:text-[#4e5968]"><XIcon size={14} /></button>
+              <span className="text-[12px] font-bold text-[#3182f6] tracking-wider">DEBUG CONSOLE</span>
+              <button onClick={() => setIsTestPanelOpen(false)} className="text-[#8b95a1] hover:text-black p-1"><XIcon size={16} /></button>
             </div>
             <button 
               onClick={handleAdminLogin}
-              className={`px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all ${isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}
+              className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all toss-active-scale ${isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}
             >
-              관리자 로그인
+              관리자 모드 접속
             </button>
             <button 
               onClick={handleUserLogin}
-              className={`px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all ${!isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}
+              className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all toss-active-scale ${!isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}
             >
-              테스트 계정
+              일반 유저 모드
             </button>
           </motion.div>
         )}
@@ -182,7 +188,7 @@ const handleUserLogin = () => {
           onSearchClick={() => setIsSearchOpen(true)} 
           onAdminClick={() => {
             if (isAdminLoggedIn) setIsAdminOpen(true);
-            else alert("관리자 권한이 필요합니다. 디버그 콘솔을 확인해주세요.");
+            else alert("디버그 콘솔에서 '관리자 모드'를 먼저 활성화해주세요.");
           }} 
           onProfileClick={() => setIsProfileModalOpen(true)} 
           onLocationClick={() => setIsLocationSelectorOpen(true)} 
@@ -227,7 +233,7 @@ const handleUserLogin = () => {
 
         {!isMobileListOpen && (
           <div className="lg:hidden absolute bottom-28 left-1/2 -translate-x-1/2 z-30">
-            <button onClick={() => setIsMobileListOpen(true)} className="bg-[#191f28] text-white px-8 py-4 rounded-full shadow-xl font-bold text-[15px] flex items-center gap-2 active:scale-95 transition-transform">
+            <button onClick={() => setIsMobileListOpen(true)} className="bg-[#191f28] text-white px-8 py-4 rounded-full shadow-xl font-bold text-[15px] flex items-center gap-2 toss-active-scale">
               <ListIcon size={18} /> {activeTab === 'home' ? '목록보기' : '찜한 목록보기'}
             </button>
           </div>
