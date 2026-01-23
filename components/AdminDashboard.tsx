@@ -18,7 +18,7 @@ interface SearchLog {
   updated_at: string;
 }
 
-// 리뷰 데이터 타입 정의
+// 리뷰 데이터 타입 정의 (요청하신 모든 필드 포함)
 interface Review {
   id: number;
   store_id: number;
@@ -26,8 +26,12 @@ interface Review {
   rating: number;
   comment: string;
   created_at: string;
-  popup_stores?: { title: string }; // 팝업 정보 조인
-}
+  is_blinded: boolean;    // 블라인드 여부
+  likes_count: number;    // 좋아요 수
+  dislikes_count: number; // 싫어요 수
+  reports_count: number;  // 신고 건수
+  profiles?: { name: string };     // 유저 name 셀 가져오기
+  popup_stores?: { title: string }; // 팝업 제목
 
 interface AdminDashboardProps {
   allStores: PopupStore[];
@@ -46,20 +50,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
   const [newRecKeyword, setNewRecKeyword] = useState('');
   const [searchLogs, setSearchLogs] = useState<SearchLog[]>([]);
   
-  // 리뷰 상태 관리
+// --- 리뷰 관리 상태 ---
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [showOnlyReported, setShowOnlyReported] = useState(false); // 신고된 리뷰만 보기 필터
+  const [reviewSortOrder, setReviewSortOrder] = useState<'latest' | 'reports'>('latest'); // 정렬 필터
+  const [editingReview, setEditingReview] = useState<Review | null>(null); // 리뷰 수정 모달용
 
   const [keywordInput, setKeywordInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (activeTab === 'keywords') {
-      fetchKeywordAdminData();
-    } else if (activeTab === 'reviews') {
-      fetchReviews();
-    }
-  }, [activeTab]);
+useEffect(() => {
+    if (activeTab === 'keywords') fetchKeywordAdminData();
+    if (activeTab === 'reviews') fetchReviews();
+  }, [activeTab, showOnlyReported, reviewSortOrder]);
 
   const fetchKeywordAdminData = async () => {
     try {
@@ -68,6 +72,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
         .select('*')
         .order('order_index', { ascending: true });
       if (recData) setRecKeywords(recData);
+
+      const { data: recData } = await supabase.from('recommended_keywords').select('*').order('order_index', { ascending: true });
+      if (recData) setRecKeywords(recData);
+      const { data: logData } = await supabase.from('search_logs').select('*').order('search_count', { ascending: false });
+      if (logData) setSearchLogs(logData);
 
       const { data: logData } = await supabase
         .from('search_logs')
@@ -79,18 +88,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     }
   };
 
-  // 리뷰 불러오기 (Foreign Key 연동)
+// 리뷰 불러오기 (필터 및 정렬 기능 통합)
   const fetchReviews = async () => {
     setIsLoadingReviews(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('reviews')
         .select(`
           *,
+          profiles ( name ),
           popup_stores ( title )
-        `)
-        .order('created_at', { ascending: false });
-      
+        `);
+
+      // 필터: 신고된 리뷰만 보기 (reports_count > 0)
+      if (showOnlyReported) {
+        query = query.gt('reports_count', 0);
+      }
+
+      // 정렬: 최신순 vs 신고 많은 순
+      if (reviewSortOrder === 'reports') {
+        query = query.order('reports_count', { ascending: false });
+      } else {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       if (data) setReviews(data);
     } catch (err) {
@@ -100,13 +122,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     }
   };
 
-  // 리뷰 삭제 기능
+  // 리뷰 블라인드 토글 (처리/해제)
+  const handleToggleBlind = async (review: Review) => {
+    const { error } = await supabase
+      .from('reviews')
+      .update({ is_blinded: !review.is_blinded })
+      .eq('id', review.id);
+    
+    if (!error) fetchReviews();
+  };
+
+  // 리뷰 수정 (관리자 권한)
+  const handleUpdateReview = async () => {
+    if (!editingReview) return;
+    const { error } = await supabase
+      .from('reviews')
+      .update({ 
+        comment: editingReview.comment,
+        rating: editingReview.rating 
+      })
+      .eq('id', editingReview.id);
+    
+    if (!error) {
+      alert('리뷰가 수정되었습니다.');
+      setEditingReview(null);
+      fetchReviews();
+    }
+  };
+
   const handleDeleteReview = async (id: number) => {
     if (confirm('이 리뷰를 정말 삭제하시겠습니까?')) {
       const { error } = await supabase.from('reviews').delete().eq('id', id);
-      if (!error) {
-        fetchReviews();
-      }
+      if (!error) fetchReviews();
     }
   };
 
