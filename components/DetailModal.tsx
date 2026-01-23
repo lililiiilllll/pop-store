@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// DB 테이블 구조에 맞춘 인터페이스 정의
 interface Review {
   id: number;
-  user_id: string;
-  user_name: string;
+  popup_id: number;
+  user_id: string; // UUID
+  user_nickname: string;
+  content: string; // comment -> content
   rating: number;
-  comment: string;
-  likes_count: number;
-  dislikes_count: number;
+  likes: number; // likes_count -> likes
+  dislikes: number; // dislikes_count -> dislikes
   is_blinded: boolean;
   created_at: string;
 }
 
 interface DetailModalProps {
-  store: any;
+  store: any; // popup_stores 테이블 데이터
   onClose: () => void;
   onShowSuccess: (title: string, message: string) => void;
-  currentUser?: { id: string; name: string };
+  currentUser?: { id: string; name: string } | null; // 로그인 정보 (없으면 null)
   isAdmin?: boolean;
 }
 
@@ -25,15 +27,25 @@ const DetailModal: React.FC<DetailModalProps> = ({
   store,
   onClose,
   onShowSuccess,
-  currentUser = { id: 'user123', name: '나' }, // 실서버 연동 시 부모로부터 전달받은 데이터 사용
+  currentUser,
   isAdmin = false
 }) => {
   const [isMapSelectOpen, setIsMapSelectOpen] = useState(false);
   
-  // 리뷰 리스트 상태
+  // 리뷰 리스트 상태 (실제 구현 시 useEffect에서 fetch 필요)
   const [reviews, setReviews] = useState<Review[]>([
-    { id: 1, user_id: 'user123', user_name: '김철수', rating: 5, comment: '정말 멋진 팝업이었어요!', likes_count: 12, dislikes_count: 0, is_blinded: false, created_at: new Date().toISOString() },
-    { id: 2, user_id: 'other_user', user_name: '작성자A', rating: 4, comment: '웨이팅이 길지만 만족합니다.', likes_count: 3, dislikes_count: 1, is_blinded: false, created_at: new Date().toISOString() }
+    { 
+      id: 1, 
+      popup_id: 101,
+      user_id: 'user123', 
+      user_nickname: '김철수', 
+      rating: 5, 
+      content: '정말 멋진 팝업이었어요!', 
+      likes: 12, 
+      dislikes: 0, 
+      is_blinded: false, 
+      created_at: new Date().toISOString() 
+    }
   ]);
 
   // 내 반응 상태 (중복 방지용: 리뷰ID별로 'like', 'dislike', null 저장)
@@ -47,9 +59,11 @@ const DetailModal: React.FC<DetailModalProps> = ({
 
   if (!store) return null;
 
-  // --- 1. 자동 도보 계산 텍스트 ---
+  // --- 1. 자동 도보 계산 텍스트 (nearby_station, walking_time 필드 사용) ---
   const getAutoWalkTime = () => {
-    if (store.station && store.walk_time) return `${store.station} 도보 ${store.walk_time}분`;
+    if (store.nearby_station && store.walking_time) {
+      return `${store.nearby_station} 도보 ${store.walking_time}분`;
+    }
     return "인근 지하철역 정보 없음";
   };
 
@@ -62,31 +76,37 @@ const DetailModal: React.FC<DetailModalProps> = ({
   };
 
   const handleAddReview = () => {
+    if (!currentUser) return alert("로그인이 필요한 서비스입니다.");
     if (!editContent.trim()) return alert("내용을 입력해주세요.");
+
     const newReview: Review = {
       id: Date.now(),
+      popup_id: store.id,
       user_id: currentUser.id,
-      user_name: currentUser.name,
+      user_nickname: currentUser.name,
+      content: editContent,
       rating: editRating,
-      comment: editContent,
-      likes_count: 0,
-      dislikes_count: 0,
+      likes: 0,
+      dislikes: 0,
       is_blinded: false,
       created_at: new Date().toISOString(),
     };
+
     setReviews([newReview, ...reviews]);
     resetReviewState();
     onShowSuccess('등록 완료', '후기가 성공적으로 등록되었습니다.');
   };
 
   const handleUpdateReview = (id: number) => {
-    setReviews(reviews.map(r => r.id === id ? { ...r, comment: editContent, rating: editRating } : r));
+    setReviews(reviews.map(r => r.id === id ? { ...r, content: editContent, rating: editRating } : r));
     resetReviewState();
     onShowSuccess('수정 완료', '후기가 수정되었습니다.');
   };
 
   const handleDeleteReview = (review: Review) => {
+    // 본인이거나 관리자일 때만 삭제 가능
     if (review.user_id !== currentUser?.id && !isAdmin) return alert("삭제 권한이 없습니다.");
+    
     if (window.confirm("이 후기를 삭제하시겠습니까?")) {
       setReviews(reviews.filter(r => r.id !== review.id));
       onShowSuccess('삭제 완료', '후기가 정상적으로 삭제되었습니다.');
@@ -95,26 +115,28 @@ const DetailModal: React.FC<DetailModalProps> = ({
 
   // --- 3. 좋아요/싫어요 로직 (중복 방지 및 토글) ---
   const handleReaction = (reviewId: number, type: 'like' | 'dislike') => {
+    if (!currentUser) return alert("로그인 후 이용 가능합니다.");
+    
     const prevReaction = myReactions[reviewId];
 
     setReviews(reviews.map(r => {
       if (r.id === reviewId) {
-        let { likes_count, dislikes_count } = r;
+        let { likes, dislikes } = r;
 
         // 1. 이미 같은 걸 눌렀을 때: 취소
         if (prevReaction === type) {
-          type === 'like' ? likes_count-- : dislikes_count--;
+          type === 'like' ? likes-- : dislikes--;
           setMyReactions({ ...myReactions, [reviewId]: null });
         } 
         // 2. 다른 걸 눌렀을 때: 기존 것 취소 후 새로운 것 반영
         else {
-          if (prevReaction === 'like') likes_count--;
-          if (prevReaction === 'dislike') dislikes_count--;
-          type === 'like' ? likes_count++ : dislikes_count++;
+          if (prevReaction === 'like') likes--;
+          if (prevReaction === 'dislike') dislikes--;
+          type === 'like' ? likes++ : dislikes++;
           setMyReactions({ ...myReactions, [reviewId]: type });
         }
 
-        return { ...r, likes_count, dislikes_count };
+        return { ...r, likes, dislikes };
       }
       return r;
     }));
@@ -139,9 +161,9 @@ const DetailModal: React.FC<DetailModalProps> = ({
   return (
     <div onClick={(e) => e.stopPropagation()} className="relative flex flex-col w-full h-[90vh] lg:h-auto lg:max-h-[85vh] bg-white overflow-hidden rounded-t-[32px] lg:rounded-2xl shadow-2xl">
       
-      {/* 1. 이미지 영역 */}
+      {/* 1. 이미지 영역 (image_url 필드 사용) */}
       <div className="relative h-60 lg:h-72 w-full flex-shrink-0 bg-gray-100">
-        <img src={store.imageUrl} alt={store.title} className="w-full h-full object-cover" />
+        <img src={store.image_url || store.imageUrl} alt={store.title} className="w-full h-full object-cover" />
         <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black/30 backdrop-blur-md rounded-full text-white z-10">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -173,7 +195,8 @@ const DetailModal: React.FC<DetailModalProps> = ({
         <div className="pt-8 border-t-[8px] border-gray-50 -mx-6 px-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-[18px] font-bold">방문자 후기 <span className="text-[#3182f6] ml-1">{reviews.length}</span></h3>
-            {!isWriting && editingId === null && (
+            {/* 로그인 한 상태에서만 작성 버튼 노출 */}
+            {currentUser && !isWriting && editingId === null && (
               <button 
                 onClick={() => setIsWriting(true)}
                 className="text-[#3182f6] text-[14px] font-bold px-4 py-2 bg-blue-50 rounded-full active:scale-95 transition-all"
@@ -195,7 +218,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 placeholder="솔직한 후기를 남겨주세요."
-                className="w-full h-28 p-4 bg-white rounded-xl border-none text-[14px] focus:ring-2 focus:ring-blue-500 shadow-inner"
+                className="w-full h-28 p-4 bg-white rounded-xl border-none text-[14px] focus:ring-2 focus:ring-blue-500 shadow-inner resize-none"
               />
               <div className="flex gap-2 mt-3">
                 <button onClick={resetReviewState} className="flex-1 py-3 bg-white text-gray-400 rounded-xl font-bold text-[13px]">취소</button>
@@ -220,22 +243,22 @@ const DetailModal: React.FC<DetailModalProps> = ({
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-[15px]">{review.user_name} {isMyReview && <span className="text-[11px] text-blue-500 font-medium">(나)</span>}</span>
+                        <span className="font-bold text-[15px]">{review.user_nickname} {isMyReview && <span className="text-[11px] text-blue-500 font-medium">(나)</span>}</span>
                       </div>
                       <div className="flex text-yellow-400 text-[11px]">
                         {"★".repeat(review.rating)}
                         <span className="text-gray-300 ml-2 font-normal">{new Date(review.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
-                    {/* 본인만 제어 가능한 버튼 */}
+                    {/* 본인 또는 관리자만 제어 가능한 버튼 */}
                     {(isMyReview || isAdmin) && editingId !== review.id && (
                       <div className="flex gap-3 text-[12px] font-medium text-gray-400">
-                        <button onClick={() => { setEditingId(review.id); setEditContent(review.comment); setEditRating(review.rating); }}>수정</button>
+                        <button onClick={() => { setEditingId(review.id); setEditContent(review.content); setEditRating(review.rating); }}>수정</button>
                         <button onClick={() => handleDeleteReview(review)} className="text-red-400 hover:text-red-600">삭제</button>
                       </div>
                     )}
                   </div>
-                  <p className="text-[14px] text-[#4e5968] leading-relaxed mb-4 whitespace-pre-wrap">{review.comment}</p>
+                  <p className="text-[14px] text-[#4e5968] leading-relaxed mb-4 whitespace-pre-wrap">{review.content}</p>
                   
                   {/* 반응 버튼 (색상으로 활성화 표시) */}
                   <div className="flex gap-2">
@@ -245,7 +268,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
                         reaction === 'like' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-100 text-gray-500'
                       }`}
                     >
-                      👍 {review.likes_count}
+                      👍 {review.likes}
                     </button>
                     <button 
                       onClick={() => handleReaction(review.id, 'dislike')}
@@ -253,7 +276,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
                         reaction === 'dislike' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-100 text-gray-500'
                       }`}
                     >
-                      👎 {review.dislikes_count}
+                      👎 {review.dislikes}
                     </button>
                   </div>
                 </div>
@@ -272,7 +295,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
         </button>
       </div>
 
-      {/* 길찾기 앱 선택 모달 (AnimatePresence) */}
+      {/* 길찾기 앱 선택 모달 */}
       <AnimatePresence>
         {isMapSelectOpen && (
           <div className="fixed inset-0 z-[10001] flex items-center justify-center p-6">
