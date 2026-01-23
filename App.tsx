@@ -44,8 +44,6 @@ const App: React.FC = () => {
   const [detailStore, setDetailStore] = useState<PopupStore | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
-  // --- 아이콘 안전 체크용 헬퍼 ---
-  // Icons 객체에 해당 아이콘이 없으면 기본 Square 아이콘 등을 반환하여 에러 방지
   const MapIcon = Icons.Map || Icons.Square || 'div';
   const HeartIcon = Icons.Heart || Icons.Square || 'div';
   const ListIcon = Icons.List || Icons.Square || 'div';
@@ -60,16 +58,29 @@ const App: React.FC = () => {
     setMapCenter(center);
   }, []);
 
+  // --- 💡 필터링 로직 수정 (무료입장 및 카테고리 5종 반영) ---
   const visibleStores = useMemo(() => {
     let filtered = allStores;
+
+    // 1. 탭 필터 (찜한 목록 모드)
     if (activeTab === 'saved') {
       filtered = filtered.filter(s => savedStoreIds.includes(s.id));
     }
+
+    // 2. 상단 카테고리 필터 적용
     if (selectedFilter !== '전체') {
-      filtered = filtered.filter(s => s.category === selectedFilter);
+      if (selectedFilter === '무료입장') {
+        // DB의 is_free 컬럼이 true인 것만 필터링
+        filtered = filtered.filter(s => s.is_free === true);
+      } else {
+        // 나머지 카테고리(이벤트, 체험/전시, 게임, 캐릭터, 패션) 매칭
+        filtered = filtered.filter(s => s.category === selectedFilter);
+      }
     }
+
+    // 3. 지도 영역 필터 (홈 탭일 때만 지도를 따라감)
     if (activeTab === 'home' && mapBounds) {
-      return filtered.filter(s => 
+      filtered = filtered.filter(s => 
         s.lat >= mapBounds.minLat && s.lat <= mapBounds.maxLat && 
         s.lng >= mapBounds.minLng && s.lng <= mapBounds.maxLng
       );
@@ -82,7 +93,11 @@ const App: React.FC = () => {
       const { data } = await supabase.from('popup_stores').select('*').order('created_at', { ascending: false });
       if (data) {
         setAllStores(data.map((s: any) => ({ 
-          ...s, id: String(s.id), title: s.title || s.name, 
+          ...s, 
+          id: String(s.id), 
+          title: s.title || s.name, 
+          // DB의 데이터가 문자열일 경우를 대비해 처리
+          is_free: s.is_free === true || s.is_free === 'true',
           imageUrl: s.image_url && s.image_url.startsWith('http') ? s.image_url : FALLBACK_IMAGE 
         })));
       }
@@ -118,9 +133,10 @@ const App: React.FC = () => {
       {/* 1. PC 사이드바 */}
       <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-gray-100 shadow-xl overflow-hidden">
         <Header location={currentLocationName} onSearchClick={() => setIsSearchOpen(true)} onAdminClick={() => setIsAdminOpen(true)} onProfileClick={() => setIsProfileModalOpen(true)} onLocationClick={() => setIsLocationSelectorOpen(true)} />
+        
+        {/* 💡 카테고리 필터 (전체, 무료입장, 이벤트, 체험/전시, 게임, 캐릭터, 패션) */}
         <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} />
         
-        {/* PC 전용 탭 버튼 (중요: 아이콘 변수 사용) */}
         <div className="px-5 py-4 bg-white border-b border-gray-50">
           <div className="flex bg-gray-100 p-1 rounded-xl">
             <button 
@@ -179,7 +195,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* 3. 모달 */}
+      {/* 3. 모달 레이어 */}
       <AnimatePresence>
         {detailStore && (
           <div className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center">
