@@ -1,14 +1,33 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* 1. 토스 표준 폰트 시스템 적용 (Pretendard 추천 또는 Inter 유지) */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
 
-body {
-  font-family: 'Inter', sans-serif;
-  background-color: #f8fafc;
+:root {
+  --toss-blue: #3182f6;
+  --toss-grey-100: #f2f4f6;
+  --toss-grey-600: #8b95a1;
+  --toss-grey-800: #333d4b;
+  --toss-grey-900: #191f28;
 }
 
-/* 글로벌 스크롤바 디자인 (Toss 스타일) */
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  /* 토스에서 사용하는 Pretendard 폰트로 변경 (없을 시 Inter 사용) */
+  font-family: 'Pretendard', 'Inter', sans-serif;
+  background-color: #ffffff; /* 토스 앱 배경은 기본적으로 순백색이 많습니다 */
+  color: var(--toss-grey-900);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* 2. 글로벌 스크롤바 디자인 (Toss 스타일: 매우 미니멀) */
 ::-webkit-scrollbar {
-  width: 5px;  /* 세로 스크롤바 두께 */
-  height: 5px; /* 가로 스크롤바 두께 */
+  width: 4px;  /* 세로 스크롤바: 더 얇게 */
+  height: 4px; /* 가로 스크롤바 */
 }
 
 ::-webkit-scrollbar-track {
@@ -16,19 +35,34 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1); /* 아주 연한 회색 */
+  background: #e5e8eb; /* 토스 표준 경계선 색상 */
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
+  background: #d1d6db; /* 호버 시 약간 더 진하게 */
 }
 
-/* 카테고리처럼 스크롤바를 완전히 숨겨야 하는 경우용 클래스 */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
+/* 3. 모바일/카테고리용 스크롤바 숨김 클래스 */
 .no-scrollbar {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* 4. PC 리스트 전용: 평소엔 숨겨져 있다가 스크롤 시에만 살짝 보이는 효과 */
+.custom-scrollbar {
+  scrollbar-gutter: stable; /* 스크롤바 생겨도 레이아웃 유지 */
+}
+
+/* 5. 버튼 클릭 시 토스 특유의 쫀득한 반응 (터치 피드백) */
+.toss-tap-highlight {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.05);
+}
+
+.toss-active-scale:active {
+  transform: scale(0.96);
+  transition: transform 0.1s ease-in-out;
 }
