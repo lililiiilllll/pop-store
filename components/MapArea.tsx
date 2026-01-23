@@ -27,6 +27,13 @@ const MapArea: React.FC<MapAreaProps> = ({
   const markersRef = useRef<Map<string, any>>(new Map());
   const userMarkerRef = useRef<any>(null);
   const overlayRef = useRef<any>(null); 
+  const imageUrl = store.image_url && store.image_url !== "-" ? store.image_url : "기본_이미지_경로";
+
+container.innerHTML = `
+  ...
+  <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='기본이미지주소'" />
+  ...
+`;
 
   // 1. 지도 초기화
   useEffect(() => {
