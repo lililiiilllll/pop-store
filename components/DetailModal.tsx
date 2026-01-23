@@ -74,12 +74,11 @@ const DetailModal: React.FC<DetailModalProps> = ({
 
   if (!store) return null;
 
-  // --- 1. 자동 도보 계산 텍스트 로직 수정 (nearby_station만 있어도 노출되도록 범위 확장) ---
+  // --- 1. 자동 도보 계산 텍스트 로직 수정 ---
   const getAutoWalkTime = () => {
     if (store.nearby_station && store.walking_time) {
       return `${store.nearby_station} 도보 ${store.walking_time}분`;
     } else if (store.nearby_station) {
-      // 도보 분수 정보가 없더라도 역 정보가 있다면 표시
       return `${store.nearby_station} 인근`;
     }
     return "인근 지하철역 정보 없음";
@@ -131,7 +130,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
         .from('reviews')
         .update({ content: editContent, rating: editRating })
         .eq('id', id)
-        .eq('user_id', currentUser?.id); // 본인 확인용 보안 조건 추가
+        .eq('user_id', currentUser?.id); 
 
       if (error) throw error;
 
@@ -144,7 +143,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
   };
 
   const handleDeleteReview = async (review: Review) => {
-    // 본인이거나 관리자일 때만 삭제 가능
     if (review.user_id !== currentUser?.id && !isAdmin) return alert("삭제 권한이 없습니다.");
     
     if (window.confirm("이 후기를 삭제하시겠습니까?")) {
@@ -164,7 +162,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
     }
   };
 
-  // --- 3. 좋아요/싫어요 로직 (중복 방지 및 토글) ---
+  // --- 3. 좋아요/싫어요 로직 ---
   const handleReaction = (reviewId: number, type: 'like' | 'dislike') => {
     if (!currentUser) return alert("로그인 후 이용 가능합니다.");
     
@@ -174,12 +172,10 @@ const DetailModal: React.FC<DetailModalProps> = ({
       if (r.id === reviewId) {
         let { likes, dislikes } = r;
 
-        // 1. 이미 같은 걸 눌렀을 때: 취소
         if (prevReaction === type) {
           type === 'like' ? likes-- : dislikes--;
           setMyReactions({ ...myReactions, [reviewId]: null });
         } 
-        // 2. 다른 걸 눌렀을 때: 기존 것 취소 후 새로운 것 반영
         else {
           if (prevReaction === 'like') likes--;
           if (prevReaction === 'dislike') dislikes--;
@@ -212,7 +208,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
   return (
     <div onClick={(e) => e.stopPropagation()} className="relative flex flex-col w-full h-[90vh] lg:h-auto lg:max-h-[85vh] bg-white overflow-hidden rounded-t-[32px] lg:rounded-2xl shadow-2xl">
       
-      {/* 1. 이미지 영역 (image_url 필드 사용) */}
+      {/* 1. 이미지 영역 */}
       <div className="relative h-60 lg:h-72 w-full flex-shrink-0 bg-gray-100">
         <img src={store.image_url || store.imageUrl} alt={store.title} className="w-full h-full object-cover" />
         <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black/30 backdrop-blur-md rounded-full text-white z-10">
@@ -220,7 +216,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
         </button>
       </div>
 
-      {/* 2. 컨텐츠 영역 (스크롤 가능) */}
+      {/* 2. 컨텐츠 영역 */}
       <div className="flex-1 overflow-y-auto p-6 pb-32 text-left custom-scrollbar">
         {/* 헤더 정보 */}
         <div className="mb-6">
@@ -235,19 +231,43 @@ const DetailModal: React.FC<DetailModalProps> = ({
             <div className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-full text-[12px] font-bold">
               {store.is_reservation_required ? '📅 예약필수' : '✅ 상시입장'}
             </div>
-            {/* 공식 홈페이지 링크: popup_stores 테이블의 link_url 셀을 참조하도록 수정 */}
             {store.link_url && (
               <a href={store.link_url} target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-gray-900 text-white rounded-full text-[12px] font-bold transition-transform active:scale-95">🌐 공식 홈페이지</a>
             )}
           </div>
-          <p className="text-gray-600 text-[14px] leading-relaxed whitespace-pre-line">{store.description}</p>
+          <p className="text-gray-600 text-[14px] leading-relaxed whitespace-pre-line mb-6">{store.description}</p>
         </div>
+
+        {/* --- [추가] 상세 정보 섹션 (주소, 시간 등) --- */}
+        <div className="space-y-4 mb-8 bg-gray-50 p-5 rounded-2xl">
+          <div className="flex items-start gap-3">
+            <span className="text-[14px] font-bold text-[#191f28] w-16 shrink-0">운영 기간</span>
+            <span className="text-[14px] text-[#4e5968]">{store.start_date || '-'} ~ {store.end_date || '-'}</span>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="text-[14px] font-bold text-[#191f28] w-16 shrink-0">상세 주소</span>
+            <span className="text-[14px] text-[#4e5968]">{store.address || '정보 없음'}</span>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="text-[14px] font-bold text-[#191f28] w-16 shrink-0">운영 시간</span>
+            <span className="text-[14px] text-[#4e5968] whitespace-pre-line">{store.operating_hours || '정보 없음'}</span>
+          </div>
+        </div>
+
+        {/* --- [추가] 상세 내용 섹션 --- */}
+        {store.detailed_content && (
+          <div className="mb-10">
+            <h3 className="text-[17px] font-bold text-[#191f28] mb-3">상세 정보</h3>
+            <p className="text-[14px] text-[#4e5968] leading-[1.6] whitespace-pre-wrap">
+              {store.detailed_content}
+            </p>
+          </div>
+        )}
 
         {/* --- 리뷰 섹션 --- */}
         <div className="pt-8 border-t-[8px] border-gray-50 -mx-6 px-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-[18px] font-bold text-[#191f28]">방문자 후기 <span className="text-[#3182f6] ml-1">{reviews.length}</span></h3>
-            {/* 로그인 한 상태에서만 작성 버튼 노출 */}
             {currentUser && !isWriting && editingId === null && (
               <button 
                 onClick={() => setIsWriting(true)}
@@ -258,12 +278,10 @@ const DetailModal: React.FC<DetailModalProps> = ({
             )}
           </div>
 
-          {/* 로딩 표시 */}
           {isLoading ? (
             <div className="py-10 text-center text-gray-400 text-[14px]">후기를 불러오는 중...</div>
           ) : (
             <>
-              {/* 인라인 입력창 (작성 및 수정 공용) */}
               {(isWriting || editingId !== null) && (
                 <div className="mb-8 p-5 bg-gray-50 rounded-2xl border border-blue-100 shadow-sm animate-in fade-in slide-in-from-top-2">
                   <div className="flex gap-2 mb-3">
@@ -289,7 +307,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
                 </div>
               )}
 
-              {/* 리뷰 리스트 */}
               <div className="divide-y divide-gray-100">
                 {reviews.length === 0 ? (
                   <div className="py-10 text-center text-gray-400 text-[14px]">아직 작성된 후기가 없습니다.</div>
@@ -297,7 +314,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
                   reviews.map((review) => {
                     const isMyReview = currentUser?.id === review.user_id;
                     const reaction = myReactions[review.id];
-
                     return (
                       <div key={review.id} className="py-6 flex flex-col">
                         <div className="flex justify-between items-start mb-3">
@@ -310,7 +326,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
                               <span className="text-gray-300 ml-2 font-normal">{new Date(review.created_at).toLocaleDateString()}</span>
                             </div>
                           </div>
-                          {/* 본인 또는 관리자만 제어 가능한 버튼 */}
                           {(isMyReview || isAdmin) && editingId !== review.id && (
                             <div className="flex gap-3 text-[12px] font-medium text-gray-400">
                               <button onClick={() => { setEditingId(review.id); setEditContent(review.content); setEditRating(review.rating); }}>수정</button>
@@ -319,22 +334,11 @@ const DetailModal: React.FC<DetailModalProps> = ({
                           )}
                         </div>
                         <p className="text-[14px] text-[#4e5968] leading-relaxed mb-4 whitespace-pre-wrap">{review.content}</p>
-                        
                         <div className="flex gap-2">
-                          <button 
-                            onClick={() => handleReaction(review.id, 'like')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${
-                              reaction === 'like' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-100 text-gray-500'
-                            }`}
-                          >
+                          <button onClick={() => handleReaction(review.id, 'like')} className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${reaction === 'like' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-100 text-gray-500'}`}>
                             👍 {review.likes}
                           </button>
-                          <button 
-                            onClick={() => handleReaction(review.id, 'dislike')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${
-                              reaction === 'dislike' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-100 text-gray-500'
-                            }`}
-                          >
+                          <button onClick={() => handleReaction(review.id, 'dislike')} className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${reaction === 'dislike' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-100 text-gray-500'}`}>
                             👎 {review.dislikes}
                           </button>
                         </div>
