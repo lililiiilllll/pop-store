@@ -18,10 +18,10 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
     onShowSuccess('복사 완료', '주소가 클립보드에 복사되었습니다.');
   };
 
-  // 2. 길찾기 실행 함수
+  // 2. 길찾기 실행 함수 (대상 명칭을 store.title로 수정)
   const openMap = (type: 'naver' | 'kakao') => {
-    const { lat, lng, name, location, address } = store;
-    const targetName = name || "팝업스토어";
+    const { lat, lng, title, location, address } = store;
+    const targetName = title || "팝업스토어"; // 💡 name 대신 title 사용
     
     const url = type === 'naver' 
       ? `nmap://route/walk?dlat=${lat}&dlng=${lng}&dname=${encodeURIComponent(targetName)}&appname=popup_now`
@@ -44,7 +44,7 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
       
       {/* 이미지 섹션 */}
       <div className="relative h-60 lg:h-72 w-full flex-shrink-0 bg-gray-100">
-        <img src={store.imageUrl} alt={store.name} className="w-full h-full object-cover" />
+        <img src={store.imageUrl} alt={store.title} className="w-full h-full object-cover" />
         <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black/30 backdrop-blur-md rounded-full text-white z-10">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -52,19 +52,24 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
 
       {/* 컨텐츠 섹션 */}
       <div className="flex-1 overflow-y-auto p-6 pb-28 text-left space-y-7 custom-scrollbar">
+        {/* 타이틀 및 배지 */}
         <div>
           <div className="flex flex-wrap gap-2 mb-3">
             <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded uppercase">
-              {store.category}
+              {store.category || 'EVENT'}
             </span>
+            {store.subway_info && (
+              <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded">
+                {store.subway_info}
+              </span>
+            )}
           </div>
           
-          {/* 💡 [수정] 팝업 이름만 출력 */}
-          <<h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+          {/* 💡 [수정] 팝업 이름 출력 (DB의 title 컬럼 사용) */}
+          <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
             {store.title}
           </h2>
           
-          {/* 💡 [수정] 한 줄 설명 또는 이름 재출력 방지 */}
           <p className="text-gray-500 text-sm mt-1.5 leading-relaxed">
             {store.simple_description || "특별한 경험을 제공하는 팝업스토어입니다."}
           </p>
@@ -96,17 +101,16 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
           </div>
         </div>
 
-        {/* 💡 [수정] 상세 설명 섹션 */}
+        {/* 상세 설명 섹션 */}
         <div>
           <h3 className="font-bold text-gray-900 mb-2 text-base">상세 설명</h3>
           <p className="text-gray-600 text-[14px] leading-relaxed whitespace-pre-line tracking-tight">
-            {/* store.description이 store.name과 겹치지 않도록 실제 본문 데이터 바인딩 */}
             {store.description || "등록된 상세 설명이 없습니다."}
           </p>
         </div>
       </div>
 
-      {/* 하단 고정 바 (기존과 동일) */}
+      {/* 하단 고정 바 */}
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white/90 backdrop-blur-lg flex gap-3 z-20">
         <button 
           onClick={() => onShowSuccess('요청 완료', '정보 수정 제보가 접수되었습니다.')}
@@ -123,7 +127,7 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
         </button>
       </div>
 
-      {/* 길찾기 선택 모달 (생략 - 기존과 동일) */}
+      {/* 길찾기 선택 모달 */}
       <AnimatePresence>
         {isMapSelectOpen && (
           <div className="fixed inset-0 z-[10001] flex items-center justify-center p-6">
