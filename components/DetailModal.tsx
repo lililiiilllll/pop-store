@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface DetailModalProps {
@@ -22,8 +22,7 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
   const openMap = (type: 'naver' | 'kakao') => {
     const { lat, lng, name, location, address } = store;
     const targetName = name || "팝업스토어";
-    const addr = location || address || "";
-
+    
     const url = type === 'naver' 
       ? `nmap://route/walk?dlat=${lat}&dlng=${lng}&dname=${encodeURIComponent(targetName)}&appname=popup_now`
       : `kakaomap://route?ep=${lat},${lng}&by=PUBLICTRANSIT`;
@@ -59,18 +58,25 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
             <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded uppercase">{store.category || 'EVENT'}</span>
             <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded">{store.subway_info || '주변역 정보 없음'}</span>
           </div>
-          <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">{store.name}</h2>
-          <p className="text-gray-500 text-sm mt-1.5 leading-relaxed">{store.simple_description || "특별한 경험을 제공하는 팝업스토어입니다."}</p>
+          
+          {/* 💡 [수정] 팝업 이름만 출력 */}
+          <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+            {store.name}
+          </h2>
+          
+          {/* 💡 [수정] 한 줄 설명 또는 이름 재출력 방지 */}
+          <p className="text-gray-500 text-sm mt-1.5 leading-relaxed">
+            {store.simple_description || "특별한 경험을 제공하는 팝업스토어입니다."}
+          </p>
         </div>
 
-        {/* 핵심 정보 (주소 포함) */}
+        {/* 핵심 정보 */}
         <div className="bg-gray-50 rounded-2xl p-5 space-y-4">
           <div className="flex items-start gap-4">
             <span className="text-gray-400 text-sm w-12 flex-shrink-0 mt-0.5">운영기간</span>
             <span className="text-gray-800 text-[14px] font-semibold">{store.period || '상시 운영'}</span>
           </div>
           
-          {/* 💡 주소 섹션 보강 */}
           <div className="flex items-start gap-4 border-t border-gray-100 pt-4">
             <span className="text-gray-400 text-sm w-12 flex-shrink-0 mt-0.5">상세위치</span>
             <div className="flex flex-col gap-1.5 flex-1">
@@ -90,16 +96,17 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
           </div>
         </div>
 
-        {/* 상세 설명 */}
+        {/* 💡 [수정] 상세 설명 섹션 */}
         <div>
           <h3 className="font-bold text-gray-900 mb-2 text-base">상세 설명</h3>
           <p className="text-gray-600 text-[14px] leading-relaxed whitespace-pre-line tracking-tight">
-            {store.description}
+            {/* store.description이 store.name과 겹치지 않도록 실제 본문 데이터 바인딩 */}
+            {store.description || "등록된 상세 설명이 없습니다."}
           </p>
         </div>
       </div>
 
-      {/* 하단 고정 바 */}
+      {/* 하단 고정 바 (기존과 동일) */}
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white/90 backdrop-blur-lg flex gap-3 z-20">
         <button 
           onClick={() => onShowSuccess('요청 완료', '정보 수정 제보가 접수되었습니다.')}
@@ -116,7 +123,7 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
         </button>
       </div>
 
-      {/* 길찾기 선택 모달 */}
+      {/* 길찾기 선택 모달 (생략 - 기존과 동일) */}
       <AnimatePresence>
         {isMapSelectOpen && (
           <div className="fixed inset-0 z-[10001] flex items-center justify-center p-6">
