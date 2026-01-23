@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/lib/supabase'; // Supabase 클라이언트 경로를 프로젝트에 맞게 수정하세요.
 
 // DB 테이블 구조에 맞춘 인터페이스 정의
 interface Review {
@@ -32,21 +33,9 @@ const DetailModal: React.FC<DetailModalProps> = ({
 }) => {
   const [isMapSelectOpen, setIsMapSelectOpen] = useState(false);
   
-  // 리뷰 리스트 상태 (실제 구현 시 useEffect에서 fetch 필요)
-  const [reviews, setReviews] = useState<Review[]>([
-    { 
-      id: 1, 
-      popup_id: 101,
-      user_id: 'user123', 
-      user_nickname: '김철수', 
-      rating: 5, 
-      content: '정말 멋진 팝업이었어요!', 
-      likes: 12, 
-      dislikes: 0, 
-      is_blinded: false, 
-      created_at: new Date().toISOString() 
-    }
-  ]);
+  // 리뷰 리스트 상태 및 로딩 상태
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // 내 반응 상태 (중복 방지용: 리뷰ID별로 'like', 'dislike', null 저장)
   const [myReactions, setMyReactions] = useState<Record<number, 'like' | 'dislike' | null>>({});
@@ -56,6 +45,32 @@ const DetailModal: React.FC<DetailModalProps> = ({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState('');
   const [editRating, setEditRating] = useState(5);
+
+  // --- [신규] 실시간 리뷰 데이터 페칭 로직 ---
+  const fetchReviews = useCallback(async () => {
+    if (!store?.id) return;
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('popup_id', store.id) // 현재 팝업스토어의 리뷰만 필터링
+        .order('created_at', { ascending: false }); // 최신순 정렬
+
+      if (error) throw error;
+      setReviews(data || []);
+    } catch (err) {
+      console.error('리뷰 로딩 에러:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [store?.id]);
+
+  // 모달이 열릴 때 데이터를 가져옴
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
 
   if (!store) return null;
 
@@ -75,41 +90,74 @@ const DetailModal: React.FC<DetailModalProps> = ({
     setEditRating(5);
   };
 
-  const handleAddReview = () => {
+  const handleAddReview = async () => {
     if (!currentUser) return alert("로그인이 필요한 서비스입니다.");
     if (!editContent.trim()) return alert("내용을 입력해주세요.");
 
-    const newReview: Review = {
-      id: Date.now(),
-      popup_id: store.id,
-      user_id: currentUser.id,
-      user_nickname: currentUser.name,
-      content: editContent,
-      rating: editRating,
-      likes: 0,
-      dislikes: 0,
-      is_blinded: false,
-      created_at: new Date().toISOString(),
-    };
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .insert([{
+          popup_id: store.id,
+          user_id: currentUser.id,
+          user_nickname: currentUser.name,
+          content: editContent,
+          rating: editRating,
+          likes: 0,
+          dislikes: 0,
+          is_blinded: false
+        }])
+        .select();
 
-    setReviews([newReview, ...reviews]);
-    resetReviewState();
-    onShowSuccess('등록 완료', '후기가 성공적으로 등록되었습니다.');
+      if (error) throw error;
+
+      if (data) {
+        setReviews([data[0], ...reviews]);
+        resetReviewState();
+        onShowSuccess('등록 완료', '후기가 성공적으로 등록되었습니다.');
+      }
+    } catch (err) {
+      alert('등록 중 오류가 발생했습니다.');
+      console.error(err);
+    }
   };
 
-  const handleUpdateReview = (id: number) => {
-    setReviews(reviews.map(r => r.id === id ? { ...r, content: editContent, rating: editRating } : r));
-    resetReviewState();
-    onShowSuccess('수정 완료', '후기가 수정되었습니다.');
+  const handleUpdateReview = async (id: number) => {
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .update({ content: editContent, rating: editRating })
+        .eq('id', id)
+        .eq('user_id', currentUser?.id); // 본인 확인용 보안 조건 추가
+
+      if (error) throw error;
+
+      setReviews(reviews.map(r => r.id === id ? { ...r, content: editContent, rating: editRating } : r));
+      resetReviewState();
+      onShowSuccess('수정 완료', '후기가 수정되었습니다.');
+    } catch (err) {
+      alert('수정 중 오류가 발생했습니다.');
+    }
   };
 
-  const handleDeleteReview = (review: Review) => {
+  const handleDeleteReview = async (review: Review) => {
     // 본인이거나 관리자일 때만 삭제 가능
     if (review.user_id !== currentUser?.id && !isAdmin) return alert("삭제 권한이 없습니다.");
     
     if (window.confirm("이 후기를 삭제하시겠습니까?")) {
-      setReviews(reviews.filter(r => r.id !== review.id));
-      onShowSuccess('삭제 완료', '후기가 정상적으로 삭제되었습니다.');
+      try {
+        const { error } = await supabase
+          .from('reviews')
+          .delete()
+          .eq('id', review.id);
+
+        if (error) throw error;
+
+        setReviews(reviews.filter(r => r.id !== review.id));
+        onShowSuccess('삭제 완료', '후기가 정상적으로 삭제되었습니다.');
+      } catch (err) {
+        alert('삭제 중 오류가 발생했습니다.');
+      }
     }
   };
 
@@ -194,7 +242,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
         {/* --- 리뷰 섹션 --- */}
         <div className="pt-8 border-t-[8px] border-gray-50 -mx-6 px-6">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-[18px] font-bold">방문자 후기 <span className="text-[#3182f6] ml-1">{reviews.length}</span></h3>
+            <h3 className="text-[18px] font-bold text-[#191f28]">방문자 후기 <span className="text-[#3182f6] ml-1">{reviews.length}</span></h3>
             {/* 로그인 한 상태에서만 작성 버튼 노출 */}
             {currentUser && !isWriting && editingId === null && (
               <button 
@@ -206,83 +254,93 @@ const DetailModal: React.FC<DetailModalProps> = ({
             )}
           </div>
 
-          {/* 인라인 입력창 (작성 및 수정 공용) */}
-          {(isWriting || editingId !== null) && (
-            <div className="mb-8 p-5 bg-gray-50 rounded-2xl border border-blue-100 shadow-sm animate-in fade-in slide-in-from-top-2">
-              <div className="flex gap-2 mb-3">
-                {[1, 2, 3, 4, 5].map(star => (
-                  <button key={star} onClick={() => setEditRating(star)} className={`text-2xl ${editRating >= star ? 'text-yellow-400' : 'text-gray-200'}`}>★</button>
-                ))}
-              </div>
-              <textarea 
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                placeholder="솔직한 후기를 남겨주세요."
-                className="w-full h-28 p-4 bg-white rounded-xl border-none text-[14px] focus:ring-2 focus:ring-blue-500 shadow-inner resize-none"
-              />
-              <div className="flex gap-2 mt-3">
-                <button onClick={resetReviewState} className="flex-1 py-3 bg-white text-gray-400 rounded-xl font-bold text-[13px]">취소</button>
-                <button 
-                  onClick={() => editingId !== null ? handleUpdateReview(editingId) : handleAddReview()}
-                  className="flex-[2] py-3 bg-[#3182f6] text-white rounded-xl font-bold text-[13px] shadow-lg active:scale-[0.98]"
-                >
-                  {editingId !== null ? "수정 완료" : "등록하기"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* 리뷰 리스트 */}
-          <div className="divide-y divide-gray-100">
-            {reviews.map((review) => {
-              const isMyReview = currentUser?.id === review.user_id;
-              const reaction = myReactions[review.id];
-
-              return (
-                <div key={review.id} className="py-6 flex flex-col">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-[15px]">{review.user_nickname} {isMyReview && <span className="text-[11px] text-blue-500 font-medium">(나)</span>}</span>
-                      </div>
-                      <div className="flex text-yellow-400 text-[11px]">
-                        {"★".repeat(review.rating)}
-                        <span className="text-gray-300 ml-2 font-normal">{new Date(review.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    {/* 본인 또는 관리자만 제어 가능한 버튼 */}
-                    {(isMyReview || isAdmin) && editingId !== review.id && (
-                      <div className="flex gap-3 text-[12px] font-medium text-gray-400">
-                        <button onClick={() => { setEditingId(review.id); setEditContent(review.content); setEditRating(review.rating); }}>수정</button>
-                        <button onClick={() => handleDeleteReview(review)} className="text-red-400 hover:text-red-600">삭제</button>
-                      </div>
-                    )}
+          {/* 로딩 표시 */}
+          {isLoading ? (
+            <div className="py-10 text-center text-gray-400 text-[14px]">후기를 불러오는 중...</div>
+          ) : (
+            <>
+              {/* 인라인 입력창 (작성 및 수정 공용) */}
+              {(isWriting || editingId !== null) && (
+                <div className="mb-8 p-5 bg-gray-50 rounded-2xl border border-blue-100 shadow-sm animate-in fade-in slide-in-from-top-2">
+                  <div className="flex gap-2 mb-3">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button key={star} onClick={() => setEditRating(star)} className={`text-2xl ${editRating >= star ? 'text-yellow-400' : 'text-gray-200'}`}>★</button>
+                    ))}
                   </div>
-                  <p className="text-[14px] text-[#4e5968] leading-relaxed mb-4 whitespace-pre-wrap">{review.content}</p>
-                  
-                  {/* 반응 버튼 (색상으로 활성화 표시) */}
-                  <div className="flex gap-2">
+                  <textarea 
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    placeholder="솔직한 후기를 남겨주세요."
+                    className="w-full h-28 p-4 bg-white rounded-xl border-none text-[14px] focus:ring-2 focus:ring-blue-500 shadow-inner resize-none"
+                  />
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={resetReviewState} className="flex-1 py-3 bg-white text-gray-400 rounded-xl font-bold text-[13px]">취소</button>
                     <button 
-                      onClick={() => handleReaction(review.id, 'like')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${
-                        reaction === 'like' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-100 text-gray-500'
-                      }`}
+                      onClick={() => editingId !== null ? handleUpdateReview(editingId) : handleAddReview()}
+                      className="flex-[2] py-3 bg-[#3182f6] text-white rounded-xl font-bold text-[13px] shadow-lg active:scale-[0.98]"
                     >
-                      👍 {review.likes}
-                    </button>
-                    <button 
-                      onClick={() => handleReaction(review.id, 'dislike')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${
-                        reaction === 'dislike' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-100 text-gray-500'
-                      }`}
-                    >
-                      👎 {review.dislikes}
+                      {editingId !== null ? "수정 완료" : "등록하기"}
                     </button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              )}
+
+              {/* 리뷰 리스트 */}
+              <div className="divide-y divide-gray-100">
+                {reviews.length === 0 ? (
+                  <div className="py-10 text-center text-gray-400 text-[14px]">아직 작성된 후기가 없습니다.</div>
+                ) : (
+                  reviews.map((review) => {
+                    const isMyReview = currentUser?.id === review.user_id;
+                    const reaction = myReactions[review.id];
+
+                    return (
+                      <div key={review.id} className="py-6 flex flex-col">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-[15px] text-[#333d4b]">{review.user_nickname} {isMyReview && <span className="text-[11px] text-blue-500 font-medium">(나)</span>}</span>
+                            </div>
+                            <div className="flex text-yellow-400 text-[11px]">
+                              {"★".repeat(review.rating)}
+                              <span className="text-gray-300 ml-2 font-normal">{new Date(review.created_at).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          {/* 본인 또는 관리자만 제어 가능한 버튼 */}
+                          {(isMyReview || isAdmin) && editingId !== review.id && (
+                            <div className="flex gap-3 text-[12px] font-medium text-gray-400">
+                              <button onClick={() => { setEditingId(review.id); setEditContent(review.content); setEditRating(review.rating); }}>수정</button>
+                              <button onClick={() => handleDeleteReview(review)} className="text-red-400 hover:text-red-600">삭제</button>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-[14px] text-[#4e5968] leading-relaxed mb-4 whitespace-pre-wrap">{review.content}</p>
+                        
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleReaction(review.id, 'like')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${
+                              reaction === 'like' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-100 text-gray-500'
+                            }`}
+                          >
+                            👍 {review.likes}
+                          </button>
+                          <button 
+                            onClick={() => handleReaction(review.id, 'dislike')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${
+                              reaction === 'dislike' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-100 text-gray-500'
+                            }`}
+                          >
+                            👎 {review.dislikes}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
