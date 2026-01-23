@@ -5,7 +5,6 @@ interface PopupListProps {
   stores: PopupStore[];
   onStoreClick: (store: PopupStore) => void;
   userLocation: { lat: number; lng: number } | null;
-  // 💡 가까운 팝업 찾기 버튼을 위한 핸들러 추가 가능 (선택사항)
   onFindNearest?: () => void;
 }
 
@@ -64,7 +63,7 @@ const PopupList: React.FC<PopupListProps> = ({ stores, onStoreClick, userLocatio
               <img 
                 src={store.imageUrl} 
                 className="w-full h-full object-cover rounded-xl"
-                alt={store.name}
+                alt={store.title} // 💡 store.name 대신 store.title 사용
               />
               {store.is_free && (
                 <span className="absolute top-1 left-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow-sm">
@@ -74,30 +73,31 @@ const PopupList: React.FC<PopupListProps> = ({ stores, onStoreClick, userLocatio
             </div>
 
             {/* 2. 스토어 정보 (사진 옆으로 배치) */}
-         <div className="flex flex-col justify-between flex-1 min-w-0 h-24 py-0.5">
-          <div>
-            <div className="flex justify-between items-center mb-0.5">
-              <span className="text-[10px] text-blue-500 font-extrabold uppercase">
-                {store.category}
-              </span>
-              {distance && <span className="text-[11px] text-gray-400">{distance}</span>}
-            </div>
-    
-              {/* 💡 store.name -> store.title로 변경 */}
-            <h3 className="text-[15px] font-bold text-gray-900 truncate mb-0.5">
-              {store.title} 
-            </h3>
-    
-              <p className="text-[12px] text-gray-500 truncate">
-                {store.location}
-               </p>
-          </div>
+            <div className="flex flex-col justify-between flex-1 min-w-0 h-24 py-0.5 text-left">
+              <div>
+                <div className="flex justify-between items-center mb-0.5">
+                  <span className="text-[10px] text-blue-500 font-extrabold uppercase">
+                    {store.category}
+                  </span>
+                  {distance && <span className="text-[11px] text-gray-400 font-medium">{distance}</span>}
+                </div>
+                
+                {/* 💡 팝업 이름: store.title로 변경 */}
+                <h3 className="text-[15px] font-bold text-gray-900 truncate mb-0.5">
+                  {store.title} 
+                </h3>
+                
+                <p className="text-[12px] text-gray-500 truncate leading-tight">
+                  {store.location}
+                </p>
+              </div>
 
               {/* 하단 정보 라인 */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-1">
                 <div className="flex items-center gap-1.5 overflow-hidden">
                   <span className="text-[10px] font-bold px-1.5 py-0.5 bg-gray-50 text-gray-600 rounded whitespace-nowrap">
-                    {store.period?.includes('~') ? '영업중' : '진행예정'}
+                    {/* 간단한 날짜 비교 로직이나 상태 표시 */}
+                    {store.period?.includes('~') ? '진행중' : '팝업정보'}
                   </span>
                   <span className="text-[10px] text-gray-400 truncate">
                     {store.period}
