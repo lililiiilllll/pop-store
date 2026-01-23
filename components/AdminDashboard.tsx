@@ -12,6 +12,15 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
+  if (isAdminOpen && isAdminLoggedIn) {
+  return (
+    <AdminDashboard 
+      allStores={allStores} 
+      onBack={() => setIsAdminOpen(false)} 
+      onRefresh={fetchStores} 
+    />
+  );
+}
   return <div className="fixed inset-0 bg-white z-50">Admin Dashboard</div>;
 };
 
