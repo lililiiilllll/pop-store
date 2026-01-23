@@ -27,13 +27,6 @@ const MapArea: React.FC<MapAreaProps> = ({
   const markersRef = useRef<Map<string, any>>(new Map());
   const userMarkerRef = useRef<any>(null);
   const overlayRef = useRef<any>(null); 
-  const imageUrl = store.image_url && store.image_url !== "-" ? store.image_url : "기본_이미지_경로";
-
-container.innerHTML = `
-  ...
-  <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='기본이미지주소'" />
-  ...
-`;
 
   // 1. 지도 초기화
   useEffect(() => {
@@ -100,6 +93,7 @@ container.innerHTML = `
       const marker = new kakao.maps.Marker({
         position: latlng,
         map: mapRef.current,
+        title: store.title || store.name // 필드명 방어 코드
       });
 
       kakao.maps.event.addListener(marker, 'click', () => { 
@@ -110,7 +104,7 @@ container.innerHTML = `
     });
   }, [stores, onMarkerClick]);
 
-  // 4. 선택된 스토어 변경 시 "정보 집약형" 오버레이 처리 (2번째 사진 스타일)
+  // 4. 선택된 스토어 변경 시 오버레이 (2번째 이미지 스타일 반영)
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao) return;
@@ -123,47 +117,48 @@ container.innerHTML = `
 
     const latlng = new kakao.maps.LatLng(store.lat, store.lng);
 
-    // 커스텀 엘리먼트 생성
-    const container = document.createElement('div');
-    container.style.cssText = 'margin-bottom: 50px; position: relative; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.15)); cursor: pointer;';
+    // 이미지 404 방어: 주소가 '-'이거나 없을 경우 빈 문자열 처리
+    const validImageUrl = (store.image_url && store.image_url !== "-") ? store.image_url : "";
+
+    const content = document.createElement('div');
+    content.style.cssText = 'margin-bottom: 50px; filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15));';
     
-    // 두 번째 사진과 같은 레이아웃 HTML
-    container.innerHTML = `
-      <div style="background: white; padding: 12px; border-radius: 24px; border: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; min-width: 240px; max-width: 280px;">
-        <div style="width: 54px; height: 54px; border-radius: 18px; overflow: hidden; background: #f8f9fa; flex-shrink: 0;">
-          <img src="${store.image_url || store.imageUrl || ''}" style="width: 100%; h-eight: 100%; object-fit: cover;" />
-        </div>
-        
-        <div style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
-          <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
-            <span style="font-size: 10px; color: #adb5bd; font-weight: 600;">${store.category || '팝업'}</span>
-            ${store.is_free ? '<span style="font-size: 9px; color: #2ecc71; font-weight: 700;">• 무료</span>' : ''}
-            ${store.is_reservation_required ? '<span style="font-size: 9px; color: #e67e22; font-weight: 700;">• 예약필수</span>' : ''}
+    // 2번째 이미지 스타일의 풍부한 정보 레이아웃
+    content.innerHTML = `
+      <div style="background: white; padding: 10px 14px; border-radius: 20px; border: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 220px; max-width: 260px;">
+        ${validImageUrl ? `
+          <div style="width: 48px; height: 48px; border-radius: 12px; overflow: hidden; flex-shrink: 0; background: #eee;">
+            <img src="${validImageUrl}" style="width: 100%; height: 100%; object-fit: cover;" />
           </div>
-          <h4 style="font-size: 15px; font-weight: 800; color: #191f28; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${store.title || store.name}
-          </h4>
-          <span style="font-size: 11px; color: #8b95a1; margin-top: 2px;">
-            ${store.start_date ? `${store.start_date} ~ ${store.end_date}` : '기간 정보 없음'}
+        ` : ''}
+        <div style="display: flex; flex-direction: column; text-align: left; overflow: hidden; flex: 1;">
+          <div style="display: flex; gap: 4px; margin-bottom: 2px;">
+             <span style="font-size: 10px; color: #3182f6; font-weight: 800;">${store.category || '팝업'}</span>
+             ${store.is_free ? '<span style="font-size: 10px; color: #2ecc71; font-weight: 800;">· 무료</span>' : ''}
+          </div>
+          <span style="font-size: 14px; font-weight: 700; color: #191f28; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${store.title || store.name || '이름 없음'}
+          </span>
+          <span style="font-size: 11px; color: #8b95a1; margin-top: 1px;">
+            ${store.start_date ? `${store.start_date.slice(5)} ~ ${store.end_date?.slice(5)}` : '기간 정보 없음'}
           </span>
         </div>
-        
-        <div style="padding-left: 4px;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ced4da" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        <div style="display: flex; align-items: center; margin-left: 4px;">
+           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ced4da" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
         </div>
       </div>
       <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 16px; height: 16px; background: white; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0; z-index: -1;"></div>
     `;
 
-    container.onclick = (e) => {
+    content.onclick = (e) => {
       e.stopPropagation();
       onDetailOpen(store);
     };
 
     const overlay = new kakao.maps.CustomOverlay({
-      content: container,
+      content: content,
       position: latlng,
-      yAnchor: 1.1, // 마커보다 조금 더 위에 위치
+      yAnchor: 1.1,
       zIndex: 30
     });
 
@@ -180,9 +175,7 @@ container.innerHTML = `
 
     const circle = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
-      content: `<div style="width: 20px; height: 20px; background: rgba(49,130,246,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                  <div style="width: 10px; height: 10px; background: #3182f6; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 8px rgba(0,0,0,0.2);"></div>
-                </div>`,
+      content: `<div style="width: 16px; height: 16px; background: #3182f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(49,130,246,0.5);"></div>`,
       zIndex: 10
     });
 
@@ -201,4 +194,5 @@ container.innerHTML = `
   );
 };
 
+export default MapArea;
 export default MapArea;
