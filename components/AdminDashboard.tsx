@@ -14,11 +14,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
   const [activeTab, setActiveTab] = useState('approval');
   const [loading, setLoading] = useState(false);
   
-  // 데이터 상태 관리
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [searchStats, setSearchStats] = useState<any[]>([]);
-  const [keywords, setKeywords] = useState<any[]>([]);
-  const [newKeyword, setNewKeyword] = useState('');
+  // 에러 방지: 아이콘이 없을 경우 빈 div나 span을 사용하도록 기본값 설정
+  const ChevronLeft = Icons.ChevronLeft || 'span';
+  const Trash = Icons.Trash || 'span';
+  const Edit = Icons.Edit || 'span';
+  const Check = Icons.Check || 'span';
+  const EyeOff = Icons.EyeOff || 'span';
+  const AlertCircle = Icons.AlertCircle || 'span';
+  const Search = Icons.Search || 'span';
+  const Heart = Icons.Heart || 'span';
+  const RotateCw = Icons.RotateCw || 'span';
+  const Star = Icons.Star || 'span';
+  const MessageSquare = Icons.MessageSquare || 'span';
 
   const { ChevronLeft, Trash, Edit, Check, EyeOff, AlertCircle, Search, Heart, RotateCw } = Icons;
 
