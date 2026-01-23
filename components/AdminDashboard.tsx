@@ -1,9 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Icons } from '../constants';
 import { PopupStore } from '../types';
 import { supabase } from '../lib/supabase';
 
+// 카테고리 정의
 const CATEGORIES = ['패션', '푸드', '아트', '엔터', '라이프스타일', '기타'];
+
+// 1. Props 인터페이스 정의 (빌드 에러 방지)
+interface AdminDashboardProps {
+  allStores: PopupStore[];
+  onBack: () => void;
+  onRefresh: () => void;
+}
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRefresh }) => {
   const [activeTab, setActiveTab] = useState('approval');
@@ -33,18 +41,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
       alert(statusOverride === false ? '승인 대기 상태로 변경되었습니다.' : '저장되었습니다.');
       setIsEditModalOpen(false);
       onRefresh();
+    } else {
+      alert('저장 중 오류가 발생했습니다.');
+      console.error(error);
     }
   };
 
   const handleApprove = async (id: any) => {
-    await supabase.from('popup_stores').update({ is_verified: true }).eq('id', id);
-    onRefresh();
+    const { error } = await supabase.from('popup_stores').update({ is_verified: true }).eq('id', id);
+    if (!error) onRefresh();
   };
 
   const handleDelete = async (id: any) => {
     if (confirm('정말 삭제하시겠습니까?')) {
-      await supabase.from('popup_stores').delete().eq('id', id);
-      onRefresh();
+      const { error } = await supabase.from('popup_stores').delete().eq('id', id);
+      if (!error) onRefresh();
     }
   };
 
@@ -61,33 +72,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
       </header>
 
       {/* 메인 리스트 뷰 */}
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-6 text-[#191f28]">
         <div className="max-w-5xl mx-auto">
           <div className="flex gap-2 mb-6">
-            <button onClick={() => setApprovalSubTab('pending')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] ${approvalSubTab === 'pending' ? 'bg-[#3182f6] text-white' : 'bg-white text-gray-400 shadow-sm'}`}>대기중</button>
-            <button onClick={() => setApprovalSubTab('verified')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] ${approvalSubTab === 'verified' ? 'bg-[#3182f6] text-white' : 'bg-white text-gray-400 shadow-sm'}`}>승인됨</button>
+            <button onClick={() => setApprovalSubTab('pending')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] transition-all ${approvalSubTab === 'pending' ? 'bg-[#3182f6] text-white shadow-md' : 'bg-white text-gray-400 shadow-sm'}`}>대기중</button>
+            <button onClick={() => setApprovalSubTab('verified')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] transition-all ${approvalSubTab === 'verified' ? 'bg-[#3182f6] text-white shadow-md' : 'bg-white text-gray-400 shadow-sm'}`}>승인됨</button>
           </div>
 
           <div className="space-y-3">
             {allStores.filter(s => approvalSubTab === 'pending' ? !s.is_verified : s.is_verified).map(store => (
-              <div key={store.id} className="bg-white p-5 rounded-[28px] flex items-center justify-between shadow-sm border border-white hover:border-blue-50">
+              <div key={store.id} className="bg-white p-5 rounded-[28px] flex items-center justify-between shadow-sm border border-white hover:border-blue-50 transition-colors">
                 <div className="flex items-center gap-5">
-                  <img src={store.imageUrl} className="w-16 h-16 rounded-2xl object-cover bg-gray-50 flex-shrink-0" />
+                  <img src={store.imageUrl} className="w-16 h-16 rounded-2xl object-cover bg-gray-50 flex-shrink-0" alt="" />
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-[11px] font-bold text-[#3182f6]">{store.category}</span>
-                      {store.is_reservation_required && <span className="px-1.5 py-0.5 bg-red-50 text-red-500 text-[9px] rounded font-bold">예약필수</span>}
+                      {store.is_reservation_required && <span className="px-1.5 py-0.5 bg-red-50 text-red-500 text-[9px] rounded font-bold uppercase">예약필수</span>}
                     </div>
                     <h3 className="text-[16px] font-bold">{store.title}</h3>
                     <p className="text-[13px] text-gray-400">{store.address}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => { setEditingStore({...store}); setIsEditModalOpen(true); }} className="w-24 py-2.5 bg-gray-50 text-gray-600 rounded-xl font-bold text-[13px]">수정</button>
+                  <button onClick={() => { setEditingStore({...store}); setIsEditModalOpen(true); }} className="w-24 py-2.5 bg-gray-50 text-gray-600 rounded-xl font-bold text-[13px] hover:bg-gray-100 transition-colors">수정</button>
                   {approvalSubTab === 'pending' && (
-                    <button onClick={() => handleApprove(store.id)} className="w-24 py-2.5 bg-[#3182f6] text-white rounded-xl font-bold text-[13px]">승인</button>
+                    <button onClick={() => handleApprove(store.id)} className="w-24 py-2.5 bg-[#3182f6] text-white rounded-xl font-bold text-[13px] hover:bg-blue-600 transition-colors">승인</button>
                   )}
-                  <button onClick={() => handleDelete(store.id)} className="w-24 py-2.5 bg-red-50 text-red-500 rounded-xl font-bold text-[13px]">삭제</button>
+                  <button onClick={() => handleDelete(store.id)} className="w-24 py-2.5 bg-red-50 text-red-500 rounded-xl font-bold text-[13px] hover:bg-red-100 transition-colors">삭제</button>
                 </div>
               </div>
             ))}
@@ -110,7 +121,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
               <div>
                 <label className="text-[13px] font-bold text-gray-400 ml-1 mb-2 block">대표 이미지 URL</label>
                 <div className="flex gap-4 items-end">
-                  <img src={editingStore.imageUrl} className="w-24 h-24 rounded-2xl object-cover bg-gray-100 shadow-inner" />
+                  <img src={editingStore.imageUrl} className="w-24 h-24 rounded-2xl object-cover bg-gray-100 shadow-inner" alt="" />
                   <input 
                     value={editingStore.imageUrl} 
                     onChange={e => setEditingStore({...editingStore, imageUrl: e.target.value})} 
@@ -124,15 +135,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
               <div className="space-y-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[13px] font-bold text-gray-400 ml-1">팝업명</label>
-                  <input value={editingStore.title} onChange={e => setEditingStore({...editingStore, title: e.target.value})} className="bg-gray-50 border-none rounded-xl p-4 text-[15px] font-medium outline-none" />
+                  <input value={editingStore.title} onChange={e => setEditingStore({...editingStore, title: e.target.value})} className="bg-gray-50 border-none rounded-xl p-4 text-[15px] font-medium outline-none focus:ring-2 focus:ring-[#3182f6]" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[13px] font-bold text-gray-400 ml-1">주소</label>
-                  <input value={editingStore.address} onChange={e => setEditingStore({...editingStore, address: e.target.value})} className="bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" />
+                  <input value={editingStore.address} onChange={e => setEditingStore({...editingStore, address: e.target.value})} className="bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none focus:ring-2 focus:ring-[#3182f6]" />
                 </div>
               </div>
 
-              {/* 카테고리 선택 (직접 입력 -> 버튼 선택) */}
+              {/* 카테고리 선택 */}
               <div>
                 <label className="text-[13px] font-bold text-gray-400 ml-1 mb-2 block">카테고리</label>
                 <div className="flex flex-wrap gap-2">
@@ -140,7 +151,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                     <button
                       key={cat}
                       onClick={() => setEditingStore({...editingStore, category: cat})}
-                      className={`px-4 py-2 rounded-xl text-[13px] font-bold transition-all border ${editingStore.category === cat ? 'bg-[#3182f6] text-white border-[#3182f6]' : 'bg-white text-gray-400 border-gray-100'}`}
+                      className={`px-4 py-2 rounded-xl text-[13px] font-bold transition-all border ${editingStore.category === cat ? 'bg-[#3182f6] text-white border-[#3182f6]' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300'}`}
                     >
                       {cat}
                     </button>
@@ -148,7 +159,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                 </div>
               </div>
 
-              {/* 토글형 선택 버튼 (무료입장, 예약필수) */}
+              {/* 토글형 선택 버튼 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[13px] font-bold text-gray-400 ml-1">입장료 유무</label>
@@ -168,7 +179,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
 
               <div className="flex flex-col gap-1.5 pb-4">
                 <label className="text-[13px] font-bold text-gray-400 ml-1">설명</label>
-                <textarea rows={3} value={editingStore.description} onChange={e => setEditingStore({...editingStore, description: e.target.value})} className="bg-gray-50 border-none rounded-2xl p-4 text-[14px] outline-none resize-none" />
+                <textarea rows={3} value={editingStore.description} onChange={e => setEditingStore({...editingStore, description: e.target.value})} className="bg-gray-50 border-none rounded-2xl p-4 text-[14px] outline-none resize-none focus:ring-2 focus:ring-[#3182f6]" />
               </div>
             </div>
 
@@ -184,3 +195,4 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     </div>
   );
 };
+export default AdminDashboard;
