@@ -1,44 +1,31 @@
 import React from 'react';
-import { motion, useDragControls } from 'framer-motion';
-import { PopupStore } from '../types';
+import { motion } from 'framer-motion';
 import PopupList from './PopupList';
 
-interface BottomSheetProps {
-  stores: PopupStore[];
-  onStoreClick: (store: PopupStore) => void;
-  userLocation: { lat: number; lng: number } | null;
-  isOpen: boolean;
-  setIsOpen: (open: boolean) => void;
-}
-
-const BottomSheetList: React.FC<BottomSheetProps> = ({ 
-  stores, onStoreClick, userLocation, isOpen, setIsOpen 
-}) => {
+const BottomSheetList = ({ stores, onStoreClick, userLocation, isOpen, setIsOpen }: any) => {
   return (
     <motion.div
-      initial={{ y: "60%" }} // 처음에 중간 정도만 올라와 있음
-      animate={{ y: isOpen ? "15%" : "65%" }} // 열리면 위로, 닫히면 하단으로
-      transition={{ type: "spring", damping: 25, stiffness: 200 }}
+      initial={{ y: "70%" }} 
+      animate={{ y: isOpen ? "15%" : "72%" }} // 💡 72%일 때 리스트 상단 2개 정도만 보임
+      transition={{ type: "spring", damping: 20, stiffness: 120 }}
       drag="y"
       dragConstraints={{ top: 0, bottom: 0 }}
       onDragEnd={(_, info) => {
-        if (info.offset.y < -50) setIsOpen(true); // 위로 올리면 전체 공개
-        if (info.offset.y > 50) setIsOpen(false); // 아래로 내리면 축소
+        if (info.offset.y < -50) setIsOpen(true);
+        if (info.offset.y > 50) setIsOpen(false);
       }}
-      className="fixed inset-x-0 bottom-0 z-40 bg-white rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col h-[85vh]"
+      className="fixed inset-x-0 bottom-0 z-40 bg-white rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] flex flex-col h-[85vh] border-t border-gray-100"
     >
-      {/* 💡 핸들 바: 유저가 끌어올릴 수 있음을 인지하게 함 */}
-      <div className="w-full flex justify-center py-4 cursor-grab active:cursor-grabbing">
-        <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
+      {/* 드래그 핸들바 */}
+      <div className="w-full flex justify-center py-3">
+        <div className="w-10 h-1 bg-gray-200 rounded-full" />
       </div>
 
-      <div className="px-5 pb-4 flex justify-between items-center">
-        <h2 className="text-lg font-bold text-gray-900">주변 팝업 리스트</h2>
-        <span className="text-sm text-gray-400 font-medium">{stores.length}개</span>
+      <div className="px-5 pb-3">
+        <h2 className="text-[17px] font-bold text-gray-900">내 주변 팝업</h2>
       </div>
 
-      {/* 리스트 영역: 화면 중간까지만 보이게 높이 조절 */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar pb-32">
+      <div className="flex-1 overflow-y-auto pb-32">
         <PopupList 
           stores={stores} 
           onStoreClick={onStoreClick} 
