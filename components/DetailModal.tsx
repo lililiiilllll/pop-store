@@ -74,10 +74,13 @@ const DetailModal: React.FC<DetailModalProps> = ({
 
   if (!store) return null;
 
-  // --- 1. 자동 도보 계산 텍스트 (nearby_station, walking_time 필드 사용) ---
+  // --- 1. 자동 도보 계산 텍스트 로직 수정 (nearby_station만 있어도 노출되도록 범위 확장) ---
   const getAutoWalkTime = () => {
     if (store.nearby_station && store.walking_time) {
       return `${store.nearby_station} 도보 ${store.walking_time}분`;
+    } else if (store.nearby_station) {
+      // 도보 분수 정보가 없더라도 역 정보가 있다면 표시
+      return `${store.nearby_station} 인근`;
     }
     return "인근 지하철역 정보 없음";
   };
@@ -232,8 +235,9 @@ const DetailModal: React.FC<DetailModalProps> = ({
             <div className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-full text-[12px] font-bold">
               {store.is_reservation_required ? '📅 예약필수' : '✅ 상시입장'}
             </div>
-            {store.official_url && (
-              <a href={store.official_url} target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-gray-900 text-white rounded-full text-[12px] font-bold transition-transform active:scale-95">🌐 공식 홈페이지</a>
+            {/* 공식 홈페이지 링크: popup_stores 테이블의 link_url 셀을 참조하도록 수정 */}
+            {store.link_url && (
+              <a href={store.link_url} target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-gray-900 text-white rounded-full text-[12px] font-bold transition-transform active:scale-95">🌐 공식 홈페이지</a>
             )}
           </div>
           <p className="text-gray-600 text-[14px] leading-relaxed whitespace-pre-line">{store.description}</p>
