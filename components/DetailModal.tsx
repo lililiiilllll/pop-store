@@ -52,16 +52,16 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
 
       {/* 컨텐츠 섹션 */}
       <div className="flex-1 overflow-y-auto p-6 pb-28 text-left space-y-7 custom-scrollbar">
-        {/* 타이틀 및 배지 */}
         <div>
           <div className="flex flex-wrap gap-2 mb-3">
-            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded uppercase">{store.category || 'EVENT'}</span>
-            <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded">{store.subway_info || '주변역 정보 없음'}</span>
+            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded uppercase">
+              {store.category}
+            </span>
           </div>
           
           {/* 💡 [수정] 팝업 이름만 출력 */}
-          <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
-            {store.샤}
+          <<h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+            {store.title}
           </h2>
           
           {/* 💡 [수정] 한 줄 설명 또는 이름 재출력 방지 */}
