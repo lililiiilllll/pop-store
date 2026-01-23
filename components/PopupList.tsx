@@ -74,28 +74,24 @@ const PopupList: React.FC<PopupListProps> = ({ stores, onStoreClick, userLocatio
             </div>
 
             {/* 2. 스토어 정보 (사진 옆으로 배치) */}
-            <div className="flex flex-col justify-between flex-1 min-w-0 h-24 py-0.5">
-              <div>
-                <div className="flex justify-between items-center mb-0.5">
-                  <span className="text-[10px] text-blue-500 font-extrabold uppercase tracking-tight">
-                    {store.category || 'Pop-up'}
-                  </span>
-                  {distance && (
-                    <span className="text-[11px] text-gray-400 font-semibold">
-                      {distance}
-                    </span>
-                  )}
-                </div>
-                
-                {/* 💡 이름 강조: 사진 바로 옆에 위치 */}
-                <h3 className="text-[15px] font-bold text-gray-900 truncate mb-0.5">
-                  {store.name}
-                </h3>
-                
-                <p className="text-[12px] text-gray-500 truncate">
-                  {store.location}
-                </p>
-              </div>
+         <div className="flex flex-col justify-between flex-1 min-w-0 h-24 py-0.5">
+          <div>
+            <div className="flex justify-between items-center mb-0.5">
+              <span className="text-[10px] text-blue-500 font-extrabold uppercase">
+                {store.category}
+              </span>
+              {distance && <span className="text-[11px] text-gray-400">{distance}</span>}
+            </div>
+    
+              {/* 💡 store.name -> store.title로 변경 */}
+            <h3 className="text-[15px] font-bold text-gray-900 truncate mb-0.5">
+              {store.title} 
+            </h3>
+    
+              <p className="text-[12px] text-gray-500 truncate">
+                {store.location}
+               </p>
+          </div>
 
               {/* 하단 정보 라인 */}
               <div className="flex items-center gap-2">
