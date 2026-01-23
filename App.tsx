@@ -92,7 +92,9 @@ const App: React.FC = () => {
         setAllStores(data.map((s: any) => ({ 
           ...s, 
           id: String(s.id), 
-          imageUrl: s.image_url || DEFAULT_POPUP_IMAGE 
+          imageUrl: s.image_url && s.image_url.startsWith('http') 
+            ? s.image_url 
+            : 'https://via.placeholder.com/400x400?text=No+Image'
         })));
       } else {
         setAllStores(POPUP_STORES);
