@@ -24,7 +24,6 @@ const DEFAULT_LOCATION = { lat: 37.5547, lng: 126.9706 };
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1531050171669-7df9b2089206?q=80&w=400&auto=format&fit=crop';
 
 const App: React.FC = () => {
-  // --- 상태 관리 ---
   const [activeTab, setActiveTab] = useState<'home' | 'saved'>('home');
   const [selectedFilter, setSelectedFilter] = useState<string>('전체');
   const [allStores, setAllStores] = useState<PopupStore[]>([]);
@@ -36,7 +35,6 @@ const App: React.FC = () => {
   const [currentLocationName, setCurrentLocationName] = useState('성수/서울숲');
   const [isMobileListOpen, setIsMobileListOpen] = useState(false);
 
-  // 모달 제어
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLocationSelectorOpen, setIsLocationSelectorOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -46,10 +44,12 @@ const App: React.FC = () => {
   const [detailStore, setDetailStore] = useState<PopupStore | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
-  // --- 헬퍼 함수 및 핸들러 ---
-  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
-    return Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lng2 - lng1, 2));
-  };
+  // --- 아이콘 안전 체크용 헬퍼 ---
+  // Icons 객체에 해당 아이콘이 없으면 기본 Square 아이콘 등을 반환하여 에러 방지
+  const MapIcon = Icons.Map || Icons.Square || 'div';
+  const HeartIcon = Icons.Heart || Icons.Square || 'div';
+  const ListIcon = Icons.List || Icons.Square || 'div';
+  const XIcon = Icons.X || Icons.Square || 'div';
 
   const toggleSaveStore = useCallback((id: string) => {
     setSavedStoreIds(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
@@ -60,7 +60,6 @@ const App: React.FC = () => {
     setMapCenter(center);
   }, []);
 
-  // --- 필터링 로직 ---
   const visibleStores = useMemo(() => {
     let filtered = allStores;
     if (activeTab === 'saved') {
@@ -70,11 +69,10 @@ const App: React.FC = () => {
       filtered = filtered.filter(s => s.category === selectedFilter);
     }
     if (activeTab === 'home' && mapBounds) {
-      const inBounds = filtered.filter(s => 
+      return filtered.filter(s => 
         s.lat >= mapBounds.minLat && s.lat <= mapBounds.maxLat && 
         s.lng >= mapBounds.minLng && s.lng <= mapBounds.maxLng
       );
-      return inBounds;
     }
     return filtered;
   }, [allStores, selectedFilter, mapBounds, activeTab, savedStoreIds]);
@@ -115,27 +113,27 @@ const App: React.FC = () => {
   if (isAdminOpen) return <AdminDashboard allStores={allStores} onBack={() => setIsAdminOpen(false)} onRefresh={fetchStores} />;
 
   return (
-    <div className="relative flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white text-gray-900 font-sans">
+    <div className="relative flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white text-gray-900">
       
-      {/* 1. PC 사이드바 (BottomNav 제거 및 상단 찜 버튼 추가) */}
+      {/* 1. PC 사이드바 */}
       <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-gray-100 shadow-xl overflow-hidden">
         <Header location={currentLocationName} onSearchClick={() => setIsSearchOpen(true)} onAdminClick={() => setIsAdminOpen(true)} onProfileClick={() => setIsProfileModalOpen(true)} onLocationClick={() => setIsLocationSelectorOpen(true)} />
         <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} />
         
-        {/* PC 전용: 전체/찜 탭 버튼 */}
+        {/* PC 전용 탭 버튼 (중요: 아이콘 변수 사용) */}
         <div className="px-5 py-4 bg-white border-b border-gray-50">
           <div className="flex bg-gray-100 p-1 rounded-xl">
             <button 
               onClick={() => setActiveTab('home')}
               className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'home' ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-gray-700'}`}
             >
-              <Icons.Map size={16} /> 전체 팝업
+              <MapIcon size={16} /> 전체 팝업
             </button>
             <button 
               onClick={() => setActiveTab('saved')}
               className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'saved' ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-gray-700'}`}
             >
-              <Icons.Heart size={16} className={activeTab === 'saved' ? 'fill-red-500 text-red-500' : ''} /> 찜한 목록
+              <HeartIcon size={16} className={activeTab === 'saved' ? 'fill-red-500 text-red-500' : ''} /> 찜한 목록
             </button>
           </div>
         </div>
@@ -143,32 +141,25 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto bg-gray-50/30 p-4">
           <PopupList stores={visibleStores} onStoreClick={(s) => handleStoreSelect(s.id)} userLocation={userCoords} />
         </div>
-        {/* PC 버전에서는 BottomNav를 렌더링하지 않음 */}
       </aside>
 
-      {/* 2. 메인 지도 및 모바일 영역 */}
+      {/* 2. 메인 지도 및 모바일 */}
       <main className="flex-1 relative z-0">
         <MapArea 
           stores={activeTab === 'home' ? allStores : allStores.filter(s => savedStoreIds.includes(s.id))} 
-          selectedStoreId={selectedStoreId} 
-          onMarkerClick={handleStoreSelect} 
-          mapCenter={mapCenter} 
-          userLocation={userCoords} 
-          onMapIdle={handleMapIdle}
+          selectedStoreId={selectedStoreId} onMarkerClick={handleStoreSelect} mapCenter={mapCenter} userLocation={userCoords} onMapIdle={handleMapIdle}
           onMapClick={() => { setIsMobileListOpen(false); setDetailStore(null); }}
         />
         
-        {/* 모바일 헤더 */}
         <div className="lg:hidden absolute top-0 left-0 right-0 z-20 bg-white/90 backdrop-blur-md shadow-sm">
           <Header location={currentLocationName} onSearchClick={() => setIsSearchOpen(true)} onLocationClick={() => setIsLocationSelectorOpen(true)} />
           <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} />
         </div>
 
-        {/* 모바일 하단 섹션 (기존 유지) */}
         {!isMobileListOpen && (
           <div className="lg:hidden absolute bottom-28 left-1/2 -translate-x-1/2 z-30">
             <button onClick={() => setIsMobileListOpen(true)} className="bg-black text-white px-7 py-4 rounded-full shadow-2xl font-bold text-sm flex items-center gap-2">
-              <Icons.List size={18} /> {activeTab === 'home' ? '목록보기' : '찜한 목록보기'}
+              <ListIcon size={18} /> {activeTab === 'home' ? '목록보기' : '찜한 목록보기'}
             </button>
           </div>
         )}
@@ -178,31 +169,23 @@ const App: React.FC = () => {
             className="fixed inset-x-0 bottom-0 z-40 bg-white rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] flex flex-col h-[92vh]">
             <div className="flex items-center justify-between px-6 pt-7 pb-3">
               <h2 className="text-xl font-extrabold text-gray-900">{activeTab === 'home' ? '주변 팝업 리스트' : '찜한 팝업 목록'}</h2>
-              <button onClick={() => setIsMobileListOpen(false)} className="p-2.5 bg-gray-100 rounded-full text-gray-500"><Icons.X size={20} /></button>
+              <button onClick={() => setIsMobileListOpen(false)} className="p-2.5 bg-gray-100 rounded-full text-gray-500"><XIcon size={20} /></button>
             </div>
             <div className="flex-1 overflow-y-auto pb-32">
               <PopupList stores={visibleStores} onStoreClick={(s) => handleStoreSelect(s.id)} userLocation={userCoords} />
             </div>
           </motion.div>
-          
-          {/* 모바일에서만 노출되는 하단 네비게이션 */}
           <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       </main>
 
-      {/* 3. 모달 레이어 (기존 유지) */}
+      {/* 3. 모달 */}
       <AnimatePresence>
         {detailStore && (
-          <div className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center overflow-hidden">
+          <div className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setDetailStore(null); setSelectedStoreId(null); }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="relative w-full lg:max-w-xl bg-white rounded-t-[32px] lg:rounded-2xl overflow-hidden shadow-2xl">
-              <DetailModal 
-                store={detailStore} 
-                isSaved={savedStoreIds.includes(detailStore.id)} 
-                onToggleSave={() => toggleSaveStore(detailStore.id)} 
-                onClose={() => { setDetailStore(null); setSelectedStoreId(null); }} 
-                onShowSuccess={(t, m) => setSuccessConfig({ isOpen: true, title: t, message: m })} 
-              />
+              <DetailModal store={detailStore} isSaved={savedStoreIds.includes(detailStore.id)} onToggleSave={() => toggleSaveStore(detailStore.id)} onClose={() => { setDetailStore(null); setSelectedStoreId(null); }} onShowSuccess={(t, m) => setSuccessConfig({ isOpen: true, title: t, message: m })} />
             </motion.div>
           </div>
         )}
