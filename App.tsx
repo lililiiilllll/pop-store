@@ -45,6 +45,12 @@ const App: React.FC = () => {
   const [mapCenter, setMapCenter] = useState<{lat: number, lng: number} | undefined>(undefined);
   const [currentLocationName, setCurrentLocationName] = useState('성수/서울숲');
 
+  // 💡 [추가] 필터링 로직: 카테고리에 맞는 스토어만 리스트에 노출
+  const filteredStores = useMemo(() => {
+    if (selectedFilter === '전체') return allStores;
+    return allStores.filter(store => store.category === selectedFilter);
+  }, [allStores, selectedFilter]);
+  
   // --- 데이터 로드 ---
   const fetchStores = async () => {
     try {
@@ -84,6 +90,11 @@ const App: React.FC = () => {
     }
   }, [allStores]);
 
+  // 💡 [추가] PopupList를 위한 클릭 핸들러 (handleStoreClick이 없어 에러 날 수 있음)
+  const handleStoreClick = (store: PopupStore) => {
+    handleStoreSelect(store.id);
+  };
+
   if (isAdminOpen) return <AdminDashboard allStores={allStores} onBack={() => setIsAdminOpen(false)} onRefresh={fetchStores} />;
 
   return (
@@ -101,7 +112,11 @@ const App: React.FC = () => {
         />
         <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} />
         <div className="flex-1 overflow-y-auto bg-gray-50/30 p-4">
-          <PopupList stores={filteredStores} onStoreClick={handleStoreClick} userLocation={userLocation} />
+        <PopupList 
+            stores={filteredStores} 
+            onStoreClick={handleStoreClick} 
+            userLocation={userCoords} 
+          />
         </div>
         <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       </aside>
@@ -109,12 +124,12 @@ const App: React.FC = () => {
       {/* 2. 메인 지도 */}
       <main className="flex-1 relative z-0">
         <MapArea 
-          stores={allStores} 
+          stores={filteredStores} // 지도에도 필터링된 마커만 노출 (전체 노출 원하면 allStores로 변경)
           selectedStoreId={selectedStoreId} 
           onMarkerClick={handleStoreSelect} 
           mapCenter={mapCenter} 
           userLocation={userCoords} 
-          onDetailOpen={(store) => handleStoreSelect(store.id)} // 일관된 핸들러 사용
+          onDetailOpen={(store) => handleStoreSelect(store.id)}
         />
       </main>
 
