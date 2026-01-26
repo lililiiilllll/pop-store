@@ -1,29 +1,102 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/lib/supabase'; // Supabase 클라이언트 경로를 프로젝트에 맞게 수정하세요.
+import { supabase } from '@/lib/supabase';
 
-// DB 테이블 구조에 맞춘 인터페이스 정의
+// --- 인터페이스 정의 ---
 interface Review {
   id: number;
   popup_id: number;
-  user_id: string; // UUID
+  user_id: string;
   user_nickname: string;
-  content: string; // comment -> content
+  content: string;
   rating: number;
-  likes: number; // likes_count -> likes
-  dislikes: number; // dislikes_count -> dislikes
+  likes: number;
+  dislikes: number;
   is_blinded: boolean;
   created_at: string;
 }
 
 interface DetailModalProps {
-  store: any; // popup_stores 테이블 데이터
+  store: any;
   onClose: () => void;
   onShowSuccess: (title: string, message: string) => void;
-  currentUser?: { id: string; name: string } | null; // 로그인 정보 (없으면 null)
+  currentUser?: { id: string; name: string } | null;
   isAdmin?: boolean;
 }
 
+// --- [신규] 수정 요청 모달 컴포넌트 ---
+const CorrectionModal: React.FC<{
+  popupId: number;
+  popupTitle: string;
+  userId?: string;
+  onClose: () => void;
+  onSuccess: (title: string, message: string) => void;
+}> = ({ popupId, popupTitle, userId, onClose, onSuccess }) => {
+  const [titleFix, setTitleFix] = useState('');
+  const [descriptionFix, setDescriptionFix] = useState('');
+  const [reason, setReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!reason.trim()) return alert('수정 요청 사유를 입력해주세요.');
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('correction_requests')
+        .insert([{
+          popup_id: popupId,
+          user_id: userId || null,
+          title_fix: titleFix || null,
+          description_fix: descriptionFix || null,
+          reason: reason,
+          status: 'pending'
+        }]);
+
+      if (error) throw error;
+      onSuccess('제보 완료', '수정 제보가 정상적으로 접수되었습니다.');
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert('접수 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[10002] flex items-center justify-center p-6">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="relative w-full max-w-[400px] bg-white rounded-[32px] p-8 shadow-2xl overflow-hidden">
+        <h3 className="text-[20px] font-bold text-[#191f28] mb-1">정보 수정 요청</h3>
+        <p className="text-[13px] text-gray-400 mb-6">{popupTitle}</p>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 제목 (선택)</label>
+            <input value={titleFix} onChange={(e) => setTitleFix(e.target.value)} placeholder="변경할 이름을 입력하세요" className="w-full bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 내용 (선택)</label>
+            <textarea value={descriptionFix} onChange={(e) => setDescriptionFix(e.target.value)} placeholder="변경할 상세 정보를 입력하세요" className="w-full h-24 bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+          <div>
+            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">제보 사유 (필수)</label>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="잘못된 정보를 알려주세요" className="w-full h-20 bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-8">
+          <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-[14px]">취소</button>
+          <button onClick={handleSubmit} disabled={isSubmitting} className="flex-[2] py-4 bg-[#3182f6] text-white rounded-2xl font-bold text-[14px] shadow-lg active:scale-95 transition-all">
+            {isSubmitting ? '처리 중...' : '제출하기'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// --- 메인 DetailModal 컴포넌트 ---
 const DetailModal: React.FC<DetailModalProps> = ({
   store,
   onClose,
@@ -32,32 +105,26 @@ const DetailModal: React.FC<DetailModalProps> = ({
   isAdmin = false
 }) => {
   const [isMapSelectOpen, setIsMapSelectOpen] = useState(false);
+  const [isCorrectionOpen, setIsCorrectionOpen] = useState(false); // 수정 요청 모달 상태
   
-  // 리뷰 리스트 상태 및 로딩 상태
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // 내 반응 상태 (중복 방지용: 리뷰ID별로 'like', 'dislike', null 저장)
   const [myReactions, setMyReactions] = useState<Record<number, 'like' | 'dislike' | null>>({});
   
-  // 리뷰 입력/수정 상태
   const [isWriting, setIsWriting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState('');
   const [editRating, setEditRating] = useState(5);
 
-  // --- [신규] 실시간 리뷰 데이터 페칭 로직 ---
   const fetchReviews = useCallback(async () => {
     if (!store?.id) return;
-    
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('reviews')
         .select('*')
-        .eq('popup_id', store.id) // 현재 팝업스토어의 리뷰만 필터링
-        .order('created_at', { ascending: false }); // 최신순 정렬
-
+        .eq('popup_id', store.id)
+        .order('created_at', { ascending: false });
       if (error) throw error;
       setReviews(data || []);
     } catch (err) {
@@ -67,14 +134,12 @@ const DetailModal: React.FC<DetailModalProps> = ({
     }
   }, [store?.id]);
 
-  // 모달이 열릴 때 데이터를 가져옴
   useEffect(() => {
     fetchReviews();
   }, [fetchReviews]);
 
   if (!store) return null;
 
-  // --- 1. 자동 도보 계산 텍스트 로직 수정 ---
   const getAutoWalkTime = () => {
     if (store.nearby_station && store.walking_time) {
       return `${store.nearby_station} 도보 ${store.walking_time}분`;
@@ -84,7 +149,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
     return "인근 지하철역 정보 없음";
   };
 
-  // --- 2. 리뷰 핸들러 (작성, 수정, 삭제) ---
   const resetReviewState = () => {
     setIsWriting(false);
     setEditingId(null);
@@ -95,7 +159,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
   const handleAddReview = async () => {
     if (!currentUser) return alert("로그인이 필요한 서비스입니다.");
     if (!editContent.trim()) return alert("내용을 입력해주세요.");
-
     try {
       const { data, error } = await supabase
         .from('reviews')
@@ -110,9 +173,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
           is_blinded: false
         }])
         .select();
-
       if (error) throw error;
-
       if (data) {
         setReviews([data[0], ...reviews]);
         resetReviewState();
@@ -120,7 +181,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
       }
     } catch (err) {
       alert('등록 중 오류가 발생했습니다.');
-      console.error(err);
     }
   };
 
@@ -131,9 +191,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
         .update({ content: editContent, rating: editRating })
         .eq('id', id)
         .eq('user_id', currentUser?.id); 
-
       if (error) throw error;
-
       setReviews(reviews.map(r => r.id === id ? { ...r, content: editContent, rating: editRating } : r));
       resetReviewState();
       onShowSuccess('수정 완료', '후기가 수정되었습니다.');
@@ -144,16 +202,10 @@ const DetailModal: React.FC<DetailModalProps> = ({
 
   const handleDeleteReview = async (review: Review) => {
     if (review.user_id !== currentUser?.id && !isAdmin) return alert("삭제 권한이 없습니다.");
-    
     if (window.confirm("이 후기를 삭제하시겠습니까?")) {
       try {
-        const { error } = await supabase
-          .from('reviews')
-          .delete()
-          .eq('id', review.id);
-
+        const { error } = await supabase.from('reviews').delete().eq('id', review.id);
         if (error) throw error;
-
         setReviews(reviews.filter(r => r.id !== review.id));
         onShowSuccess('삭제 완료', '후기가 정상적으로 삭제되었습니다.');
       } catch (err) {
@@ -162,27 +214,21 @@ const DetailModal: React.FC<DetailModalProps> = ({
     }
   };
 
-  // --- 3. 좋아요/싫어요 로직 ---
   const handleReaction = (reviewId: number, type: 'like' | 'dislike') => {
     if (!currentUser) return alert("로그인 후 이용 가능합니다.");
-    
     const prevReaction = myReactions[reviewId];
-
     setReviews(reviews.map(r => {
       if (r.id === reviewId) {
         let { likes, dislikes } = r;
-
         if (prevReaction === type) {
           type === 'like' ? likes-- : dislikes--;
           setMyReactions({ ...myReactions, [reviewId]: null });
-        } 
-        else {
+        } else {
           if (prevReaction === 'like') likes--;
           if (prevReaction === 'dislike') dislikes--;
           type === 'like' ? likes++ : dislikes++;
           setMyReactions({ ...myReactions, [reviewId]: type });
         }
-
         return { ...r, likes, dislikes };
       }
       return r;
@@ -218,7 +264,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
 
       {/* 2. 컨텐츠 영역 */}
       <div className="flex-1 overflow-y-auto p-6 pb-32 text-left custom-scrollbar">
-        {/* 헤더 정보 */}
         <div className="mb-6">
           <h2 className="text-[24px] font-extrabold text-[#191f28] mb-3">{store.title}</h2>
           <div className="flex flex-wrap gap-2 mb-4">
@@ -238,7 +283,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
           <p className="text-gray-600 text-[14px] leading-relaxed whitespace-pre-line mb-6">{store.description}</p>
         </div>
 
-        {/* --- [추가] 상세 정보 섹션 (주소, 시간 등) --- */}
         <div className="space-y-4 mb-8 bg-gray-50 p-5 rounded-2xl">
           <div className="flex items-start gap-3">
             <span className="text-[14px] font-bold text-[#191f28] w-16 shrink-0">운영 기간</span>
@@ -254,7 +298,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
           </div>
         </div>
 
-        {/* --- [추가] 상세 내용 섹션 --- */}
         {store.detailed_content && (
           <div className="mb-10">
             <h3 className="text-[17px] font-bold text-[#191f28] mb-3">상세 정보</h3>
@@ -264,7 +307,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
           </div>
         )}
 
-        {/* --- 리뷰 섹션 --- */}
+        {/* 리뷰 섹션 */}
         <div className="pt-8 border-t-[8px] border-gray-50 -mx-6 px-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-[18px] font-bold text-[#191f28]">방문자 후기 <span className="text-[#3182f6] ml-1">{reviews.length}</span></h3>
@@ -354,15 +397,32 @@ const DetailModal: React.FC<DetailModalProps> = ({
 
       {/* 3. 하단 고정 액션 바 */}
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white/95 backdrop-blur-lg flex gap-3 z-30">
-        <button onClick={() => onShowSuccess('제보 완료', '수정 제보가 정상적으로 접수되었습니다.')} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-[13px]">수정 요청</button>
+        <button 
+          onClick={() => setIsCorrectionOpen(true)} 
+          className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-[13px]"
+        >
+          수정 요청
+        </button>
         <button onClick={() => setIsMapSelectOpen(true)} className="flex-[2.5] py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
           길찾기 시작
         </button>
       </div>
 
-      {/* 길찾기 앱 선택 모달 */}
+      {/* 모달 렌더링 영역 */}
       <AnimatePresence>
+        {/* 수정 요청 모달 */}
+        {isCorrectionOpen && (
+          <CorrectionModal 
+            popupId={store.id}
+            popupTitle={store.title}
+            userId={currentUser?.id}
+            onClose={() => setIsCorrectionOpen(false)}
+            onSuccess={onShowSuccess}
+          />
+        )}
+
+        {/* 길찾기 앱 선택 모달 */}
         {isMapSelectOpen && (
           <div className="fixed inset-0 z-[10001] flex items-center justify-center p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMapSelectOpen(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
