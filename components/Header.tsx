@@ -63,11 +63,18 @@ const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* 프로필/로그인 버튼 */}
+    {/* 프로필/로그인 버튼 */}
         <button 
           onClick={(e) => {
             e.stopPropagation();
-            onProfileClick();
+            // 💡 수정: 함수가 존재할 때만 실행하도록 체크 (i is not a function 방지)
+            if (typeof onProfileClick === 'function') {
+              onProfileClick();
+            } else {
+              console.warn("Header: onProfileClick props가 전달되지 않았습니다.");
+              // 테스트용 강제 실행 (동작 확인용)
+              alert("로그인 버튼이 눌렸지만 연결된 함수가 없습니다.");
+            }
           }}
           className="ml-1 flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 overflow-hidden border border-gray-200 active:scale-90 transition-transform shadow-sm"
         >
