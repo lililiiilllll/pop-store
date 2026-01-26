@@ -179,7 +179,7 @@ const App: React.FC = () => {
   // 관리자 로그인 핸들러 (비밀번호를 다르게 설정 가능)
   const handleAdminLogin = useCallback(async () => {
     const ADMIN_PW = "password1234"; // 실제 관리자 계정 비밀번호로 수정하세요.
-    await loginAsTestAccount('thfjgh@naver.com', 'rmfjskqk12!A', '관리자');
+    await loginAsTestAccount('admin@test.com', 'rmfjskqk12!A', '관리자');
   }, []);
 
   // 일반 유저 로그인 핸들러 (비밀번호를 다르게 설정 가능)
