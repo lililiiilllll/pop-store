@@ -1,9 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { UserProfile, Task } from '../types';
 
-// 환경 변수 처리
-// Handle missing env vars gracefully to prevent crash
-// In Vite, use import.meta.env.VITE_SUPABASE_URL, but we support process.env for compatibility if configured.
+// --- 1. 환경 변수 처리 (보안 및 유연성 강화) ---
 const getEnv = (key: string) => {
   try {
     // @ts-ignore
@@ -25,7 +23,7 @@ const getEnv = (key: string) => {
 const rawSupabaseUrl = getEnv('SUPABASE_URL');
 const rawSupabaseKey = getEnv('SUPABASE_ANON_KEY');
 
-// Use provided keys as fallback
+// 하드코딩된 키는 환경 변수가 없을 때를 위한 Fallback으로 유지
 const supabaseUrl = rawSupabaseUrl || 'https://rfnigedsfgnaqrsxjdaz.supabase.co';
 const supabaseKey = rawSupabaseKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmbmlnZWRzZmduYXFyc3hqZGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODUxOTMsImV4cCI6MjA4Mzc2MTE5M30.JqGG--Zbbivx0MbSRqWDMU6aRdgHscz60ZQ2gzLXxos';
 
@@ -33,7 +31,30 @@ export const isSupabaseConfigured = !!supabaseUrl && !!supabaseKey;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// --- API Functions ---
+// --- 2. 신규 추가: 소셜 인증 API Functions ---
+
+/**
+ * 소셜 로그인 실행 (카카오, 네이버, 토스)
+ * App.tsx의 handleKakaoLogin, handleNaverLogin 등에서 호출합니다.
+ */
+export const signInWithSocial = async (provider: 'kakao' | 'naver' | 'toss') => {
+  if (!isSupabaseConfigured) return alert("Supabase 설정이 올바르지 않습니다.");
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: provider as any, // Supabase 공식 지원 외의 커스텀 제공자는 OAuth 설정 필요
+    options: {
+      redirectTo: window.location.origin, // 로그인 완료 후 돌아올 주소
+      queryParams: { prompt: 'select_account' },
+    },
+  });
+
+  if (error) {
+    console.error(`${provider} 로그인 중 오류 발생:`, error.message);
+    throw error;
+  }
+};
+
+// --- 3. 기존 API Functions (100% 유지) ---
 
 /**
  * 사용자 프로필 가져오기
