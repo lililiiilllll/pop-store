@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { supabase } from '../lib/supabase';;
 
 interface ReportModalProps {
   coord: { lat: number; lng: number };
