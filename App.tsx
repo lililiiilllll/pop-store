@@ -88,16 +88,36 @@ const App: React.FC = () => {
     }
   };
 
+  const fetchAndSetProfile = async (uid: string) => {
+    const profile = await getProfile(uid);
+    if (profile) {
+      setUserProfile(profile);
+      // 실제 DB의 role 컬럼이 admin인 경우에만 관리자 로그인 상태로 간주
+      if (profile.role === 'admin') {
+        setIsAdminLoggedIn(true);
+      } else {
+        setIsAdminLoggedIn(false);
+      }
+    }
+  };
+
   useEffect(() => {
     fetchStores();
     
+    // 초기 세션 체크
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) fetchAndSetProfile(session.user.id);
     });
 
+    // 인증 상태 변경 리스너
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) fetchAndSetProfile(session.user.id);
-      else setUserProfile(null);
+      if (session) {
+        fetchAndSetProfile(session.user.id);
+      } else {
+        setUserProfile(null);
+        setIsAdminLoggedIn(false);
+        setIsAdminOpen(false);
+      }
     });
 
     if (navigator.geolocation) {
@@ -110,15 +130,6 @@ const App: React.FC = () => {
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchAndSetProfile = async (uid: string) => {
-    const profile = await getProfile(uid);
-    if (profile) {
-      setUserProfile(profile);
-      // 실제 API 연동 시 role 확인 로직
-      if (profile.role === 'admin') setIsAdminLoggedIn(true);
-    }
-  };
 
   // --- [핸들러: 인증 및 로그인 액션] ---
   
@@ -136,33 +147,47 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAdminLogin = useCallback(() => {
-    // [Mock 반영] API 연동 전 테스트를 위한 가짜 관리자 프로필 주입
-    const mockAdmin: UserProfile = {
-      id: 'mock-admin-id',
-      name: '운영자(테스트)',
-      email: 'admin@test.com',
-      role: 'admin',
-      avatar_url: ''
-    };
-    
-    setUserProfile(mockAdmin);
-    setIsAdminLoggedIn(true);
-    setIsAdminOpen(true); 
-    setSuccessConfig({ isOpen: true, title: '관리자 인증 완료', message: '대시보드에 진입합니다.' });
+  // 관리자 로그인 핸들러 (실제 Supabase Auth 연동)
+  const handleAdminLogin = useCallback(async () => {
+    const email = prompt("관리자 이메일을 입력하세요", "thfjgh@naver.com");
+    const password = prompt("비밀번호를 입력하세요");
+
+    if (!email || !password) return;
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // 로그인 성공 후 프로필 정보를 다시 가져와서 role 확인
+        const profile = await getProfile(data.user.id);
+        if (profile?.role === 'admin') {
+          setIsAdminLoggedIn(true);
+          setIsAdminOpen(true);
+          setSuccessConfig({ 
+            isOpen: true, 
+            title: '관리자 인증 성공', 
+            message: `${profile.name} 운영자님, 환영합니다.` 
+          });
+        } else {
+          alert("관리자 권한이 없는 계정입니다.");
+          await supabase.auth.signOut();
+        }
+      }
+    } catch (e: any) {
+      alert("로그인 실패: " + e.message);
+    }
   }, []);
 
-  const handleUserLogin = useCallback(() => {
-    // [Mock 반영] 일반 유저 프로필로 교체 및 모든 오버레이 강제 초기화 (흐림 현상 해결)
-    const mockUser: UserProfile = {
-      id: 'mock-user-id',
-      name: '일반유저(테스트)',
-      email: 'user@test.com',
-      role: 'user',
-      avatar_url: ''
-    };
-
-    setUserProfile(mockUser);
+  // 일반 유저/로그아웃 핸들러
+  const handleUserLogin = useCallback(async () => {
+    await supabase.auth.signOut();
+    
+    // 모든 상태 초기화 (흐림 현상 해결)
     setIsAdminLoggedIn(false);
     setIsAdminOpen(false);
     setIsMobileListOpen(false);
@@ -177,8 +202,8 @@ const App: React.FC = () => {
     
     setSuccessConfig({ 
       isOpen: true, 
-      title: '일반 모드 전환', 
-      message: '모든 관리자 권한과 오버레이가 초기화되었습니다.' 
+      title: '로그아웃 완료', 
+      message: '일반 사용자 모드로 전환되었습니다.' 
     });
   }, []);
 
@@ -202,7 +227,7 @@ const App: React.FC = () => {
   const visibleStores = useMemo(() => {
     let filtered = allStores;
 
-    // 1. 검색어 필터링 (명칭 및 카테고리)
+    // 1. 검색어 필터링
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(s => 
@@ -216,7 +241,7 @@ const App: React.FC = () => {
       return filtered;
     }
 
-    // 2. 탭 필터링 (찜한 목록)
+    // 2. 탭 필터링
     if (activeTab === 'saved') {
       filtered = filtered.filter(s => savedStoreIds.includes(s.id));
     }
@@ -230,7 +255,7 @@ const App: React.FC = () => {
       }
     }
 
-    // 4. 지도 범위 필터링 (검색어가 없고 홈 탭일 때만 작동)
+    // 4. 지도 범위 필터링
     if (activeTab === 'home' && mapBounds) {
       filtered = filtered.filter(s => 
         s.lat >= mapBounds.minLat && s.lat <= mapBounds.maxLat && 
@@ -241,7 +266,7 @@ const App: React.FC = () => {
     return filtered;
   }, [allStores, selectedFilter, mapBounds, activeTab, savedStoreIds, searchQuery]);
 
-  // 관리자 모드 렌더링 (실제 role 체크 포함)
+  // 관리자 대시보드 렌더링 (보안 강화)
   if (isAdminOpen && userProfile?.role === 'admin') {
     return (
       <AdminDashboard 
@@ -255,7 +280,7 @@ const App: React.FC = () => {
   return (
     <div className="relative flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white text-[#191f28]">
       
-      {/* 디버그 패널 - Z-index를 최상위로 유지 */}
+      {/* 디버그 패널 */}
       <AnimatePresence>
         {isTestPanelOpen && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="fixed top-24 right-6 z-[9999] bg-white/95 backdrop-blur-xl p-5 rounded-[24px] shadow-2xl border border-[#f2f4f6] flex flex-col gap-3 min-w-[200px]">
@@ -265,18 +290,25 @@ const App: React.FC = () => {
             </div>
             {/* 현재 권한 상태 표시 */}
             <div className="px-1 py-1 border-b border-gray-100 mb-1">
-              <p className="text-[10px] text-gray-400">Current Role</p>
-              <p className="text-[12px] font-bold text-[#4e5968]">{userProfile?.role || 'Guest'}</p>
+              <p className="text-[10px] text-gray-400 uppercase text-center">Current Role</p>
+              <p className="text-[12px] font-bold text-[#4e5968] text-center">{userProfile?.role || 'Guest'}</p>
             </div>
-            <button onClick={handleAdminLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${isAdminOpen ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>관리자 모드</button>
-            <button onClick={handleUserLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${!isAdminOpen ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>일반 유저 모드</button>
+            <button onClick={handleAdminLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>관리자 로그인</button>
+            <button onClick={handleUserLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${!isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>로그아웃</button>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* PC 사이드바 */}
       <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-[#f2f4f6] shadow-sm">
-        <Header location={currentLocationName} userProfile={userProfile} onSearchClick={() => setIsSearchOpen(true)} onAdminClick={() => userProfile?.role === 'admin' ? setIsAdminOpen(true) : alert("관리자 권한이 없습니다.")} onProfileClick={handleProfileClick} onLocationClick={() => setIsLocationSelectorOpen(true)} />
+        <Header 
+          location={currentLocationName} 
+          userProfile={userProfile} 
+          onSearchClick={() => setIsSearchOpen(true)} 
+          onAdminClick={() => userProfile?.role === 'admin' ? setIsAdminOpen(true) : alert("관리자 권한이 없습니다.")} 
+          onProfileClick={handleProfileClick} 
+          onLocationClick={() => setIsLocationSelectorOpen(true)} 
+        />
         <div className="no-scrollbar overflow-x-auto"><CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} /></div>
         <div className="px-5 py-4 border-b border-[#f9fafb]">
           <div className="flex bg-[#f2f4f6] p-1 rounded-[14px]">
@@ -345,7 +377,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* 배경 딤드 처리 (검색창 또는 지역 선택 시) */}
+        {/* 배경 딤드 처리 */}
         {(isSearchOpen || isLocationSelectorOpen) && (
           <motion.div 
             key="overlay-bg"
