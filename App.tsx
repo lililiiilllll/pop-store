@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // 1. 설정 및 타입
 import { Icons } from './constants';
-import { PopupStore } from './types';
+import { PopupStore, UserProfile } from './types';
 import { supabase } from './lib/supabase';
 
 // 2. 컴포넌트 임포트
@@ -27,7 +27,8 @@ const App: React.FC = () => {
   const [isTestPanelOpen, setIsTestPanelOpen] = useState(true);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
 
-  // --- 기본 앱 상태 ---
+  // --- 기본 앱 상태 및 인증 상태 ---
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null); // 실제 유저 프로필 상태
   const [activeTab, setActiveTab] = useState<'home' | 'saved'>('home');
   const [selectedFilter, setSelectedFilter] = useState<string>('전체');
   const [allStores, setAllStores] = useState<PopupStore[]>([]);
@@ -42,37 +43,11 @@ const App: React.FC = () => {
   // --- 모달 상태 ---
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLocationSelectorOpen, setIsLocationSelectorOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // 로그인 모달 역할 수행
   const [successConfig, setSuccessConfig] = useState({ isOpen: false, title: '', message: '' });
   const [detailStore, setDetailStore] = useState<PopupStore | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
-
-  const App = () => {
-  const [userProfile, setUserProfile] = React.useState(null);
-
-  // 1. 함수 정의
-  const handleProfileClick = () => {
-    console.log("로그인 로직 실행");
-    // 여기서 로그인 모달을 띄우거나 페이지를 이동시킵니다.
-    const mockUser = { id: 1, name: '홍길동', avatarUrl: '', isAdmin: false };
-    setUserProfile(mockUser); 
-  };
-
-  return (
-    <div className="app">
-      <Header 
-        location="성수동"
-        userProfile={userProfile}
-        // 2. 💡 반드시 'onProfileClick'이라는 이름으로 위 함수를 전달해야 합니다!
-        onProfileClick={handleProfileClick} 
-        onSearchClick={() => {}}
-        onLocationClick={() => {}}
-      />
-    </div>
-  );
-};
-  
   // 아이콘 안전 할당
   const MapIcon = Icons.Map || 'span';
   const HeartIcon = Icons.Heart || 'span';
@@ -113,7 +88,19 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // --- [핸들러] 로그인 및 액션 (수정 포인트) ---
+  // --- [핸들러] 로그인 및 액션 ---
+  
+  // 1. 프로필/로그인 버튼 클릭 핸들러 (복구된 핵심 로직)
+  const handleProfileClick = useCallback(() => {
+    if (!userProfile) {
+      console.log("App: 로그인 모달 오픈");
+      setIsProfileModalOpen(true); // 로그인이 안 된 경우 모달을 띄움
+    } else {
+      console.log("App: 프로필 상세 보기");
+      // 이미 로그인 된 경우의 로직 (마이페이지 이동 등)
+    }
+  }, [userProfile]);
+
   const handleAdminLogin = useCallback(() => {
     console.log("관리자 모드 활성화");
     setIsAdminLoggedIn(true);
@@ -130,7 +117,7 @@ const App: React.FC = () => {
     setIsAdminLoggedIn(false);
     setIsAdminOpen(false);
     
-    // 흐림 현상 방지를 위해 모든 열린 상태 강제 초기화
+    // 상태 초기화 (흐림 현상 방지)
     setIsMobileListOpen(false);
     setIsSearchOpen(false);
     setIsLocationSelectorOpen(false);
@@ -206,10 +193,10 @@ const App: React.FC = () => {
               <span className="text-[12px] font-bold text-[#3182f6]">DEBUG MODE</span>
               <button onClick={() => setIsTestPanelOpen(false)} className="text-[#8b95a1] hover:text-black p-1"><XIcon size={16} /></button>
             </div>
-            <button onClick={handleAdminLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all ${isAdminLoggedIn ? 'bg-[#3182f6] text-white shadow-md' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>
+            <button onClick={handleAdminLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all ${isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>
               관리자 모드
             </button>
-            <button onClick={handleUserLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all ${!isAdminLoggedIn ? 'bg-[#3182f6] text-white shadow-md' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>
+            <button onClick={handleUserLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all ${!isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>
               일반 유저 모드
             </button>
           </motion.div>
@@ -220,9 +207,10 @@ const App: React.FC = () => {
       <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-[#f2f4f6] shadow-sm overflow-hidden">
         <Header 
           location={currentLocationName} 
+          userProfile={userProfile}
           onSearchClick={() => setIsSearchOpen(true)} 
           onAdminClick={() => isAdminLoggedIn ? setIsAdminOpen(true) : alert("관리자 권한이 없습니다.")} 
-          onProfileClick={() => setIsProfileModalOpen(true)} 
+          onProfileClick={handleProfileClick} 
           onLocationClick={() => setIsLocationSelectorOpen(true)} 
         />
         
@@ -260,7 +248,13 @@ const App: React.FC = () => {
         
         {/* 모바일 상단 헤더 */}
         <div className="lg:hidden absolute top-0 left-0 right-0 z-20 bg-white/80 backdrop-blur-xl border-b border-[#f2f4f6]">
-          <Header location={currentLocationName} onSearchClick={() => setIsSearchOpen(true)} onLocationClick={() => setIsLocationSelectorOpen(true)} />
+          <Header 
+            location={currentLocationName} 
+            userProfile={userProfile}
+            onProfileClick={handleProfileClick}
+            onSearchClick={() => setIsSearchOpen(true)} 
+            onLocationClick={() => setIsLocationSelectorOpen(true)} 
+          />
           <div className="no-scrollbar overflow-x-auto">
             <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} />
           </div>
@@ -293,8 +287,35 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* 모달 레이어 (Z-index 및 흐림 현상 제어) */}
+      {/* 모달 레이어 및 순수 로그인 모달 통합 */}
       <AnimatePresence>
+        {/* 로그인 모달 (isProfileModalOpen 상태 활용) */}
+        {isProfileModalOpen && !userProfile && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white p-8 rounded-[32px] shadow-2xl w-[90%] max-w-sm text-center"
+            >
+              <h2 className="text-2xl font-bold mb-6">시작하기</h2>
+              <p className="text-[#4e5968] mb-8 text-sm">팝업스토어 제보와 찜 기능을<br/>로그인 후 이용해 보세요.</p>
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => {
+                    // 실제 인증 로직 연결부
+                    setUserProfile({ id: '1', name: '테스트 유저', avatarUrl: '', isAdmin: false });
+                    setIsProfileModalOpen(false);
+                  }}
+                  className="w-full py-4 bg-[#FEE500] text-[#3c1e1e] font-bold rounded-2xl active:scale-95 transition-transform"
+                >
+                  카카오 로그인
+                </button>
+                <button className="w-full py-4 bg-[#f2f4f6] text-[#4e5968] font-bold rounded-2xl">이메일 로그인</button>
+              </div>
+              <button onClick={() => setIsProfileModalOpen(false)} className="mt-6 text-[#8b95a1] underline text-sm">나중에 하기</button>
+            </motion.div>
+          </div>
+        )}
+
         {(isSearchOpen || isLocationSelectorOpen) && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
