@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 
 const CATEGORIES = ['패션', '푸드', '아트', '엔터', '라이프스타일', '기타'];
 
-// --- 인터페이스 정의 (이미지 스키마 기준 반영) ---
+// --- 인터페이스 정의 (DB 이미지 스키마 기준 반영) ---
 interface RecommendedKeyword {
   id: number;
   keyword: string;
@@ -25,14 +25,13 @@ interface Review {
   user_id: string;
   user_nickname: string;  // 테이블 컬럼명 user_nickname
   rating: number;
-  content: string;        // comment에서 content로 수정
+  content: string;        // 테이블 컬럼명 content
   image_url?: string;     // 테이블 컬럼명 image_url
   created_at: string;
   is_blinded: boolean;    // 테이블 컬럼명 is_blinded
-  likes: number;          // likes_count에서 likes로 수정
-  dislikes: number;       // dislikes_count에서 dislikes로 수정
-  reports: number;        // reports_count에서 reports로 수정
-  report_count: number;   // 테이블 컬럼명 report_count
+  likes: number;          // 테이블 컬럼명 likes
+  dislikes: number;       // 테이블 컬럼명 dislikes
+  report_count: number;   // 핵심: 테이블 컬럼명 report_count
   popup_stores?: { title: string } | null; 
 }
 
@@ -93,7 +92,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     if (logData) setSearchLogs(logData);
   };
 
-  // 핵심 수정: 테이블 스키마 이미지의 컬럼명(popup_id, content 등)으로 쿼리 수정
+  // 핵심 수정: 신고 데이터 인입 및 카운트 반영을 위한 쿼리 수정
   const fetchReviews = async () => {
     setIsLoadingReviews(true);
     try {
@@ -111,17 +110,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
           is_blinded,
           likes,
           dislikes,
-          reports,
           report_count,
           popup_stores:popup_id ( title )
         `);
 
+      // 1. 신고된 리뷰만 보기 필터: report_count가 0보다 큰 것만 가져옴
       if (showOnlyReported) {
-        // 이미지 스키마의 report_count 컬럼 사용
         query = query.gt('report_count', 0);
       }
 
-      // 정렬 기준도 실제 컬럼명에 맞춤
+      // 2. 정렬: 신고순일 경우 report_count 기준
       query = query.order(reviewSortOrder === 'reports' ? 'report_count' : 'created_at', { ascending: false });
       
       const { data, error } = await query;
@@ -149,7 +147,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
   const handleUpdateReview = async () => {
     if (!editingReview) return;
     const { error } = await supabase.from('reviews').update({ 
-      content: editingReview.content, // comment -> content
+      content: editingReview.content, 
       rating: editingReview.rating 
     }).eq('id', editingReview.id);
     
@@ -203,7 +201,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
 
   return (
     <div className="fixed inset-0 z-[1000] bg-[#f2f4f6] flex flex-col overflow-hidden font-sans text-[#191f28]">
-      {/* 헤더 */}
       <header className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 rounded-full">
@@ -213,7 +210,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
         </div>
       </header>
 
-      {/* 네비게이션 */}
       <nav className="bg-white px-6 flex border-b border-gray-50 overflow-x-auto no-scrollbar">
         {[
           { id: 'approval', label: '승인 관리' },
@@ -231,7 +227,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
       <main className="flex-1 overflow-y-auto p-6">
         <div className="max-w-5xl mx-auto">
           
-          {/* 1. 승인 관리 탭 */}
           {activeTab === 'approval' && (
             <>
               <div className="flex gap-2 mb-6">
@@ -260,7 +255,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
             </>
           )}
 
-          {/* 2. 키워드 & 통계 탭 */}
           {activeTab === 'keywords' && (
             <div className="space-y-8">
               <section className="bg-white rounded-[32px] p-8 shadow-sm">
@@ -291,7 +285,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
             </div>
           )}
 
-          {/* 3. 정보 수정 요청 탭 */}
           {activeTab === 'edit_request' && (
              <div className="space-y-4">
                <h2 className="text-[18px] font-bold mb-6">사용자 제보 수정 요청 ({editRequests.length})</h2>
@@ -305,7 +298,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                        <p className="text-[13px] text-gray-400 mt-2">요청일: {new Date(req.created_at).toLocaleString()}</p>
                      </div>
                      <div className="flex gap-2">
-                        <button onClick={() => { /* 승인 로직 */ }} className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold">변경 적용</button>
+                        <button onClick={() => {}} className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold">변경 적용</button>
                         <button onClick={() => { supabase.from('edit_requests').delete().eq('id', req.id).then(fetchEditRequests) }} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold">반려/삭제</button>
                      </div>
                    </div>
@@ -317,7 +310,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
              </div>
           )}
 
-          {/* 4. 리뷰 관리 탭 - 실제 이미지 스키마 반영 렌더링 */}
           {activeTab === 'reviews' && (
             <div className="space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -355,11 +347,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                       <button onClick={() => { if(confirm('영구 삭제?')) supabase.from('reviews').delete().eq('id', review.id).then(fetchReviews) }} className="px-3 py-1.5 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold">삭제</button>
                     </div>
                   </div>
-                  {/* 리뷰 본문 (content 컬럼) */}
                   <p className="text-[15px] text-gray-700 bg-gray-50 p-4 rounded-2xl mb-4 whitespace-pre-wrap leading-relaxed">
                     {review.content || <span className="text-gray-400 italic">내용이 없는 리뷰입니다.</span>}
                   </p>
-                  {/* 리뷰 이미지 추가 표시 (image_url 컬럼) */}
                   {review.image_url && (
                     <img src={review.image_url} className="w-24 h-24 rounded-xl object-cover mb-4 border border-gray-100" alt="리뷰 첨부 이미지" />
                   )}
@@ -368,7 +358,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                       <span className="font-bold text-gray-900">작성자: {review.user_nickname || '익명'}</span>
                       <span className="text-gray-400">좋아요 {review.likes || 0} / 싫어요 {review.dislikes || 0}</span>
                     </div>
-                    <div className={`font-bold px-3 py-1 rounded-full ${review.report_count > 0 ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-400'}`}>신고 누적: {review.report_count || 0}회</div>
+                    {/* 수정된 부분: review.report_count 바인딩 */}
+                    <div className={`font-bold px-3 py-1 rounded-full ${review.report_count > 0 ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-400'}`}>
+                      신고 누적: {review.report_count || 0}회
+                    </div>
                   </div>
                 </div>
               ))}
@@ -377,7 +370,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
         </div>
       </main>
 
-      {/* --- 팝업 수정 모달 (기존 유지) --- */}
+      {/* --- 팝업 수정 모달 (기능 유지) --- */}
       {isEditModalOpen && editingStore && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md">
           <div className="relative bg-white w-full max-w-[520px] rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
