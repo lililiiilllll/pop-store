@@ -113,7 +113,11 @@ const App: React.FC = () => {
 
   const fetchAndSetProfile = async (uid: string) => {
     const profile = await getProfile(uid);
-    if (profile) setUserProfile(profile);
+    if (profile) {
+      setUserProfile(profile);
+      // 실제 API 연동 시 role 확인 로직
+      if (profile.role === 'admin') setIsAdminLoggedIn(true);
+    }
   };
 
   // --- [핸들러: 인증 및 로그인 액션] ---
@@ -133,13 +137,32 @@ const App: React.FC = () => {
   };
 
   const handleAdminLogin = useCallback(() => {
+    // [Mock 반영] API 연동 전 테스트를 위한 가짜 관리자 프로필 주입
+    const mockAdmin: UserProfile = {
+      id: 'mock-admin-id',
+      name: '운영자(테스트)',
+      email: 'admin@test.com',
+      role: 'admin',
+      avatar_url: ''
+    };
+    
+    setUserProfile(mockAdmin);
     setIsAdminLoggedIn(true);
     setIsAdminOpen(true); 
     setSuccessConfig({ isOpen: true, title: '관리자 인증 완료', message: '대시보드에 진입합니다.' });
   }, []);
 
   const handleUserLogin = useCallback(() => {
-    // 1. 모든 모달 및 오버레이 상태를 꺼서 흐림(Dimmed) 요소 제거
+    // [Mock 반영] 일반 유저 프로필로 교체 및 모든 오버레이 강제 초기화 (흐림 현상 해결)
+    const mockUser: UserProfile = {
+      id: 'mock-user-id',
+      name: '일반유저(테스트)',
+      email: 'user@test.com',
+      role: 'user',
+      avatar_url: ''
+    };
+
+    setUserProfile(mockUser);
     setIsAdminLoggedIn(false);
     setIsAdminOpen(false);
     setIsMobileListOpen(false);
@@ -149,7 +172,7 @@ const App: React.FC = () => {
     setSearchQuery(""); 
     setDetailStore(null);
     
-    // 2. 혹시 남아있을 수 있는 바디 잠금 강제 해제
+    // 바디 잠금 강제 해제
     document.body.style.overflow = "unset";
     
     setSuccessConfig({ 
@@ -218,8 +241,8 @@ const App: React.FC = () => {
     return filtered;
   }, [allStores, selectedFilter, mapBounds, activeTab, savedStoreIds, searchQuery]);
 
-  // 관리자 모드 렌더링 (onRefresh를 반드시 fetchStores로 전달)
-  if (isAdminOpen && isAdminLoggedIn) {
+  // 관리자 모드 렌더링 (실제 role 체크 포함)
+  if (isAdminOpen && userProfile?.role === 'admin') {
     return (
       <AdminDashboard 
         allStores={allStores} 
@@ -240,15 +263,20 @@ const App: React.FC = () => {
               <span className="text-[12px] font-bold text-[#3182f6]">DEBUG MODE</span>
               <button onClick={() => setIsTestPanelOpen(false)} className="text-[#8b95a1] p-1"><XIcon size={16} /></button>
             </div>
-            <button onClick={handleAdminLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>관리자 모드</button>
-            <button onClick={handleUserLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${!isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>일반 유저 모드</button>
+            {/* 현재 권한 상태 표시 */}
+            <div className="px-1 py-1 border-b border-gray-100 mb-1">
+              <p className="text-[10px] text-gray-400">Current Role</p>
+              <p className="text-[12px] font-bold text-[#4e5968]">{userProfile?.role || 'Guest'}</p>
+            </div>
+            <button onClick={handleAdminLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${isAdminOpen ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>관리자 모드</button>
+            <button onClick={handleUserLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${!isAdminOpen ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>일반 유저 모드</button>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* PC 사이드바 */}
       <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-[#f2f4f6] shadow-sm">
-        <Header location={currentLocationName} userProfile={userProfile} onSearchClick={() => setIsSearchOpen(true)} onAdminClick={() => isAdminLoggedIn ? setIsAdminOpen(true) : alert("권한 없음")} onProfileClick={handleProfileClick} onLocationClick={() => setIsLocationSelectorOpen(true)} />
+        <Header location={currentLocationName} userProfile={userProfile} onSearchClick={() => setIsSearchOpen(true)} onAdminClick={() => userProfile?.role === 'admin' ? setIsAdminOpen(true) : alert("관리자 권한이 없습니다.")} onProfileClick={handleProfileClick} onLocationClick={() => setIsLocationSelectorOpen(true)} />
         <div className="no-scrollbar overflow-x-auto"><CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} /></div>
         <div className="px-5 py-4 border-b border-[#f9fafb]">
           <div className="flex bg-[#f2f4f6] p-1 rounded-[14px]">
