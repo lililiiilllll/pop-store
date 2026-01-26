@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PopupStore } from './types';
-import ReportModal from './ReportModal';
+import ReportModal from './ReportModal'; 
 
 interface MapAreaProps {
   stores: PopupStore[];
@@ -34,25 +34,44 @@ const MapArea: React.FC<MapAreaProps> = ({
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const isDragging = useRef(false);
 
-  // 1. 지도 초기화 (최초 1회만 실행)
+  // 롱프레스 취소 공통 함수
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  // 1. 지도 초기화
   useEffect(() => {
     const { kakao } = window as any;
     if (!kakao || !mapContainerRef.current) return;
 
     kakao.maps.load(() => {
-      const initialCenter = new kakao.maps.LatLng(mapCenter?.lat || 37.5547, mapCenter?.lng || 126.9706);
+      const initialCenter = new kakao.maps.LatLng(
+        mapCenter?.lat || 37.5547, 
+        mapCenter?.lng || 126.9706
+      );
+      
       const options = { center: initialCenter, level: 3 };
       const map = new kakao.maps.Map(mapContainerRef.current, options);
       mapRef.current = map;
 
-      // [기존] 클릭 및 아이들 이벤트 유지
+      // 클릭 이벤트 (오버레이 닫기)
       kakao.maps.event.addListener(map, 'click', () => {
+        cancelLongPress();
         if (overlayRef.current) overlayRef.current.setMap(null);
         onMapClick();
       });
 
-      kakao.maps.event.addListener(map, 'dragstart', () => { isDragging.current = true; cancelLongPress(); });
-      kakao.maps.event.addListener(map, 'dragend', () => { isDragging.current = false; });
+      // 드래그 발생 시 롱프레스 무효화
+      kakao.maps.event.addListener(map, 'dragstart', () => {
+        isDragging.current = true;
+        cancelLongPress();
+      });
+      kakao.maps.event.addListener(map, 'dragend', () => {
+        isDragging.current = false;
+      });
 
       kakao.maps.event.addListener(map, 'idle', () => {
         if (onMapIdle) {
@@ -70,32 +89,28 @@ const MapArea: React.FC<MapAreaProps> = ({
         }
       });
     });
+    return () => cancelLongPress();
   }, []);
 
-  // --- [핵심] 롱프레스 로직: 카카오맵 API가 아닌 DOM 레벨에서 직접 관리 ---
-  const startLongPress = (e: React.MouseEvent | React.TouchEvent) => {
+  // --- [신규] 롱프레스 감지 (DOM 기반 - 가장 확실함) ---
+  const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
     cancelLongPress();
     isDragging.current = false;
+
+    // 마우스/터치 위치 저장
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
     longPressTimer.current = setTimeout(() => {
       if (isDragging.current || !mapRef.current) return;
 
-      // 롱프레스 시점의 지점 좌표를 카카오맵 좌표로 변환
+      const { kakao } = window as any;
       const proj = mapRef.current.getProjection();
-      
-      // 마우스/터치 위치 계산
-      let clientX, clientY;
-      if ('touches' in e) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-      } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
-      }
-
       const rect = mapContainerRef.current?.getBoundingClientRect();
-      if (rect) {
-        const point = new (window as any).kakao.maps.Point(clientX - rect.left, clientY - rect.top);
+
+      if (rect && proj) {
+        // 화면 좌표를 지도 좌표로 변환
+        const point = new kakao.maps.Point(clientX - rect.left, clientY - rect.top);
         const latlng = proj.fromContainerPointToLatLng(point);
         
         setSelectedCoord({ lat: latlng.getLat(), lng: latlng.getLng() });
@@ -105,14 +120,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     }, 1500);
   };
 
-  const cancelLongPress = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
-
-  // 2. 나머지 기능들 (중심이동, 마커, 오버레이, 내위치) - 기존 코드와 동일하게 유지
+  // 2~5. 기존 기능들 (중심이동, 마커, 오버레이, 사용자위치)
   useEffect(() => {
     if (mapRef.current && mapCenter) {
       const { kakao } = window as any;
@@ -138,26 +146,30 @@ const MapArea: React.FC<MapAreaProps> = ({
 
   useEffect(() => {
     const { kakao } = window as any;
-    if (!mapRef.current || !kakao) return;
-    if (overlayRef.current) overlayRef.current.setMap(null);
-    if (!selectedStoreId) return;
+    if (!mapRef.current || !kakao || !selectedStoreId) {
+      if (overlayRef.current) overlayRef.current.setMap(null);
+      return;
+    }
     const store = stores.find(s => s.id === selectedStoreId);
     if (!store) return;
 
     const content = document.createElement('div');
-    content.style.cssText = 'margin-bottom: 50px; filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15)); pointer-events: auto;';
+    content.style.cssText = 'margin-bottom: 50px; filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15));';
     const validImageUrl = (store.image_url && store.image_url !== "-") ? store.image_url : "";
     content.innerHTML = `
       <div style="background: white; padding: 10px 14px; border-radius: 20px; border: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 220px;">
         ${validImageUrl ? `<div style="width: 48px; height: 48px; border-radius: 12px; overflow: hidden; flex-shrink: 0;"><img src="${validImageUrl}" style="width: 100%; height: 100%; object-fit: cover;" /></div>` : ''}
         <div style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
-          <div style="display: flex; gap: 4px;"><span style="font-size: 10px; color: #3182f6; font-weight: 800;">${store.category}</span></div>
-          <span style="font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${store.title}</span>
+          <div style="display: flex; gap: 4px;"><span style="font-size: 10px; color: #3182f6; font-weight: 800;">${store.category || '팝업'}</span></div>
+          <span style="font-size: 14px; font-weight: 700; color: #191f28; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${store.title}</span>
         </div>
       </div>
     `;
     content.onclick = (e) => { e.stopPropagation(); onDetailOpen(store); };
-    overlayRef.current = new kakao.maps.CustomOverlay({ content, position: new kakao.maps.LatLng(store.lat, store.lng), yAnchor: 1.1, zIndex: 30 });
+    if (overlayRef.current) overlayRef.current.setMap(null);
+    overlayRef.current = new kakao.maps.CustomOverlay({
+      content, position: new kakao.maps.LatLng(store.lat, store.lng), yAnchor: 1.1, zIndex: 30
+    });
     overlayRef.current.setMap(mapRef.current);
   }, [selectedStoreId, stores, onDetailOpen]);
 
@@ -174,19 +186,17 @@ const MapArea: React.FC<MapAreaProps> = ({
   }, [userLocation]);
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-gray-50">
+    <div className="w-full h-full relative">
       <div 
         ref={mapContainerRef} 
         className="w-full h-full absolute inset-0"
-        onMouseDown={startLongPress}
+        onMouseDown={handleStart}
         onMouseUp={cancelLongPress}
         onMouseLeave={cancelLongPress}
-        onTouchStart={startLongPress}
+        onTouchStart={handleStart}
         onTouchEnd={cancelLongPress}
-        style={{ cursor: 'crosshair' }}
       />
       
-      {/* z-index를 최상위로 올리고 고정 위치로 표시 */}
       {isReportModalOpen && (
         <div className="fixed inset-0" style={{ zIndex: 999999 }}>
           <ReportModal 
