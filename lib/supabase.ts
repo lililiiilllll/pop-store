@@ -1,63 +1,41 @@
 import { createClient } from '@supabase/supabase-js';
-import { UserProfile, Task } from '../types';
+import { UserProfile } from '../types';
 
-// --- 1. 환경 변수 처리 (보안 및 유연성 강화) ---
-const getEnv = (key: string) => {
-  try {
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      // @ts-ignore
-      return import.meta.env[key] || import.meta.env[`VITE_${key}`];
-    }
-  } catch (e) {}
-  
-  try {
-    if (typeof process !== 'undefined' && process.env) {
-      return process.env[key] || process.env[`VITE_${key}`];
-    }
-  } catch (e) {}
+/**
+ * --- 1. 설정 및 초기화 (보안 강화) ---
+ * 깃허브 웹에서 직접 수정 시, 아래 변수들은 환경 변수에서 값을 읽어옵니다.
+ * 실제 값은 Vercel이나 .env 파일에만 저장하세요.
+ */
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-  return '';
-};
-
-// 깃허브 웹에서 수정할 내용
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// 두 값이 없을 경우를 대비해 내보내기 전에 체크 (선택 사항이지만 권장)
-if (!supabaseUrl || !supabaseKey) {
-  console.warn("Supabase 환경 변수가 설정되지 않았습니다. 배포 설정(Vercel 등)을 확인하세요.");
-}
-
-export const supabase = createClient(supabaseUrl || '', supabaseKey || '');
-
-// 나중에 삭제할 부분
-const rawSupabaseUrl = getEnv('SUPABASE_URL');
-const rawSupabaseKey = getEnv('SUPABASE_ANON_KEY');
-
-// 하드코딩된 키는 환경 변수가 없을 때를 위한 Fallback으로 유지
-const supabaseUrl = rawSupabaseUrl || 'https://rfnigedsfgnaqrsxjdaz.supabase.co';
-const supabaseKey = rawSupabaseKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmbmlnZWRzZmduYXFyc3hqZGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODUxOTMsImV4cCI6MjA4Mzc2MTE5M30.JqGG--Zbbivx0MbSRqWDMU6aRdgHscz60ZQ2gzLXxos';
-
+// 설정 여부 확인용 (내부 로직에서 사용)
 export const isSupabaseConfigured = !!supabaseUrl && !!supabaseKey;
 
+// 클라이언트 생성
 export const supabase = createClient(supabaseUrl, supabaseKey);
-//나중에 삭제할 부분
 
+// 설정이 누락되었을 때 콘솔에 경고 표시
+if (!isSupabaseConfigured) {
+  console.warn(
+    "Supabase 환경 변수가 설정되지 않았습니다. .env 파일 혹은 배포 환경(Vercel 등)의 Settings > Environment Variables를 확인하세요."
+  );
+}
 
-// --- 2. 신규 추가: 소셜 인증 API Functions ---
+/**
+ * --- 2. 소셜 인증 API Functions ---
+ */
 
 /**
  * 소셜 로그인 실행 (카카오, 네이버, 토스)
- * App.tsx의 handleKakaoLogin, handleNaverLogin 등에서 호출합니다.
  */
 export const signInWithSocial = async (provider: 'kakao' | 'naver' | 'toss') => {
   if (!isSupabaseConfigured) return alert("Supabase 설정이 올바르지 않습니다.");
 
   const { error } = await supabase.auth.signInWithOAuth({
-    provider: provider as any, // Supabase 공식 지원 외의 커스텀 제공자는 OAuth 설정 필요
+    provider: provider as any,
     options: {
-      redirectTo: window.location.origin, // 로그인 완료 후 돌아올 주소
+      redirectTo: window.location.origin, // 로그인 후 돌아올 주소
       queryParams: { prompt: 'select_account' },
     },
   });
@@ -68,7 +46,17 @@ export const signInWithSocial = async (provider: 'kakao' | 'naver' | 'toss') => 
   }
 };
 
-// --- 3. 기존 API Functions (100% 유지) ---
+/**
+ * 로그아웃 함수 (추가 권장)
+ */
+export const signOut = async () => {
+  const { error } = await supabase.auth.signOut();
+  if (error) console.error("로그아웃 오류:", error.message);
+};
+
+/**
+ * --- 3. 기존 API Functions (유지 및 최적화) ---
+ */
 
 /**
  * 사용자 프로필 가져오기
@@ -168,7 +156,7 @@ export const fetchPopupStores = async (category?: string) => {
  */
 export const toggleLikeStore = async (userId: string, storeId: string) => {
   if (!isSupabaseConfigured) return { liked: false, error: null };
-  // 먼저 좋아요 여부 확인
+  
   const { data: existing } = await supabase
     .from('likes')
     .select('id')
@@ -177,14 +165,12 @@ export const toggleLikeStore = async (userId: string, storeId: string) => {
     .single();
 
   if (existing) {
-    // 이미 좋아요 상태면 삭제
     const { error } = await supabase
       .from('likes')
       .delete()
       .eq('id', existing.id);
     return { liked: false, error };
   } else {
-    // 좋아요 추가
     const { error } = await supabase
       .from('likes')
       .insert({ user_id: userId, store_id: storeId });
@@ -193,7 +179,7 @@ export const toggleLikeStore = async (userId: string, storeId: string) => {
 };
 
 /**
- * 헬퍼: 현재 로그인한 세션 확인
+ * 현재 로그인한 세션 확인
  */
 export const getCurrentSession = async () => {
   if (!isSupabaseConfigured) return null;
