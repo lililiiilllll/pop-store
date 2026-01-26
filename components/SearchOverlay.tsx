@@ -8,7 +8,7 @@ interface SearchOverlayProps {
   onClose: () => void;
   stores: PopupStore[];
   onSelectResult: (id: string) => void;
-  onSearchChange: (query: string) => void; // 부모(App)의 검색 상태를 업데이트하기 위한 함수 추가
+  onSearchChange: (query: string) => void;
 }
 
 const SearchOverlay: React.FC<SearchOverlayProps> = ({ 
@@ -16,7 +16,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({
   onClose, 
   stores = [], 
   onSelectResult,
-  onSearchChange // 프롭스 받아오기
+  onSearchChange 
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -29,29 +29,40 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({
     }
   }, [isOpen]);
 
-  // 검색 로직: 이름, 지역, 카테고리 통합 검색
+  // [강화된 검색 로직: 테이블의 모든 유효 컬럼 + 키워드 검색]
   const filteredResults = searchQuery.trim() === '' 
     ? [] 
     : stores.filter(store => {
         const query = searchQuery.toLowerCase();
-        // store.name 또는 store.title (App.tsx에서 변환한 값) 대응
-        const nameMatch = (store.name || store.title || "").toLowerCase().includes(query);
-        const locationMatch = (store.location || "").toLowerCase().includes(query);
-        const categoryMatch = (store.category || "").toLowerCase().includes(query);
-        return nameMatch || locationMatch || categoryMatch;
+        
+        // 1. 기본 필드 매칭 (제목, 카테고리, 주소, 설명, 인근역)
+        const basicMatch = 
+          (store.title || "").toLowerCase().includes(query) ||
+          (store.category || "").toLowerCase().includes(query) ||
+          (store.address || store.location || "").toLowerCase().includes(query) ||
+          (store.description || "").toLowerCase().includes(query) ||
+          (store.nearby_station || "").toLowerCase().includes(query) ||
+          (store.detailed_content || "").toLowerCase().includes(query);
+
+        // 2. 관리자 설정 키워드 매칭 (배열 또는 문자열 대응)
+        const keywords = store.keywords || store.tags || [];
+        const keywordMatch = Array.isArray(keywords)
+          ? keywords.some(k => k.toLowerCase().includes(query))
+          : typeof keywords === 'string' && keywords.toLowerCase().includes(query);
+
+        return basicMatch || keywordMatch;
       });
 
   const handleItemClick = (storeId: string) => {
-    onSelectResult(storeId); // 부모(App.tsx)의 이동 로직 호출
-    onClose(); // 검색창 닫기
+    onSelectResult(storeId);
+    onClose();
     setSearchQuery(''); 
-    onSearchChange(''); // 부모 상태도 초기화
+    onSearchChange(''); 
   };
 
-  // 입력값이 바뀔 때마다 부모에게 전달하는 핸들러
   const handleInputChange = (val: string) => {
     setSearchQuery(val);
-    onSearchChange(val); // 핵심: 입력 시마다 App.tsx의 visibleStores 연산에 영향을 줌
+    onSearchChange(val); 
   };
 
   // 아이콘 안전장치
@@ -80,13 +91,13 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({
             ref={inputRef}
             type="text"
             value={searchQuery}
-            onChange={(e) => handleInputChange(e.target.value)} // 커스텀 핸들러 사용
-            placeholder="팝업스토어 이름, 지역 검색"
+            onChange={(e) => handleInputChange(e.target.value)}
+            placeholder="이름, 지역, 역 이름, 키워드 검색"
             className="w-full bg-gray-100 border-none rounded-2xl px-5 py-3.5 text-[16px] focus:ring-2 focus:ring-blue-100 outline-none transition-all"
           />
           {searchQuery && (
             <button 
-              onClick={() => handleInputChange('')} // 초기화 시에도 부모에게 알림
+              onClick={() => handleInputChange('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 bg-gray-300 rounded-full hover:bg-gray-400 transition-colors"
             >
               <XIcon size={12} className="text-white" />
@@ -115,27 +126,35 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({
               >
                 <div className="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-50">
                   <img 
-                    src={store.imageUrl} 
+                    src={store.image_url || store.imageUrl} 
                     alt="" 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/150?text=Popup')}
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-gray-900 truncate mb-0.5">{store.name || store.title}</h4>
-                  <p className="text-[13px] text-gray-500 truncate flex items-center gap-1">
+                  <h4 className="font-bold text-gray-900 truncate mb-0.5">{store.title}</h4>
+                  <div className="flex items-center gap-1.5 text-[13px] text-gray-500 truncate">
+                    {store.nearby_station && <span className="text-blue-500 font-bold">{store.nearby_station}</span>}
                     <span className="inline-block w-1 h-1 bg-gray-300 rounded-full" />
-                    {store.location}
-                  </p>
+                    <span className="truncate">{store.address || store.location}</span>
+                  </div>
+                  {/* 키워드 미리보기 표시 */}
+                  {(store.keywords || store.tags) && (
+                    <div className="mt-1 flex gap-1 overflow-hidden">
+                      {(Array.isArray(store.keywords || store.tags) ? (store.keywords || store.tags) : []).slice(0, 3).map((tag: string, i: number) => (
+                        <span key={i} className="text-[10px] text-gray-400">#{tag}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <ChevronRightIcon size={18} className="text-gray-300 group-hover:text-blue-400 transition-colors" />
               </button>
             ))}
           </div>
         ) : (
-          <div className="p-12 text-center">
-            <p className="text-gray-500 font-medium">검색 결과가 없어요 🥲</p>
-            <p className="text-sm text-gray-400 mt-1">철자가 맞는지 다시 확인해 볼까요?</p>
+          <div className="p-12 text-center text-gray-400">
+            <p className="text-[15px] font-medium">검색 결과가 없어요 🥲</p>
           </div>
         )}
       </div>
@@ -148,7 +167,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({
             {['성수', '서울숲', '한정판', '무료전시'].map(keyword => (
               <button 
                 key={keyword}
-                onClick={() => handleInputChange(keyword)} // 추천 클릭 시에도 연동
+                onClick={() => handleInputChange(keyword)}
                 className="px-4 py-2 bg-white border border-gray-200 rounded-full text-[14px] font-medium text-gray-600 hover:border-blue-500 hover:text-blue-500 transition-all shadow-sm"
               >
                 # {keyword}
