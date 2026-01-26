@@ -30,7 +30,7 @@ interface Review {
   likes_count: number;    
   dislikes_count: number; 
   reports_count: number;  
-  profiles?: { name: string };     
+  profiles?: { name: string };      
   popup_stores?: { title: string }; 
 }
 
@@ -132,28 +132,48 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
 
   const addKeyword = () => {
     if (!keywordInput.trim() || !editingStore) return;
-    const tag = keywordInput.trim().replace('#', '');
-    if (editingStore.keywords?.includes(tag)) return;
-    setEditingStore({ ...editingStore, keywords: [...(editingStore.keywords || []), tag] });
+    const tag = keywordInput.trim().replace(/^#/, ''); // # 중복 제거 로직 강화
+    if (!tag) return;
+    
+    const currentKeywords = editingStore.keywords || [];
+    if (currentKeywords.includes(tag)) return;
+    
+    setEditingStore({ ...editingStore, keywords: [...currentKeywords, tag] });
     setKeywordInput('');
   };
 
   const removeKeyword = (tagToRemove: string) => {
     if (!editingStore) return;
-    setEditingStore({ ...editingStore, keywords: editingStore.keywords?.filter(tag => tag !== tagToRemove) });
+    setEditingStore({ 
+      ...editingStore, 
+      keywords: (editingStore.keywords || []).filter(tag => tag !== tagToRemove) 
+    });
   };
 
   const handleUpdateStore = async (statusOverride?: boolean) => {
     if (!editingStore) return;
     const finalCategory = (editingStore.category === '기타' && customCategory.trim() !== '') ? customCategory.trim() : editingStore.category;
+    
     const { error } = await supabase.from('popup_stores').update({
-      title: editingStore.title, address: editingStore.address, category: finalCategory, 
-      description: editingStore.description, image_url: editingStore.imageUrl, 
-      is_free: editingStore.is_free, is_reservation_required: editingStore.is_reservation_required,
+      title: editingStore.title, 
+      address: editingStore.address, 
+      category: finalCategory, 
+      description: editingStore.description, 
+      image_url: editingStore.imageUrl, 
+      is_free: editingStore.is_free, 
+      is_reservation_required: editingStore.is_reservation_required,
       is_verified: statusOverride !== undefined ? statusOverride : editingStore.is_verified,
-      keywords: editingStore.keywords
+      // DB 컬럼에 맞게 keywords 배열 저장
+      keywords: editingStore.keywords || []
     }).eq('id', editingStore.id);
-    if (!error) { setIsEditModalOpen(false); onRefresh(); }
+    
+    if (!error) { 
+      setIsEditModalOpen(false); 
+      onRefresh(); 
+    } else {
+      console.error("저장 중 오류:", error.message);
+      alert("저장에 실패했습니다: " + error.message);
+    }
   };
 
   return (
@@ -272,7 +292,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
              </div>
           )}
 
-          {/* 4. 리뷰 관리 탭 (핵심 기능 대거 보강) */}
+          {/* 4. 리뷰 관리 탭 */}
           {activeTab === 'reviews' && (
             <div className="space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -321,7 +341,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
         </div>
       </main>
 
-      {/* --- 팝업 수정 모달 (UI 디테일 복구) --- */}
+      {/* --- 팝업 수정 모달 --- */}
       {isEditModalOpen && editingStore && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md">
           <div className="relative bg-white w-full max-w-[520px] rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
@@ -372,7 +392,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
               <div>
                 <label className="text-[13px] font-bold text-gray-400 mb-2 block">검색 태그</label>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {editingStore.keywords?.map(tag => (
+                  {(editingStore.keywords || []).map(tag => (
                     <span key={tag} className="px-3 py-1.5 bg-blue-50 text-[#3182f6] rounded-xl text-[13px] font-bold flex items-center gap-1.5">#{tag}<button onClick={() => removeKeyword(tag)}>{Icons.X ? <Icons.X size={14} /> : 'x'}</button></span>
                   ))}
                 </div>
