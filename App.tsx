@@ -35,7 +35,7 @@ const AUTH_CONFIG = {
 const App: React.FC = () => {
   // --- [상태 관리: 관리자 및 테스트] ---
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  const [isTestPanelOpen, setIsTestPanelOpen] = useState(true);
+  const [isTestPanelOpen, setIsTestPanelOpen] = useState(true); // [DELETE-ON-PRODUCTION]
   const [isAdminOpen, setIsAdminOpen] = useState(false);
 
   // --- [상태 관리: 유저 및 공통 데이터] ---
@@ -147,12 +147,9 @@ const App: React.FC = () => {
     }
   };
 
-  // 관리자 로그인 핸들러 (실제 Supabase Auth 연동)
-  const handleAdminLogin = useCallback(async () => {
-    const email = prompt("관리자 이메일을 입력하세요", "thfjgh@naver.com");
-    const password = prompt("비밀번호를 입력하세요");
-
-    if (!email || !password) return;
+  // [DELETE-ON-PRODUCTION] 디버그용 통합 테스트 로그인 핸들러
+  const loginAsTestAccount = async (email: string, roleName: string) => {
+    const password = "password1234"; // 테스트용 계정의 공통 비밀번호 (본인 설정에 맞게 수정)
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -163,28 +160,36 @@ const App: React.FC = () => {
       if (error) throw error;
 
       if (data.user) {
-        // 로그인 성공 후 프로필 정보를 다시 가져와서 role 확인
         const profile = await getProfile(data.user.id);
-        if (profile?.role === 'admin') {
-          setIsAdminLoggedIn(true);
-          setIsAdminOpen(true);
+        if (profile) {
+          if (profile.role === 'admin') {
+            setIsAdminLoggedIn(true);
+            setIsAdminOpen(true);
+          }
           setSuccessConfig({ 
             isOpen: true, 
-            title: '관리자 인증 성공', 
-            message: `${profile.name} 운영자님, 환영합니다.` 
+            title: `${roleName} 로그인 성공`, 
+            message: `${profile.name}님으로 접속되었습니다.` 
           });
-        } else {
-          alert("관리자 권한이 없는 계정입니다.");
-          await supabase.auth.signOut();
         }
       }
     } catch (e: any) {
-      alert("로그인 실패: " + e.message);
+      alert(`${roleName} 로그인 실패: ` + e.message);
     }
+  };
+
+  // 관리자 로그인 핸들러 (기존 prompt 방식 대신 자동로그인 활용 가능)
+  const handleAdminLogin = useCallback(async () => {
+    await loginAsTestAccount('thfjgh@naver.com', '관리자');
   }, []);
 
-  // 일반 유저/로그아웃 핸들러
-  const handleUserLogin = useCallback(async () => {
+  // 일반 유저 로그인 핸들러 (디버그 패널용)
+  const handleUserDebugLogin = useCallback(async () => {
+    await loginAsTestAccount('user@test.com', '일반 유저');
+  }, []);
+
+  // 로그아웃 핸들러
+  const handleLogoutAction = useCallback(async () => {
     await supabase.auth.signOut();
     
     // 모든 상태 초기화 (흐림 현상 해결)
@@ -203,7 +208,7 @@ const App: React.FC = () => {
     setSuccessConfig({ 
       isOpen: true, 
       title: '로그아웃 완료', 
-      message: '일반 사용자 모드로 전환되었습니다.' 
+      message: '세션이 종료되었습니다.' 
     });
   }, []);
 
@@ -280,7 +285,7 @@ const App: React.FC = () => {
   return (
     <div className="relative flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white text-[#191f28]">
       
-      {/* 디버그 패널 */}
+      {/* [DELETE-ON-PRODUCTION] 디버그 패널 */}
       <AnimatePresence>
         {isTestPanelOpen && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="fixed top-24 right-6 z-[9999] bg-white/95 backdrop-blur-xl p-5 rounded-[24px] shadow-2xl border border-[#f2f4f6] flex flex-col gap-3 min-w-[200px]">
@@ -293,8 +298,11 @@ const App: React.FC = () => {
               <p className="text-[10px] text-gray-400 uppercase text-center">Current Role</p>
               <p className="text-[12px] font-bold text-[#4e5968] text-center">{userProfile?.role || 'Guest'}</p>
             </div>
-            <button onClick={handleAdminLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>관리자 로그인</button>
-            <button onClick={handleUserLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${!isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>로그아웃</button>
+            <button onClick={handleAdminLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>관리자 모드</button>
+            <button onClick={handleUserDebugLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${userProfile?.role === 'user' ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>일반 유저 모드</button>
+            {userProfile && (
+               <button onClick={handleLogoutAction} className="w-full py-2 text-[12px] text-red-500 font-medium">로그아웃</button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -359,7 +367,7 @@ const App: React.FC = () => {
       <AnimatePresence>
         {isProfileModalOpen && !userProfile && (
           <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-[32px] shadow-2xl w-full max-w-sm text-center">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-[32px] shadow-2xl w-full max-sm text-center">
               <h2 className="text-2xl font-bold mb-6">시작하기</h2>
               <div className="flex flex-col gap-3">
                 {AUTH_CONFIG.KAKAO.enabled && (
