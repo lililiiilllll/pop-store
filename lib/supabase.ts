@@ -20,6 +20,18 @@ const getEnv = (key: string) => {
   return '';
 };
 
+// 깃허브 웹에서 수정할 내용
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// 두 값이 없을 경우를 대비해 내보내기 전에 체크 (선택 사항이지만 권장)
+if (!supabaseUrl || !supabaseKey) {
+  console.warn("Supabase 환경 변수가 설정되지 않았습니다. 배포 설정(Vercel 등)을 확인하세요.");
+}
+
+export const supabase = createClient(supabaseUrl || '', supabaseKey || '');
+
+// 나중에 삭제할 부분
 const rawSupabaseUrl = getEnv('SUPABASE_URL');
 const rawSupabaseKey = getEnv('SUPABASE_ANON_KEY');
 
@@ -30,6 +42,8 @@ const supabaseKey = rawSupabaseKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJp
 export const isSupabaseConfigured = !!supabaseUrl && !!supabaseKey;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
+//나중에 삭제할 부분
+
 
 // --- 2. 신규 추가: 소셜 인증 API Functions ---
 
