@@ -147,10 +147,8 @@ const App: React.FC = () => {
     }
   };
 
-  // [DELETE-ON-PRODUCTION] 디버그용 통합 테스트 로그인 핸들러
-  const loginAsTestAccount = async (email: string, roleName: string) => {
-    const password = "password1234"; // 테스트용 계정의 공통 비밀번호 (본인 설정에 맞게 수정)
-
+  // [DELETE-ON-PRODUCTION] 디버그용 통합 테스트 로그인 핸들러 (비밀번호 인자 추가)
+  const loginAsTestAccount = async (email: string, password: string, roleName: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -178,14 +176,16 @@ const App: React.FC = () => {
     }
   };
 
-  // 관리자 로그인 핸들러 (기존 prompt 방식 대신 자동로그인 활용 가능)
+  // 관리자 로그인 핸들러 (비밀번호를 다르게 설정 가능)
   const handleAdminLogin = useCallback(async () => {
-    await loginAsTestAccount('thfjgh@naver.com', '관리자');
+    const ADMIN_PW = "password1234"; // 실제 관리자 계정 비밀번호로 수정하세요.
+    await loginAsTestAccount('thfjgh@naver.com', rmfjskqk12!A, '관리자');
   }, []);
 
-  // 일반 유저 로그인 핸들러 (디버그 패널용)
+  // 일반 유저 로그인 핸들러 (비밀번호를 다르게 설정 가능)
   const handleUserDebugLogin = useCallback(async () => {
-    await loginAsTestAccount('user@test.com', '일반 유저');
+    const USER_PW = "user1234"; // 실제 일반 유저 계정 비밀번호로 수정하세요.
+    await loginAsTestAccount('user@test.com', 1234, '일반 유저');
   }, []);
 
   // 로그아웃 핸들러
