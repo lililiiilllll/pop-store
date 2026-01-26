@@ -33,7 +33,6 @@ const MapArea: React.FC<MapAreaProps> = ({
   const [selectedCoord, setSelectedCoord] = useState({ lat: 0, lng: 0 });
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // 롱프레스 취소 공통 함수
   const cancelLongPress = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
@@ -41,7 +40,6 @@ const MapArea: React.FC<MapAreaProps> = ({
     }
   };
 
-  // 1. 지도 초기화 및 이벤트 등록
   useEffect(() => {
     const { kakao } = window as any;
     if (!kakao || !mapContainerRef.current) return;
@@ -56,37 +54,29 @@ const MapArea: React.FC<MapAreaProps> = ({
       const map = new kakao.maps.Map(mapContainerRef.current, options);
       mapRef.current = map;
 
-      // --- [수정된 롱프레스 로직] ---
-      // DOM 이벤트(handleStart) 대신 카카오맵 공식 이벤트를 사용하여 좌표 에러 방지
-      const handleLongPressStart = (e: any) => {
+      // --- [수정된 롱프레스: 기능은 같고 방식만 안전하게] ---
+      const handleStart = (e: any) => {
         cancelLongPress();
-        const latLng = e.latLng; // 카카오맵에서 제공하는 좌표 객체 사용
-
+        const latLng = e.latLng; 
         longPressTimer.current = setTimeout(() => {
           if (!latLng) return;
           setSelectedCoord({ lat: latLng.getLat(), lng: latLng.getLng() });
           setIsReportModalOpen(true);
           if (navigator.vibrate) navigator.vibrate(50);
-        }, 1200); // 1.2초 유지
+        }, 1200); // 1.2초
       };
 
-      // 카카오맵 내부 리스너로 등록 (에러 발생 원인 원천 차단)
-      kakao.maps.event.addListener(map, 'mousedown', handleLongPressStart);
-      kakao.maps.event.addListener(map, 'touchstart', handleLongPressStart);
-      
-      // 취소 리스너
+      kakao.maps.event.addListener(map, 'mousedown', handleStart);
+      kakao.maps.event.addListener(map, 'touchstart', handleStart);
       kakao.maps.event.addListener(map, 'mouseup', cancelLongPress);
       kakao.maps.event.addListener(map, 'touchend', cancelLongPress);
       kakao.maps.event.addListener(map, 'dragstart', cancelLongPress);
 
-      // [기존] 클릭 이벤트 (오버레이 닫기)
       kakao.maps.event.addListener(map, 'click', () => {
-        cancelLongPress();
         if (overlayRef.current) overlayRef.current.setMap(null);
         onMapClick();
       });
 
-      // [기존] idle 이벤트
       kakao.maps.event.addListener(map, 'idle', () => {
         if (onMapIdle) {
           const bounds = map.getBounds();
@@ -106,7 +96,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     return () => cancelLongPress();
   }, []);
 
-  // 2. 중심 좌표 변경 시 이동
+  // 중심 이동
   useEffect(() => {
     if (mapRef.current && mapCenter) {
       const { kakao } = window as any;
@@ -114,7 +104,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     }
   }, [mapCenter]);
 
-  // 3. 마커 생성 및 관리
+  // 마커 생성
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao) return;
@@ -131,13 +121,13 @@ const MapArea: React.FC<MapAreaProps> = ({
     });
   }, [stores, onMarkerClick]);
 
-  // 4. 선택된 스토어 오버레이 표시
+  // 오버레이 (상세 팝업)
   useEffect(() => {
     const { kakao } = window as any;
-    if (!mapRef.current || !kakao || !selectedStoreId) {
-      if (overlayRef.current) overlayRef.current.setMap(null);
-      return;
-    }
+    if (!mapRef.current || !kakao) return;
+    if (overlayRef.current) overlayRef.current.setMap(null);
+    if (!selectedStoreId) return;
+
     const store = stores.find(s => s.id === selectedStoreId);
     if (!store) return;
 
@@ -146,10 +136,12 @@ const MapArea: React.FC<MapAreaProps> = ({
     const validImageUrl = (store.image_url && store.image_url !== "-") ? store.image_url : "";
     
     content.innerHTML = `
-      <div style="background: white; padding: 10px 14px; border-radius: 20px; border: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 220px;">
+      <div style="background: white; padding: 10px 14px; border-radius: 20px; border: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 220px; max-width: 260px;">
         ${validImageUrl ? `<div style="width: 48px; height: 48px; border-radius: 12px; overflow: hidden; flex-shrink: 0;"><img src="${validImageUrl}" style="width: 100%; height: 100%; object-fit: cover;" /></div>` : ''}
         <div style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
-          <div style="display: flex; gap: 4px;"><span style="font-size: 10px; color: #3182f6; font-weight: 800;">${store.category || '팝업'}</span></div>
+          <div style="display: flex; gap: 4px; margin-bottom: 2px;">
+             <span style="font-size: 10px; color: #3182f6; font-weight: 800;">${store.category || '팝업'}</span>
+          </div>
           <span style="font-size: 14px; font-weight: 700; color: #191f28; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${store.title}</span>
         </div>
       </div>
@@ -157,15 +149,13 @@ const MapArea: React.FC<MapAreaProps> = ({
     `;
     
     content.onclick = (e) => { e.stopPropagation(); onDetailOpen(store); };
-    if (overlayRef.current) overlayRef.current.setMap(null);
-    
     overlayRef.current = new kakao.maps.CustomOverlay({
       content, position: new kakao.maps.LatLng(store.lat, store.lng), yAnchor: 1.1, zIndex: 30
     });
     overlayRef.current.setMap(mapRef.current);
   }, [selectedStoreId, stores, onDetailOpen]);
 
-  // 5. 사용자 내 위치 마커
+  // 내 위치
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao || !userLocation) return;
@@ -179,19 +169,11 @@ const MapArea: React.FC<MapAreaProps> = ({
   }, [userLocation]);
 
   return (
-    <div className="w-full h-full relative">
-      <div 
-        ref={mapContainerRef} 
-        className="w-full h-full absolute inset-0"
-      />
-      
-      {/* 모달 렌더링 */}
+    <div className="w-full h-full relative overflow-hidden bg-gray-50">
+      <div ref={mapContainerRef} className="w-full h-full absolute inset-0" />
       {isReportModalOpen && (
         <div className="fixed inset-0" style={{ zIndex: 999999 }}>
-          <ReportModal 
-            coord={selectedCoord} 
-            onClose={() => setIsReportModalOpen(false)} 
-          />
+          <ReportModal coord={selectedCoord} onClose={() => setIsReportModalOpen(false)} />
         </div>
       )}
     </div>
