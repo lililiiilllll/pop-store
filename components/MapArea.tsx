@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PopupStore } from './types';
-import ReportModal from './ReportModal'; // 제보 모달 컴포넌트 (앞서 제공해드린 파일)
+import ReportModal from './ReportModal'; 
 
 interface MapAreaProps {
   stores: PopupStore[];
@@ -34,19 +34,11 @@ const MapArea: React.FC<MapAreaProps> = ({
   const [selectedCoord, setSelectedCoord] = useState({ lat: 0, lng: 0 });
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // 롱프레스 시작 함수
-  const startLongPress = (lat: number, lng: number) => {
-    longPressTimer.current = setTimeout(() => {
-      setSelectedCoord({ lat, lng });
-      setIsReportModalOpen(true);
-      if (navigator.vibrate) navigator.vibrate(50); // 햅틱 피드백
-    }, 1500); // 1.5초
-  };
-
-  // 롱프레스 취소 함수
+  // 롱프레스 시작/취소 로직을 변수화하여 관리 (메모리 누수 방지)
   const cancelLongPress = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
   };
 
@@ -69,26 +61,37 @@ const MapArea: React.FC<MapAreaProps> = ({
       const map = new kakao.maps.Map(mapContainerRef.current, options);
       mapRef.current = map;
 
+      // --- [신규] 롱프레스 핸들러 ---
+      const handleLongPressStart = (e: any) => {
+        cancelLongPress(); // 이전 타이머 초기화
+        
+        const latLng = e.latLng;
+        longPressTimer.current = setTimeout(() => {
+          setSelectedCoord({ 
+            lat: latLng.getLat(), 
+            lng: latLng.getLng() 
+          });
+          setIsReportModalOpen(true);
+          if (navigator.vibrate) navigator.vibrate(50);
+        }, 1500); // 1.5초 유지
+      };
+
+      // 카카오맵 이벤트 리스너 등록
+      // mousedown/touchstart: 타이머 시작
+      kakao.maps.event.addListener(map, 'mousedown', handleLongPressStart);
+      kakao.maps.event.addListener(map, 'touchstart', handleLongPressStart);
+      
+      // mouseup/touchend/dragstart: 타이머 취소 (지도를 움직이거나 떼면 취소됨)
+      kakao.maps.event.addListener(map, 'mouseup', cancelLongPress);
+      kakao.maps.event.addListener(map, 'touchend', cancelLongPress);
+      kakao.maps.event.addListener(map, 'dragstart', cancelLongPress);
+
       // [기존] 지도 클릭 이벤트
       kakao.maps.event.addListener(map, 'click', () => {
+        cancelLongPress(); // 클릭 시에도 타이머는 꺼져야 함
         if (overlayRef.current) overlayRef.current.setMap(null);
         onMapClick();
       });
-
-      // [신규] 롱프레스 구현: mousedown / touchstart 감지
-      // 카카오맵 객체 자체에 이벤트를 걸어야 좌표(latLng)를 정확히 가져옵니다.
-      kakao.maps.event.addListener(map, 'mousedown', (e: any) => {
-        startLongPress(e.latLng.getLat(), e.latLng.getLng());
-      });
-
-      kakao.maps.event.addListener(map, 'mouseup', cancelLongPress);
-      kakao.maps.event.addListener(map, 'dragstart', cancelLongPress); // 드래그 시 취소
-
-      // 모바일 대응
-      kakao.maps.event.addListener(map, 'touchstart', (e: any) => {
-        startLongPress(e.latLng.getLat(), e.latLng.getLng());
-      });
-      kakao.maps.event.addListener(map, 'touchend', cancelLongPress);
 
       // [기존] idle 이벤트
       kakao.maps.event.addListener(map, 'idle', () => {
@@ -108,7 +111,7 @@ const MapArea: React.FC<MapAreaProps> = ({
       });
     });
 
-    return () => cancelLongPress(); // 언마운트 시 타이머 정리
+    return () => cancelLongPress();
   }, []);
 
   // 2. 중심 좌표 변경 시 이동 (유지)
@@ -160,7 +163,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     const validImageUrl = (store.image_url && store.image_url !== "-") ? store.image_url : "";
 
     const content = document.createElement('div');
-    content.style.cssText = 'margin-bottom: 50px; filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15));';
+    content.style.cssText = 'margin-bottom: 50px; filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15)); z-index: 1000;';
     
     content.innerHTML = `
       <div style="background: white; padding: 10px 14px; border-radius: 20px; border: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 220px; max-width: 260px;">
@@ -226,15 +229,19 @@ const MapArea: React.FC<MapAreaProps> = ({
       <div 
         ref={mapContainerRef} 
         className="w-full h-full absolute inset-0"
-        style={{ touchAction: 'pan-x pan-y' }}
+        style={{ touchAction: 'none' }} // 브라우저 기본 터치 액션 방해 금지
       />
       
-      {/* 제보하기 모달 추가 */}
+      {/* 중요: 모달은 지도 컨테이너 밖, 하지만 relative 컨테이너 안 최상단에 위치.
+         z-index를 9999로 설정하여 카카오맵의 어떤 요소보다 위에 뜨게 함.
+      */}
       {isReportModalOpen && (
-        <ReportModal 
-          coord={selectedCoord} 
-          onClose={() => setIsReportModalOpen(false)} 
-        />
+        <div className="fixed inset-0 z-[9999]">
+          <ReportModal 
+            coord={selectedCoord} 
+            onClose={() => setIsReportModalOpen(false)} 
+          />
+        </div>
       )}
     </div>
   );
