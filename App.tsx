@@ -139,7 +139,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleUserLogin = useCallback(() => {
-    // 모든 모달 및 오버레이 강제 초기화 (흐림 현상 방지)
+    // 1. 모든 모달 및 오버레이 상태를 꺼서 흐림(Dimmed) 요소 제거
     setIsAdminLoggedIn(false);
     setIsAdminOpen(false);
     setIsMobileListOpen(false);
@@ -148,7 +148,15 @@ const App: React.FC = () => {
     setIsLocationSelectorOpen(false);
     setSearchQuery(""); 
     setDetailStore(null);
-    setSuccessConfig({ isOpen: true, title: '일반 모드 전환', message: '오버레이 초기화가 완료되었습니다.' });
+    
+    // 2. 혹시 남아있을 수 있는 바디 잠금 강제 해제
+    document.body.style.overflow = "unset";
+    
+    setSuccessConfig({ 
+      isOpen: true, 
+      title: '일반 모드 전환', 
+      message: '모든 관리자 권한과 오버레이가 초기화되었습니다.' 
+    });
   }, []);
 
   const handleStoreSelect = useCallback((id: string) => {
@@ -175,11 +183,13 @@ const App: React.FC = () => {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(s => 
-        s.title.toLowerCase().includes(q) || 
+        (s.title || "").toLowerCase().includes(q) || 
         (s.category && s.category.toLowerCase().includes(q)) ||
-        (s.description && s.description.toLowerCase().includes(q))
+        (s.description && s.description.toLowerCase().includes(q)) ||
+        (s.address && s.address.toLowerCase().includes(q)) ||
+        (s.nearby_station && s.nearby_station.toLowerCase().includes(q)) ||
+        (Array.isArray(s.keywords) && s.keywords.some((k: string) => k.toLowerCase().includes(q)))
       );
-      // 검색 중일 때는 지도 범위(mapBounds) 필터링을 생략하여 모든 결과를 보여줍니다.
       return filtered;
     }
 
@@ -208,17 +218,24 @@ const App: React.FC = () => {
     return filtered;
   }, [allStores, selectedFilter, mapBounds, activeTab, savedStoreIds, searchQuery]);
 
+  // 관리자 모드 렌더링 (onRefresh를 반드시 fetchStores로 전달)
   if (isAdminOpen && isAdminLoggedIn) {
-    return <AdminDashboard allStores={allStores} onBack={() => setIsAdminOpen(false)} onRefresh={fetchStores} />;
+    return (
+      <AdminDashboard 
+        allStores={allStores} 
+        onBack={() => setIsAdminOpen(false)} 
+        onRefresh={fetchStores} 
+      />
+    );
   }
 
   return (
     <div className="relative flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white text-[#191f28]">
       
-      {/* 디버그 패널 */}
+      {/* 디버그 패널 - Z-index를 최상위로 유지 */}
       <AnimatePresence>
         {isTestPanelOpen && (
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="fixed top-24 right-6 z-[999] bg-white/95 backdrop-blur-xl p-5 rounded-[24px] shadow-2xl border border-[#f2f4f6] flex flex-col gap-3 min-w-[200px]">
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="fixed top-24 right-6 z-[9999] bg-white/95 backdrop-blur-xl p-5 rounded-[24px] shadow-2xl border border-[#f2f4f6] flex flex-col gap-3 min-w-[200px]">
             <div className="flex justify-between items-center mb-1">
               <span className="text-[12px] font-bold text-[#3182f6]">DEBUG MODE</span>
               <button onClick={() => setIsTestPanelOpen(false)} className="text-[#8b95a1] p-1"><XIcon size={16} /></button>
@@ -302,7 +319,14 @@ const App: React.FC = () => {
 
         {/* 배경 딤드 처리 (검색창 또는 지역 선택 시) */}
         {(isSearchOpen || isLocationSelectorOpen) && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[90]" onClick={() => { setIsSearchOpen(false); setIsLocationSelectorOpen(false); }} />
+          <motion.div 
+            key="overlay-bg"
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[90]" 
+            onClick={() => { setIsSearchOpen(false); setIsLocationSelectorOpen(false); }} 
+          />
         )}
         
         {/* 지역 선택 모달 */}
@@ -313,9 +337,9 @@ const App: React.FC = () => {
         )}
 
         {detailStore && (
-          <div className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setDetailStore(null)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} className="relative w-full lg:max-w-[480px] bg-white rounded-t-[32px] lg:rounded-[32px] overflow-hidden">
+          <div key="detail-container" className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDetailStore(null)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="relative w-full lg:max-w-[480px] bg-white rounded-t-[32px] lg:rounded-[32px] overflow-hidden">
               <DetailModal store={detailStore} isSaved={savedStoreIds.includes(detailStore.id)} onToggleSave={() => toggleSaveStore(detailStore.id)} onClose={() => setDetailStore(null)} onShowSuccess={(t, m) => setSuccessConfig({ isOpen: true, title: t, message: m })} />
             </motion.div>
           </div>
@@ -323,6 +347,7 @@ const App: React.FC = () => {
         
         {isSearchOpen && (
           <SearchOverlay 
+            key="search-overlay"
             isOpen={isSearchOpen} 
             onClose={() => { setIsSearchOpen(false); setSearchQuery(""); }} 
             stores={allStores} 
@@ -330,7 +355,16 @@ const App: React.FC = () => {
             onSearchChange={setSearchQuery} 
           />
         )}
-        {successConfig.isOpen && <SuccessModal isOpen={successConfig.isOpen} title={successConfig.title} message={successConfig.message} onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} />}
+
+        {successConfig.isOpen && (
+          <SuccessModal 
+            key="success-modal"
+            isOpen={successConfig.isOpen} 
+            title={successConfig.title} 
+            message={successConfig.message} 
+            onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} 
+          />
+        )}
       </AnimatePresence>
     </div>
   );
