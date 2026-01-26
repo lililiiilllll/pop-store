@@ -24,6 +24,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1531050171669-7df9b208
 
 /**
  * [기능 플래그 (Feature Flag)]
+ * 네이버, 카카오 연동 준비가 되면 enabled를 true로 바꾸세요.
  */
 const AUTH_CONFIG = {
   KAKAO: { enabled: false, provider: 'kakao' as const },
@@ -46,7 +47,7 @@ const App: React.FC = () => {
   const [userCoords, setUserCoords] = useState<{lat: number, lng: number} | null>(null);
   
   // --- [상태 관리: 지도 및 검색] ---
-  const [searchQuery, setSearchQuery] = useState(""); // 검색어 상태 추가
+  const [searchQuery, setSearchQuery] = useState(""); 
   const [mapBounds, setMapBounds] = useState<any>(null);
   const [mapCenter, setMapCenter] = useState<{lat: number, lng: number} | undefined>(undefined);
   const [currentLocationName, setCurrentLocationName] = useState('성수/서울숲');
@@ -61,8 +62,6 @@ const App: React.FC = () => {
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
   // 아이콘 안전 장치
-  const MapIcon = Icons.Map || 'span';
-  const HeartIcon = Icons.Heart || 'span';
   const ListIcon = Icons.List || 'span';
   const XIcon = Icons.X || 'span';
 
@@ -92,7 +91,6 @@ const App: React.FC = () => {
   useEffect(() => {
     fetchStores();
     
-    // 세션 유지 확인 로직
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) fetchAndSetProfile(session.user.id);
     });
@@ -126,12 +124,9 @@ const App: React.FC = () => {
     }
   }, [userProfile]);
 
-  // 실제 supabase.ts의 기능을 사용하는 통합 로그인 핸들러
   const handleSocialLogin = async (provider: 'kakao' | 'naver' | 'toss') => {
     try {
       await signInWithSocial(provider);
-      // OAuth 특성상 페이지 리다이렉트가 발생하므로, 
-      // 이후 처리는 useEffect의 onAuthStateChange에서 담당합니다.
     } catch (e: any) {
       console.error("로그인 에러:", e.message);
     }
@@ -144,12 +139,16 @@ const App: React.FC = () => {
   }, []);
 
   const handleUserLogin = useCallback(() => {
+    // 모든 모달 및 오버레이 강제 초기화 (흐림 현상 방지)
     setIsAdminLoggedIn(false);
     setIsAdminOpen(false);
     setIsMobileListOpen(false);
     setIsSearchOpen(false);
-    setSearchQuery(""); // 검색 초기화
-    setSuccessConfig({ isOpen: true, title: '일반 모드 전환', message: '화면 흐림 현상을 방지하기 위해 모든 오버레이를 초기화했습니다.' });
+    setIsProfileModalOpen(false);
+    setIsLocationSelectorOpen(false);
+    setSearchQuery(""); 
+    setDetailStore(null);
+    setSuccessConfig({ isOpen: true, title: '일반 모드 전환', message: '오버레이 초기화가 완료되었습니다.' });
   }, []);
 
   const handleStoreSelect = useCallback((id: string) => {
@@ -159,6 +158,7 @@ const App: React.FC = () => {
       setSelectedStoreId(id);
       setMapCenter({ lat: store.lat, lng: store.lng });
       setIsSearchOpen(false); 
+      setSearchQuery(""); // 검색 결과 선택 시 검색어 초기화
       if (activeTab === 'home') setIsMobileListOpen(false);
     }
   }, [allStores, activeTab]);
@@ -167,17 +167,20 @@ const App: React.FC = () => {
     setSavedStoreIds(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   }, []);
 
-  // --- [연산: 검색 및 카테고리 필터링 통합 로직] ---
+  // --- [연산: 검색 및 필터링 통합 로직] ---
   const visibleStores = useMemo(() => {
     let filtered = allStores;
 
-    // 1. 검색어 필터링 (SearchQuery 반영)
+    // 1. 검색어 필터링 (명칭 및 카테고리)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(s => 
         s.title.toLowerCase().includes(q) || 
-        (s.category && s.category.toLowerCase().includes(q))
+        (s.category && s.category.toLowerCase().includes(q)) ||
+        (s.description && s.description.toLowerCase().includes(q))
       );
+      // 검색 중일 때는 지도 범위(mapBounds) 필터링을 생략하여 모든 결과를 보여줍니다.
+      return filtered;
     }
 
     // 2. 탭 필터링 (찜한 목록)
@@ -194,8 +197,8 @@ const App: React.FC = () => {
       }
     }
 
-    // 4. 지도 범위 필터링 (홈 탭일 때만)
-    if (activeTab === 'home' && mapBounds && !searchQuery) {
+    // 4. 지도 범위 필터링 (검색어가 없고 홈 탭일 때만 작동)
+    if (activeTab === 'home' && mapBounds) {
       filtered = filtered.filter(s => 
         s.lat >= mapBounds.minLat && s.lat <= mapBounds.maxLat && 
         s.lng >= mapBounds.minLng && s.lng <= mapBounds.maxLng
@@ -242,7 +245,7 @@ const App: React.FC = () => {
       {/* 지도 영역 */}
       <main className="flex-1 relative">
         <MapArea 
-          stores={visibleStores} // 필터링된 결과만 지도에 표시
+          stores={visibleStores} 
           selectedStoreId={selectedStoreId} 
           onMarkerClick={handleStoreSelect} 
           mapCenter={mapCenter} 
@@ -297,10 +300,18 @@ const App: React.FC = () => {
           </div>
         )}
 
+        {/* 배경 딤드 처리 (검색창 또는 지역 선택 시) */}
         {(isSearchOpen || isLocationSelectorOpen) && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[90]" onClick={() => { setIsSearchOpen(false); setIsLocationSelectorOpen(false); }} />
         )}
         
+        {/* 지역 선택 모달 */}
+        {isLocationSelectorOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+             <LocationSelector onSelect={(loc) => { setCurrentLocationName(loc); setIsLocationSelectorOpen(false); }} onClose={() => setIsLocationSelectorOpen(false)} />
+          </div>
+        )}
+
         {detailStore && (
           <div className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setDetailStore(null)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
@@ -315,8 +326,8 @@ const App: React.FC = () => {
             isOpen={isSearchOpen} 
             onClose={() => { setIsSearchOpen(false); setSearchQuery(""); }} 
             stores={allStores} 
-            onSelectResult={(id) => { handleStoreSelect(id); setSearchQuery(""); }} 
-            onSearchChange={setSearchQuery} // 검색어 입력 시 상태 업데이트
+            onSelectResult={(id) => handleStoreSelect(id)} 
+            onSearchChange={setSearchQuery} 
           />
         )}
         {successConfig.isOpen && <SuccessModal isOpen={successConfig.isOpen} title={successConfig.title} message={successConfig.message} onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} />}
