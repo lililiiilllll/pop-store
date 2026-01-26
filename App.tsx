@@ -47,6 +47,32 @@ const App: React.FC = () => {
   const [detailStore, setDetailStore] = useState<PopupStore | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
+
+  const App = () => {
+  const [userProfile, setUserProfile] = React.useState(null);
+
+  // 1. 함수 정의
+  const handleProfileClick = () => {
+    console.log("로그인 로직 실행");
+    // 여기서 로그인 모달을 띄우거나 페이지를 이동시킵니다.
+    const mockUser = { id: 1, name: '홍길동', avatarUrl: '', isAdmin: false };
+    setUserProfile(mockUser); 
+  };
+
+  return (
+    <div className="app">
+      <Header 
+        location="성수동"
+        userProfile={userProfile}
+        // 2. 💡 반드시 'onProfileClick'이라는 이름으로 위 함수를 전달해야 합니다!
+        onProfileClick={handleProfileClick} 
+        onSearchClick={() => {}}
+        onLocationClick={() => {}}
+      />
+    </div>
+  );
+};
+  
   // 아이콘 안전 할당
   const MapIcon = Icons.Map || 'span';
   const HeartIcon = Icons.Heart || 'span';
