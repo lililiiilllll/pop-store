@@ -367,7 +367,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
                       return (
                         <div key={review.id} className="py-6 flex flex-col bg-gray-50/50 rounded-2xl px-4 my-2 border border-dashed border-gray-200">
                           <p className="text-[13px] text-gray-400 font-medium italic">
-                            🚫 정책 위반에 의해 블라인드 처리되었습니다.
+                            🚫 정책 위반 우려로 인한 블라인드 처리되었습니다.
                           </p>
                         </div>
                       );
