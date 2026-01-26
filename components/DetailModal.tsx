@@ -72,11 +72,11 @@ const CorrectionModal: React.FC<{
         
         <div className="space-y-4">
           <div>
-            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 제목 (필수)</label>
+            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 제목 (선택)</label>
             <input value={titleFix} onChange={(e) => setTitleFix(e.target.value)} placeholder="변경할 이름을 입력하세요" className="w-full bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 내용 (필수)</label>
+            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 내용 (선택)</label>
             <textarea value={descriptionFix} onChange={(e) => setDescriptionFix(e.target.value)} placeholder="변경할 상세 정보를 입력하세요" className="w-full h-24 bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
           </div>
           <div>
@@ -105,7 +105,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
   isAdmin = false
 }) => {
   const [isMapSelectOpen, setIsMapSelectOpen] = useState(false);
-  const [isCorrectionOpen, setIsCorrectionOpen] = useState(false); // 수정 요청 모달 상태
+  const [isCorrectionOpen, setIsCorrectionOpen] = useState(false); 
   
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -357,12 +357,33 @@ const DetailModal: React.FC<DetailModalProps> = ({
                   reviews.map((review) => {
                     const isMyReview = currentUser?.id === review.user_id;
                     const reaction = myReactions[review.id];
+                    
+                    // --- 블라인드 로직 처리 ---
+                    // 볼 수 있는 권한: 관리자이거나 작성자 본인인 경우
+                    const canSeeContent = isAdmin || isMyReview;
+                    
+                    if (review.is_blinded && !canSeeContent) {
+                      // 블라인드 처리된 리뷰 (일반 사용자 화면)
+                      return (
+                        <div key={review.id} className="py-6 flex flex-col bg-gray-50/50 rounded-2xl px-4 my-2 border border-dashed border-gray-200">
+                          <p className="text-[13px] text-gray-400 font-medium italic">
+                            🚫 정책 위반에 의해 블라인드 처리되었습니다.
+                          </p>
+                        </div>
+                      );
+                    }
+
                     return (
-                      <div key={review.id} className="py-6 flex flex-col">
+                      <div key={review.id} className={`py-6 flex flex-col ${review.is_blinded ? 'bg-red-50/30 rounded-2xl px-4 my-2 border border-red-100' : ''}`}>
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-[15px] text-[#333d4b]">{review.user_nickname} {isMyReview && <span className="text-[11px] text-blue-500 font-medium">(나)</span>}</span>
+                              <span className="font-bold text-[15px] text-[#333d4b]">
+                                {review.user_nickname} {isMyReview && <span className="text-[11px] text-blue-500 font-medium">(나)</span>}
+                              </span>
+                              {review.is_blinded && (
+                                <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full font-bold">블라인드 상태</span>
+                              )}
                             </div>
                             <div className="flex text-yellow-400 text-[11px]">
                               {"★".repeat(review.rating)}
@@ -411,7 +432,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
 
       {/* 모달 렌더링 영역 */}
       <AnimatePresence>
-        {/* 수정 요청 모달 */}
         {isCorrectionOpen && (
           <CorrectionModal 
             popupId={store.id}
@@ -422,7 +442,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
           />
         )}
 
-        {/* 길찾기 앱 선택 모달 */}
         {isMapSelectOpen && (
           <div className="fixed inset-0 z-[10001] flex items-center justify-center p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMapSelectOpen(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
