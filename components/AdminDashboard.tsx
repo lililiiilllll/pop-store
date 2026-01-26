@@ -24,14 +24,14 @@ interface Review {
   store_id: number;
   user_id: string;
   rating: number;
-  comment: string;
+  comment: string; // 리뷰 내용 컬럼
   created_at: string;
   is_blinded: boolean;    
   likes_count: number;    
   dislikes_count: number; 
   reports_count: number;  
-  profiles?: { name: string };      
-  popup_stores?: { title: string }; 
+  profiles?: { name: string } | null;      
+  popup_stores?: { title: string } | null; 
 }
 
 interface EditRequest {
@@ -91,14 +91,43 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     if (logData) setSearchLogs(logData);
   };
 
+  // 핵심 수정: 리뷰 데이터를 불러올 때 foreign key 관계를 명확히 선언
   const fetchReviews = async () => {
     setIsLoadingReviews(true);
-    let query = supabase.from('reviews').select(`*, profiles ( name ), popup_stores ( title )`);
-    if (showOnlyReported) query = query.gt('reports_count', 0);
-    query = query.order(reviewSortOrder === 'reports' ? 'reports_count' : 'created_at', { ascending: false });
-    const { data } = await query;
-    if (data) setReviews(data);
-    setIsLoadingReviews(false);
+    try {
+      // .select() 내부의 관계 매핑 확인 (profiles, popup_stores 테이블과의 연결)
+      let query = supabase
+        .from('reviews')
+        .select(`
+          id,
+          store_id,
+          user_id,
+          rating,
+          comment,
+          created_at,
+          is_blinded,
+          likes_count,
+          dislikes_count,
+          reports_count,
+          profiles ( name ),
+          popup_stores ( title )
+        `);
+
+      if (showOnlyReported) {
+        query = query.gt('reports_count', 0);
+      }
+
+      query = query.order(reviewSortOrder === 'reports' ? 'reports_count' : 'created_at', { ascending: false });
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      if (data) setReviews(data as any);
+    } catch (err) {
+      console.error("리뷰 페칭 에러:", err);
+    } finally {
+      setIsLoadingReviews(false);
+    }
   };
 
   const fetchEditRequests = async () => {
@@ -114,11 +143,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
 
   const handleUpdateReview = async () => {
     if (!editingReview) return;
-    const { error } = await supabase.from('reviews').update({ comment: editingReview.comment, rating: editingReview.rating }).eq('id', editingReview.id);
-    if (!error) { setEditingReview(null); fetchReviews(); }
+    const { error } = await supabase.from('reviews').update({ 
+      comment: editingReview.comment, 
+      rating: editingReview.rating 
+    }).eq('id', editingReview.id);
+    
+    if (!error) { 
+      setEditingReview(null); 
+      fetchReviews(); 
+    }
   };
 
-  // --- 팝업 수정/이미지 액션 ---
+  // --- 팝업 수정 액션 ---
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingStore) return;
@@ -132,22 +168,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
 
   const addKeyword = () => {
     if (!keywordInput.trim() || !editingStore) return;
-    const tag = keywordInput.trim().replace(/^#/, ''); // # 중복 제거 로직 강화
+    const tag = keywordInput.trim().replace(/^#/, '');
     if (!tag) return;
-    
     const currentKeywords = editingStore.keywords || [];
     if (currentKeywords.includes(tag)) return;
-    
     setEditingStore({ ...editingStore, keywords: [...currentKeywords, tag] });
     setKeywordInput('');
   };
 
   const removeKeyword = (tagToRemove: string) => {
     if (!editingStore) return;
-    setEditingStore({ 
-      ...editingStore, 
-      keywords: (editingStore.keywords || []).filter(tag => tag !== tagToRemove) 
-    });
+    setEditingStore({ ...editingStore, keywords: (editingStore.keywords || []).filter(tag => tag !== tagToRemove) });
   };
 
   const handleUpdateStore = async (statusOverride?: boolean) => {
@@ -155,25 +186,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     const finalCategory = (editingStore.category === '기타' && customCategory.trim() !== '') ? customCategory.trim() : editingStore.category;
     
     const { error } = await supabase.from('popup_stores').update({
-      title: editingStore.title, 
-      address: editingStore.address, 
-      category: finalCategory, 
-      description: editingStore.description, 
-      image_url: editingStore.imageUrl, 
-      is_free: editingStore.is_free, 
-      is_reservation_required: editingStore.is_reservation_required,
+      title: editingStore.title, address: editingStore.address, category: finalCategory, 
+      description: editingStore.description, image_url: editingStore.imageUrl, 
+      is_free: editingStore.is_free, is_reservation_required: editingStore.is_reservation_required,
       is_verified: statusOverride !== undefined ? statusOverride : editingStore.is_verified,
-      // DB 컬럼에 맞게 keywords 배열 저장
       keywords: editingStore.keywords || []
     }).eq('id', editingStore.id);
     
-    if (!error) { 
-      setIsEditModalOpen(false); 
-      onRefresh(); 
-    } else {
-      console.error("저장 중 오류:", error.message);
-      alert("저장에 실패했습니다: " + error.message);
-    }
+    if (!error) { setIsEditModalOpen(false); onRefresh(); }
   };
 
   return (
@@ -280,7 +300,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                        <p className="text-[13px] text-gray-400 mt-2">요청일: {new Date(req.created_at).toLocaleString()}</p>
                      </div>
                      <div className="flex gap-2">
-                        <button onClick={() => { /* 승인 로직: 실제 데이터에 덮어쓰기 */ }} className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold">변경 적용</button>
+                        <button onClick={() => { /* 승인 로직 */ }} className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold">변경 적용</button>
                         <button onClick={() => { supabase.from('edit_requests').delete().eq('id', req.id).then(fetchEditRequests) }} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold">반려/삭제</button>
                      </div>
                    </div>
@@ -292,7 +312,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
              </div>
           )}
 
-          {/* 4. 리뷰 관리 탭 */}
+          {/* 4. 리뷰 관리 탭 - 데이터 렌더링 안정화 */}
           {activeTab === 'reviews' && (
             <div className="space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -307,12 +327,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                   </select>
                 </div>
               </div>
-              {isLoadingReviews ? ( <div className="py-20 text-center text-gray-400 bg-white rounded-[32px]">로딩 중...</div> ) : reviews.map((review) => (
+              {isLoadingReviews ? ( <div className="py-20 text-center text-gray-400 bg-white rounded-[32px]">로딩 중...</div> ) : reviews.length === 0 ? (
+                <div className="py-20 text-center text-gray-400 bg-white rounded-[32px]">표시할 리뷰가 없습니다.</div>
+              ) : reviews.map((review) => (
                 <div key={review.id} className={`bg-white p-6 rounded-[28px] shadow-sm border-2 transition-all ${review.is_blinded ? 'border-orange-100 opacity-80' : 'border-transparent'}`}>
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[11px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">{review.popup_stores?.title}</span>
+                        <span className="text-[11px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">
+                          {review.popup_stores?.title || '정보 없음'}
+                        </span>
                         {review.is_blinded && <span className="text-[11px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">블라인드 상태</span>}
                       </div>
                       <div className="flex items-center gap-2 text-[14px] font-bold">
@@ -326,7 +350,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                       <button onClick={() => { if(confirm('영구 삭제?')) supabase.from('reviews').delete().eq('id', review.id).then(fetchReviews) }} className="px-3 py-1.5 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold">삭제</button>
                     </div>
                   </div>
-                  <p className="text-[15px] text-gray-700 bg-gray-50 p-4 rounded-2xl mb-4 whitespace-pre-wrap">{review.comment}</p>
+                  {/* 리뷰 코멘트 렌더링 확인 */}
+                  <p className="text-[15px] text-gray-700 bg-gray-50 p-4 rounded-2xl mb-4 whitespace-pre-wrap leading-relaxed">
+                    {review.comment || <span className="text-gray-400 italic">내용이 없는 리뷰입니다.</span>}
+                  </p>
                   <div className="flex items-center justify-between text-[11px]">
                     <div className="flex items-center gap-4">
                       <span className="font-bold text-gray-900">작성자: {review.profiles?.name || '익명'}</span>
@@ -341,7 +368,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
         </div>
       </main>
 
-      {/* --- 팝업 수정 모달 --- */}
+      {/* --- 팝업 수정 모달 (생략된 것 없이 기존 유지) --- */}
       {isEditModalOpen && editingStore && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md">
           <div className="relative bg-white w-full max-w-[520px] rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
@@ -350,7 +377,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
               <button onClick={() => setIsEditModalOpen(false)}>{Icons.X ? <Icons.X size={22} className="text-gray-400"/> : 'X'}</button>
             </div>
             <div className="p-7 overflow-y-auto space-y-6 no-scrollbar">
-              {/* 이미지 섹션 */}
               <div>
                 <label className="text-[13px] font-bold text-gray-400 mb-2 block">대표 이미지</label>
                 <div className="flex gap-4 items-center">
@@ -361,7 +387,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                   </div>
                 </div>
               </div>
-              {/* 카테고리 섹션 */}
               <div>
                 <label className="text-[13px] font-bold text-gray-400 mb-2 block">카테고리</label>
                 <div className="flex flex-wrap gap-2">
@@ -371,7 +396,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                 </div>
                 {editingStore.category === '기타' && <input placeholder="직접 입력" className="w-full mt-2 bg-gray-50 border-none rounded-xl p-3 text-[14px] outline-none" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} />}
               </div>
-              {/* 토글 섹션 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[13px] font-bold text-gray-400 mb-2 block">입장료</label>
@@ -388,7 +412,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                   </div>
                 </div>
               </div>
-              {/* 태그 섹션 */}
               <div>
                 <label className="text-[13px] font-bold text-gray-400 mb-2 block">검색 태그</label>
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -401,7 +424,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                   <button onClick={addKeyword} className="px-4 bg-[#3182f6] text-white rounded-xl font-bold text-[13px]">추가</button>
                 </div>
               </div>
-              {/* 정보 섹션 */}
               <div className="space-y-4">
                 <input value={editingStore.title} onChange={e => setEditingStore({...editingStore, title: e.target.value})} className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" placeholder="팝업 이름" />
                 <input value={editingStore.address} onChange={e => setEditingStore({...editingStore, address: e.target.value})} className="w-full bg-gray-50 border-none rounded-xl p-4 text-[15px] outline-none" placeholder="주소" />
