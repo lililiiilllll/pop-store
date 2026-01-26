@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from './supabaseClient'; // supabase 설정 파일 경로에 맞게 수정하세요
+import { supabase } from '../services/supabaseClient'; // supabase 설정 파일 경로에 맞게 수정하세요
 
 interface ReportModalProps {
   coord: { lat: number; lng: number };
