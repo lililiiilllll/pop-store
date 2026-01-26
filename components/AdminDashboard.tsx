@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 
 const CATEGORIES = ['패션', '푸드', '아트', '엔터', '라이프스타일', '기타'];
 
-// --- 인터페이스 정의 ---
+// --- 인터페이스 정의 (DB 스키마 기반 100% 매칭) ---
 interface RecommendedKeyword {
   id: number;
   keyword: string;
@@ -31,15 +31,18 @@ interface Review {
   is_blinded: boolean;
   likes: number;
   dislikes: number;
-  report_count: number; // 신고 횟수
+  report_count: number;
   popup_stores?: { title: string } | null;
 }
 
-interface EditRequest {
+// 수정된 제보 인터페이스
+interface CorrectionRequest {
   id: number;
-  store_id: number;
+  popup_id: number;
   user_id: string;
-  requested_content: Partial<PopupStore>;
+  title_fix: string;
+  description_fix: string;
+  reason: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   popup_stores?: { title: string };
@@ -52,37 +55,32 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRefresh }) => {
-  // 탭 상태
   const [activeTab, setActiveTab] = useState<'approval' | 'keywords' | 'edit_request' | 'reviews'>('approval');
   const [approvalSubTab, setApprovalSubTab] = useState<'pending' | 'verified'>('pending');
   
-  // 수정 모달 및 입력 상태
   const [editingStore, setEditingStore] = useState<PopupStore | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
   const [keywordInput, setKeywordInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 추천 키워드 & 통계 상태
   const [recKeywords, setRecKeywords] = useState<RecommendedKeyword[]>([]);
   const [newRecKeyword, setNewRecKeyword] = useState('');
   const [searchLogs, setSearchLogs] = useState<SearchLog[]>([]);
   
-  // 리뷰 관리 상태
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [showOnlyReported, setShowOnlyReported] = useState(false); 
   const [reviewSortOrder, setReviewSortOrder] = useState<'latest' | 'reports'>('latest'); 
   const [editingReview, setEditingReview] = useState<Review | null>(null); 
 
-  // 수정 요청 상태
-  const [editRequests, setEditRequests] = useState<EditRequest[]>([]);
+  // 제보 데이터 상태 (테이블명 변경 반영)
+  const [correctionRequests, setCorrectionRequests] = useState<CorrectionRequest[]>([]);
 
-  // --- 데이터 페칭 효과 ---
   useEffect(() => {
     if (activeTab === 'keywords') fetchKeywordAdminData();
     if (activeTab === 'reviews') fetchReviews();
-    if (activeTab === 'edit_request') fetchEditRequests();
+    if (activeTab === 'edit_request') fetchCorrectionRequests();
   }, [activeTab, showOnlyReported, reviewSortOrder]);
 
   const fetchKeywordAdminData = async () => {
@@ -97,14 +95,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     try {
       let query = supabase
         .from('reviews')
-        .select(`
-          id, popup_id, user_id, user_nickname, rating, content, 
-          image_url, created_at, is_blinded, likes, dislikes, report_count,
-          popup_stores:popup_id ( title )
-        `);
+        .select(`*, popup_stores:popup_id ( title )`);
 
       if (showOnlyReported) {
-        query = query.gt('report_count', 0); // 신고가 1회 이상인 것만
+        query = query.gt('report_count', 0);
       }
 
       query = query.order(reviewSortOrder === 'reports' ? 'report_count' : 'created_at', { ascending: false });
@@ -113,52 +107,50 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
       if (error) throw error;
       setReviews(data as any || []);
     } catch (err) {
-      console.error("리뷰 데이터 로드 실패:", err);
+      console.error("리뷰 로드 에러:", err);
     } finally {
       setIsLoadingReviews(false);
     }
   };
 
-  const fetchEditRequests = async () => {
-    const { data } = await supabase.from('edit_requests').select(`*, popup_stores ( title )`).order('created_at', { ascending: false });
-    if (data) setEditRequests(data);
+  // 핵심 수정: correction_requests 테이블 페칭 로직
+  const fetchCorrectionRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('correction_requests')
+        .select(`*, popup_stores:popup_id ( title )`)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setCorrectionRequests(data as any || []);
+    } catch (err) {
+      console.error("제보 데이터 로드 실패:", err);
+    }
   };
 
-  // --- 엑셀(CSV) 다운로드 기능 ---
   const downloadReviewsExcel = () => {
-    if (reviews.length === 0) return alert('다운로드할 데이터가 없습니다.');
-    
+    if (reviews.length === 0) return alert('데이터가 없습니다.');
     const headers = ['리뷰ID', '팝업명', '작성자', '별점', '내용', '신고횟수', '상태', '작성일'];
     const rows = reviews.map(r => [
-      r.id,
-      r.popup_stores?.title || r.popup_id,
-      r.user_nickname || '익명',
-      r.rating,
-      r.content?.replace(/,/g, ' ').replace(/\n/g, ' '), // CSV 쉼표/줄바꿈 처리
-      r.report_count,
-      r.is_blinded ? '블라인드' : '정상',
-      new Date(r.created_at).toLocaleDateString()
+      r.id, r.popup_stores?.title || r.popup_id, r.user_nickname, r.rating,
+      r.content.replace(/,/g, ' ').replace(/\n/g, ' '), r.report_count,
+      r.is_blinded ? '블라인드' : '정상', new Date(r.created_at).toLocaleDateString()
     ]);
-
     const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `리뷰현황_리포트_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `리뷰현황_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
 
-  // --- 카테고리 통계 데이터 계산 ---
   const getCategoryStats = () => {
     const stats: { [key: string]: number } = {};
-    allStores.forEach(s => {
-      stats[s.category] = (stats[s.category] || 0) + 1;
-    });
+    allStores.forEach(s => { stats[s.category] = (stats[s.category] || 0) + 1; });
     return Object.entries(stats).sort((a, b) => b[1] - a[1]);
   };
 
-  // --- 리뷰 액션 핸들러 ---
   const handleToggleBlind = async (review: Review) => {
     const { error } = await supabase.from('reviews').update({ is_blinded: !review.is_blinded }).eq('id', review.id);
     if (!error) fetchReviews();
@@ -170,14 +162,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
       content: editingReview.content, 
       rating: editingReview.rating 
     }).eq('id', editingReview.id);
-    
-    if (!error) { 
-      setEditingReview(null); 
-      fetchReviews(); 
-    }
+    if (!error) { setEditingReview(null); fetchReviews(); }
   };
 
-  // --- 팝업 수정 핸들러 ---
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingStore) return;
@@ -207,10 +194,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     if (!editingStore) return;
     const finalCategory = (editingStore.category === '기타' && customCategory.trim() !== '') ? customCategory.trim() : editingStore.category;
     
+    // 핵심 수정: DB 컬럼명 requires_reservation 매칭
     const { error } = await supabase.from('popup_stores').update({
-      title: editingStore.title, address: editingStore.address, category: finalCategory, 
-      description: editingStore.description, image_url: editingStore.imageUrl, 
-      is_free: editingStore.is_free, is_reservation_required: editingStore.is_reservation_required,
+      title: editingStore.title, 
+      address: editingStore.address, 
+      category: finalCategory, 
+      description: editingStore.description, 
+      image_url: editingStore.imageUrl, 
+      is_free: editingStore.is_free, 
+      requires_reservation: editingStore.is_reservation_required, // 매칭 완료
       is_verified: statusOverride !== undefined ? statusOverride : editingStore.is_verified,
       keywords: editingStore.keywords || []
     }).eq('id', editingStore.id);
@@ -220,39 +212,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
 
   return (
     <div className="fixed inset-0 z-[1000] bg-[#f2f4f6] flex flex-col overflow-hidden font-sans text-[#191f28]">
-      {/* HEADER */}
       <header className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 rounded-full">
+          <button onClick={onBack} className="w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 rounded-full transition-colors">
              {Icons.X ? <Icons.X size={24} className="text-gray-600" /> : 'X'}
           </button>
           <h1 className="text-[20px] font-bold">관리자 콘솔</h1>
         </div>
       </header>
 
-      {/* NAVIGATION */}
       <nav className="bg-white px-6 flex border-b border-gray-50 overflow-x-auto no-scrollbar">
         {[
           { id: 'approval', label: '승인 관리' },
           { id: 'keywords', label: '추천/통계' },
-          { id: 'edit_request', label: '수정 요청' },
+          { id: 'edit_request', label: '수정 제보' },
           { id: 'reviews', label: '리뷰 관리' }
         ].map((tab) => (
-          <button 
-            key={tab.id} 
-            onClick={() => setActiveTab(tab.id as any)} 
-            className={`px-5 py-4 text-[15px] font-bold transition-all relative flex-shrink-0 ${activeTab === tab.id ? 'text-[#3182f6]' : 'text-gray-400'}`}
-          >
+          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`px-5 py-4 text-[15px] font-bold transition-all relative flex-shrink-0 ${activeTab === tab.id ? 'text-[#3182f6]' : 'text-gray-400'}`}>
             {tab.label}
             {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#3182f6]" />}
           </button>
         ))}
       </nav>
 
-      {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto p-6">
         <div className="max-w-5xl mx-auto">
-          
           {/* TAB 1: 승인 관리 */}
           {activeTab === 'approval' && (
             <>
@@ -262,7 +246,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
               </div>
               <div className="space-y-3">
                 {allStores.filter(s => approvalSubTab === 'pending' ? !s.is_verified : s.is_verified).map(store => (
-                  <div key={store.id} className="bg-white p-4 rounded-[24px] flex items-center justify-between shadow-sm border border-white hover:border-blue-50">
+                  <div key={store.id} className="bg-white p-4 rounded-[24px] flex items-center justify-between shadow-sm border border-white hover:border-blue-50 transition-all">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <img src={store.imageUrl} className="w-14 h-14 rounded-xl object-cover bg-gray-50 flex-shrink-0" alt="" />
                       <div className="min-w-0 flex-1">
@@ -282,10 +266,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
             </>
           )}
 
-          {/* TAB 2: 추천/통계 (그래프 추가됨) */}
+          {/* TAB 2: 추천/통계 */}
           {activeTab === 'keywords' && (
             <div className="space-y-8">
-              {/* 통계 섹션 */}
               <section className="bg-white rounded-[32px] p-8 shadow-sm">
                 <h2 className="text-[18px] font-bold mb-6">카테고리별 팝업 분포</h2>
                 <div className="space-y-5">
@@ -296,17 +279,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                         <span className="text-[#3182f6]">{count}개 ({(count / allStores.length * 100).toFixed(1)}%)</span>
                       </div>
                       <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-[#3182f6] h-full transition-all duration-700 ease-out" 
-                          style={{ width: `${(count / allStores.length) * 100}%` }}
-                        />
+                        <div className="bg-[#3182f6] h-full transition-all duration-700 ease-out" style={{ width: `${(count / allStores.length) * 100}%` }} />
                       </div>
                     </div>
                   ))}
                 </div>
               </section>
-
-              {/* 추천 키워드 관리 */}
               <section className="bg-white rounded-[32px] p-8 shadow-sm">
                 <h2 className="text-[18px] font-bold mb-6">추천 키워드 관리</h2>
                 <div className="flex gap-3 mb-6">
@@ -319,8 +297,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                   ))}
                 </div>
               </section>
-
-              {/* 인기 검색어 통계 */}
               <section className="bg-white rounded-[32px] p-8 shadow-sm overflow-hidden">
                 <h2 className="text-[18px] font-bold mb-6">인기 검색어 순위</h2>
                 <table className="w-full text-left">
@@ -337,44 +313,50 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
             </div>
           )}
 
-          {/* TAB 3: 수정 요청 */}
+          {/* TAB 3: 수정 제보 (DB 스키마 맞춤형 수정) */}
           {activeTab === 'edit_request' && (
-             <div className="space-y-4">
-               <h2 className="text-[18px] font-bold mb-6">사용자 제보 수정 요청 ({editRequests.length})</h2>
-               {editRequests.length === 0 ? (
-                 <div className="py-20 text-center text-gray-400 bg-white rounded-[32px] border border-dashed border-gray-200">등록된 요청이 없습니다.</div>
-               ) : editRequests.map(req => (
-                 <div key={req.id} className="bg-white p-6 rounded-[28px] shadow-sm border border-gray-50">
-                   <div className="flex justify-between items-start mb-4">
-                     <div>
-                       <span className="text-[12px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">대상: {req.popup_stores?.title}</span>
-                       <p className="text-[13px] text-gray-400 mt-2">요청일: {new Date(req.created_at).toLocaleString()}</p>
-                     </div>
-                     <div className="flex gap-2">
-                        <button className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold">변경 적용</button>
-                        <button onClick={() => { supabase.from('edit_requests').delete().eq('id', req.id).then(fetchEditRequests) }} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold">반려/삭제</button>
-                     </div>
-                   </div>
-                   <div className="bg-gray-50 p-4 rounded-2xl text-[14px]">
-                     <pre className="whitespace-pre-wrap text-gray-600 font-mono text-[12px]">{JSON.stringify(req.requested_content, null, 2)}</pre>
-                   </div>
-                 </div>
-               ))}
-             </div>
+            <div className="space-y-4">
+              <h2 className="text-[18px] font-bold mb-6">사용자 제보 수정 요청 ({correctionRequests.length})</h2>
+              {correctionRequests.length === 0 ? (
+                <div className="py-20 text-center text-gray-400 bg-white rounded-[32px] border border-dashed border-gray-200">등록된 제보가 없습니다.</div>
+              ) : correctionRequests.map(req => (
+                <div key={req.id} className="bg-white p-6 rounded-[28px] shadow-sm border border-gray-50">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <span className="text-[12px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">대상: {req.popup_stores?.title}</span>
+                      <p className="text-[13px] text-gray-400 mt-2">제보일: {new Date(req.created_at).toLocaleString()}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold">적용 완료</button>
+                      <button onClick={() => { if(confirm('제보를 삭제하시겠습니까?')) supabase.from('correction_requests').delete().eq('id', req.id).then(fetchCorrectionRequests) }} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold">삭제</button>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 p-5 rounded-2xl text-[14px] space-y-3">
+                    <div className="grid grid-cols-[100px_1fr] gap-2">
+                      <span className="font-bold text-gray-400">수정 제목:</span>
+                      <span className="font-bold">{req.title_fix || '변경 없음'}</span>
+                    </div>
+                    <div className="grid grid-cols-[100px_1fr] gap-2">
+                      <span className="font-bold text-gray-400">수정 내용:</span>
+                      <span className="text-gray-700">{req.description_fix || '변경 없음'}</span>
+                    </div>
+                    <div className="grid grid-cols-[100px_1fr] gap-2 border-t border-gray-100 pt-2 mt-2">
+                      <span className="font-bold text-[#3182f6]">제보 사유:</span>
+                      <span className="font-bold text-[#3182f6]">{req.reason}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
 
-          {/* TAB 4: 리뷰 관리 (엑셀 & 신고 강화) */}
+          {/* TAB 4: 리뷰 관리 */}
           {activeTab === 'reviews' && (
             <div className="space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
                   <h2 className="text-[18px] font-bold">리뷰 통합 관리 ({reviews.length})</h2>
-                  <button 
-                    onClick={downloadReviewsExcel}
-                    className="px-3 py-1.5 bg-[#e8f3ff] text-[#3182f6] rounded-xl text-[12px] font-bold hover:bg-[#d0e5ff] transition-colors"
-                  >
-                    📊 엑셀 다운로드
-                  </button>
+                  <button onClick={downloadReviewsExcel} className="px-3 py-1.5 bg-[#e8f3ff] text-[#3182f6] rounded-xl text-[12px] font-bold hover:bg-[#d0e5ff] transition-colors">📊 엑셀 다운로드</button>
                 </div>
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-2 text-[13px] font-bold text-gray-600 cursor-pointer">
@@ -396,10 +378,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[11px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">
-                          {review.popup_stores?.title || `Popup ID: ${review.popup_id}`}
-                        </span>
-                        {review.is_blinded && <span className="text-[11px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">블라인드 처리됨</span>}
+                        <span className="text-[11px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">{review.popup_stores?.title || `ID: ${review.popup_id}`}</span>
+                        {review.is_blinded && <span className="text-[11px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">블라인드</span>}
                       </div>
                       <div className="flex items-center gap-2 text-[14px] font-bold">
                         <span className="text-yellow-400 text-lg">★</span> {review.rating}
@@ -408,25 +388,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => setEditingReview(review)} className="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-xl text-[12px] font-bold">수정</button>
-                      <button onClick={() => handleToggleBlind(review)} className={`px-3 py-1.5 rounded-xl text-[12px] font-bold ${review.is_blinded ? 'bg-blue-50 text-[#3182f6]' : 'bg-orange-50 text-orange-600'}`}>{review.is_blinded ? '차단 해제' : '블라인드'}</button>
-                      <button onClick={() => { if(confirm('리뷰를 영구 삭제하시겠습니까?')) supabase.from('reviews').delete().eq('id', review.id).then(fetchReviews) }} className="px-3 py-1.5 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold">삭제</button>
+                      <button onClick={() => handleToggleBlind(review)} className={`px-3 py-1.5 rounded-xl text-[12px] font-bold ${review.is_blinded ? 'bg-blue-50 text-[#3182f6]' : 'bg-orange-50 text-orange-600'}`}>{review.is_blinded ? '해제' : '차단'}</button>
+                      <button onClick={() => { if(confirm('영구 삭제하시겠습니까?')) supabase.from('reviews').delete().eq('id', review.id).then(fetchReviews) }} className="px-3 py-1.5 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold">삭제</button>
                     </div>
                   </div>
-                  <p className="text-[15px] text-gray-700 bg-gray-50 p-4 rounded-2xl mb-4 whitespace-pre-wrap leading-relaxed">
-                    {review.content || <span className="text-gray-400 italic">내용 없음</span>}
-                  </p>
-                  {review.image_url && (
-                    <img src={review.image_url} className="w-24 h-24 rounded-xl object-cover mb-4 border border-gray-100" alt="" />
-                  )}
+                  <p className="text-[15px] text-gray-700 bg-gray-50 p-4 rounded-2xl mb-4 whitespace-pre-wrap leading-relaxed">{review.content || <span className="text-gray-400 italic">내용 없음</span>}</p>
+                  {review.image_url && <img src={review.image_url} className="w-24 h-24 rounded-xl object-cover mb-4 border border-gray-100" alt="" />}
                   <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-4 text-[12px]">
                       <span className="font-bold text-gray-900">작성자: {review.user_nickname || '익명'}</span>
-                      <span className="text-gray-400">👍 {review.likes || 0} / 👎 {review.dislikes || 0}</span>
+                      <span className="text-gray-400">👍 {review.likes} / 👎 {review.dislikes}</span>
                     </div>
-                    {/* 신고 카운트 강조 노출 */}
-                    <div className={`font-bold px-4 py-1.5 rounded-full text-[12px] flex items-center gap-1.5 ${review.report_count > 0 ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-400'}`}>
-                      🚨 신고 {review.report_count || 0}회
-                    </div>
+                    <div className={`font-bold px-4 py-1.5 rounded-full text-[12px] flex items-center gap-1.5 ${review.report_count > 0 ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-400'}`}>🚨 신고 {review.report_count}회</div>
                   </div>
                 </div>
               ))}
@@ -435,7 +408,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
         </div>
       </main>
 
-      {/* --- MODAL 1: 팝업 데이터 수정 --- */}
+      {/* MODAL 1: 팝업 데이터 수정 */}
       {isEditModalOpen && editingStore && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md">
           <div className="relative bg-white w-full max-w-[520px] rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
@@ -506,7 +479,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
         </div>
       )}
 
-      {/* --- MODAL 2: 리뷰 수정 모달 --- */}
+      {/* MODAL 2: 리뷰 수정 모달 */}
       {editingReview && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-[480px] rounded-[32px] p-8 shadow-2xl">
