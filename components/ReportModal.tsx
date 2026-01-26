@@ -10,7 +10,8 @@ const ReportModal: React.FC<ReportModalProps> = ({ coord, onClose }) => {
   // 상태 관리
   const [address, setAddress] = useState('주소를 불러오는 중...');
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('기타');
+  const [category, setCategory] = useState('패션'); // 기본값 설정
+  const [customCategory, setCustomCategory] = useState(''); // 기타 입력용 상태
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -49,8 +50,12 @@ const ReportModal: React.FC<ReportModalProps> = ({ coord, onClose }) => {
   // 2. 최종 제출 핸들러
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim()) {
-      alert('장소 이름과 상세 내용은 필수입니다.');
+
+    // 기타 선택 시 customCategory 사용, 아니면 일반 category 사용
+    const finalCategory = category === '기타' ? customCategory : category;
+
+    if (!title.trim() || !description.trim() || (category === '기타' && !finalCategory.trim())) {
+      alert('필수 항목(이름, 상세 내용, 카테고리)을 모두 입력해주세요.');
       return;
     }
 
@@ -66,7 +71,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ coord, onClose }) => {
         const filePath = `reports/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-          .from('popup-images') // 생성한 버킷 이름
+          .from('popup-images')
           .upload(filePath, imageFile);
 
         if (uploadError) throw uploadError;
@@ -82,7 +87,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ coord, onClose }) => {
       const { error } = await supabase.from('popup_stores').insert([
         {
           title,
-          category,
+          category: finalCategory,
           description,
           address,
           lat: coord.lat,
@@ -94,7 +99,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ coord, onClose }) => {
           requires_reservation: requiresReservation,
           image_url: imageUrl,
           link_url: linkUrl,
-          is_verified: false, // 기본값 false (승인 대기)
+          is_verified: false,
           created_at: new Date().toISOString(),
         },
       ]);
@@ -111,142 +116,167 @@ const ReportModal: React.FC<ReportModalProps> = ({ coord, onClose }) => {
     }
   };
 
+  // 필수 입력 여부 확인
+  const isValid = title.trim() && description.trim() && (category !== '기타' || customCategory.trim());
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm z-[999999] overflow-y-auto">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl my-8" onClick={(e) => e.stopPropagation()}>
-        {/* 헤더 */}
-        <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white rounded-t-3xl z-10">
-          <h2 className="text-xl font-bold text-gray-900">새로운 장소 제보</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    <div className="fixed inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm z-[999999]">
+      {/* 모달 크기를 max-w-md로 축소하고 max-height 설정 */}
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        
+        {/* 헤더 (높이 축소) */}
+        <div className="px-5 py-3 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+          <h2 className="text-lg font-bold text-gray-900">새로운 장소 제보</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* 주소 표시 영역 */}
-          <div className="bg-blue-50 p-4 rounded-2xl flex items-start gap-3">
-            <div className="text-blue-600 mt-0.5">
-              <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
+          {/* 주소 표시 영역 (컴팩트화) */}
+          <div className="bg-blue-50 p-3 rounded-xl flex items-center gap-3">
+            <div className="text-blue-600 flex-shrink-0">
+              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
             </div>
-            <div>
-              <p className="text-[11px] font-bold text-blue-500 uppercase tracking-wider">선택된 위치 주소</p>
-              <p className="text-sm font-semibold text-blue-900">{address}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-blue-500 uppercase">선택된 위치 주소</p>
+              <p className="text-xs font-semibold text-blue-900 truncate">{address}</p>
             </div>
           </div>
 
-          {/* 대표 이미지 업로드 */}
+          {/* 대표 이미지 업로드 (크기 축소) */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">대표 이미지</label>
-            <div className="flex items-center gap-4">
-              <div className="w-24 h-24 bg-gray-100 rounded-2xl overflow-hidden border-2 border-dashed border-gray-200 flex items-center justify-center">
+            <label className="block text-xs font-bold text-gray-700 mb-2">대표 이미지</label>
+            <div className="flex items-center gap-3">
+              <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden border border-dashed border-gray-300 flex items-center justify-center flex-shrink-0">
                 {imagePreview ? (
                   <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                 )}
               </div>
               <input type="file" ref={fileInputRef} onChange={handleImageChange} className="hidden" accept="image/*" />
               <button 
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-6 py-3 rounded-xl border border-blue-100 bg-blue-50 text-blue-600 font-bold text-sm hover:bg-blue-100 transition-all"
+                className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-bold hover:bg-gray-50 transition-all"
               >
-                이미지 교체
+                이미지 선택
               </button>
             </div>
           </div>
 
-          {/* 카테고리 선택 */}
+          {/* 카테고리 선택 (간격 조정) */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">카테고리</label>
-            <div className="flex flex-wrap gap-2">
-              {['패션', '푸드', '아트', '엔터', '라이프스타일', '기타'].map((cat) => (
+            <label className="block text-xs font-bold text-gray-700 mb-2">카테고리</label>
+            <div className="flex flex-wrap gap-1.5">
+              {['패션', '푸드', '아트', '엔터', '라이프', '기타'].map((cat) => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setCategory(cat)}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                    category === cat ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 border border-gray-100'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                    category === cat 
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   {cat}
                 </button>
               ))}
             </div>
+            {/* '기타' 선택 시 입력창 노출 */}
+            {category === '기타' && (
+              <input
+                type="text"
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                placeholder="카테고리를 직접 입력해주세요"
+                className="w-full mt-2 px-3 py-2 text-xs rounded-lg border border-blue-200 focus:ring-1 focus:ring-blue-500 outline-none"
+              />
+            )}
           </div>
 
-          {/* 장소 이름 & 상세 설명 */}
-          <div className="space-y-4">
+          {/* 장소 이름 & 상세 설명 (필드 높이 조정) */}
+          <div className="space-y-3">
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">장소 이름 <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5">장소 이름 <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="장소 이름을 입력해주세요"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="이름을 입력해주세요"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-blue-500 outline-none"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">상세 내용 <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5">상세 내용 <span className="text-red-500">*</span></label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="팝업스토어에 대한 상세 정보를 입력해주세요"
-                rows={4}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                placeholder="팝업스토어 상세 정보를 입력해주세요"
+                rows={3}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-blue-500 outline-none resize-none"
                 required
               />
             </div>
           </div>
 
-          {/* 입장료 & 예약 여부 */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* 입장료 & 예약 여부 (그리드 유지) */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">입장료</label>
-              <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100">
-                <button type="button" onClick={() => setIsFree(true)} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${isFree ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>무료</button>
-                <button type="button" onClick={() => setIsFree(false)} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${!isFree ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>유료</button>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5">입장료</label>
+              <div className="flex bg-gray-100 p-0.5 rounded-lg">
+                <button type="button" onClick={() => setIsFree(true)} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${isFree ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}>무료</button>
+                <button type="button" onClick={() => setIsFree(false)} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${!isFree ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}>유료</button>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">예약 유무</label>
-              <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100">
-                <button type="button" onClick={() => setRequiresReservation(false)} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${!requiresReservation ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>현장입장</button>
-                <button type="button" onClick={() => setRequiresReservation(true)} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${requiresReservation ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>예약필수</button>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5">예약 유무</label>
+              <div className="flex bg-gray-100 p-0.5 rounded-lg">
+                <button type="button" onClick={() => setRequiresReservation(false)} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${!requiresReservation ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}>현장입장</button>
+                <button type="button" onClick={() => setRequiresReservation(true)} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${requiresReservation ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}>예약필수</button>
               </div>
             </div>
           </div>
 
-          {/* 기간 & 시간 & 링크 */}
-          <div className="space-y-4 border-t pt-6">
-            <div className="grid grid-cols-2 gap-4">
+          {/* 기간 & 시간 & 링크 (축소된 필드) */}
+          <div className="space-y-3 border-t pt-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">시작 날짜</label>
-                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                <label className="block text-[10px] font-bold text-gray-500 mb-1">시작 날짜</label>
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-xs outline-none focus:border-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">종료 날짜</label>
-                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                <label className="block text-[10px] font-bold text-gray-500 mb-1">종료 날짜</label>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-xs outline-none focus:border-blue-500" />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">오픈 시간</label>
-              <input type="text" value={operatingHours} onChange={(e) => setOperatingHours(e.target.value)} placeholder="예: 11:00 - 20:00" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">공식 링크</label>
-              <input type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://..." className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" />
+            <div className="grid grid-cols-1 gap-2">
+              <input 
+                type="text" 
+                value={operatingHours} 
+                onChange={(e) => setOperatingHours(e.target.value)} 
+                placeholder="운영 시간 (예: 11:00 - 20:00)" 
+                className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 outline-none" 
+              />
+              <input 
+                type="url" 
+                value={linkUrl} 
+                onChange={(e) => setLinkUrl(e.target.value)} 
+                placeholder="공식 사이트 링크 (https://...)" 
+                className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 outline-none" 
+              />
             </div>
           </div>
 
-          {/* 제출 버튼 */}
+          {/* 제출 버튼 (하단 고정 느낌을 위해 padding 조절) */}
           <button
             type="submit"
-            disabled={isSubmitting || !title.trim() || !description.trim()}
-            className={`w-full py-4 rounded-2xl font-bold text-white transition-all shadow-lg ${
-              isSubmitting || !title.trim() || !description.trim()
+            disabled={isSubmitting || !isValid}
+            className={`w-full py-3.5 rounded-xl font-bold text-white transition-all shadow-md mt-2 ${
+              isSubmitting || !isValid
                 ? 'bg-gray-300 cursor-not-allowed' 
                 : 'bg-blue-600 hover:bg-blue-700 active:scale-[0.98]'
             }`}
