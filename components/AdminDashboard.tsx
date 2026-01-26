@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 
 const CATEGORIES = ['패션', '푸드', '아트', '엔터', '라이프스타일', '기타'];
 
-// --- 인터페이스 정의 ---
+// --- 인터페이스 정의 (이미지 스키마 기준 반영) ---
 interface RecommendedKeyword {
   id: number;
   keyword: string;
@@ -21,16 +21,18 @@ interface SearchLog {
 
 interface Review {
   id: number;
-  store_id: number;
+  popup_id: number;       // 테이블 컬럼명 popup_id
   user_id: string;
+  user_nickname: string;  // 테이블 컬럼명 user_nickname
   rating: number;
-  comment: string; // 리뷰 내용 컬럼
+  content: string;        // comment에서 content로 수정
+  image_url?: string;     // 테이블 컬럼명 image_url
   created_at: string;
-  is_blinded: boolean;    
-  likes_count: number;    
-  dislikes_count: number; 
-  reports_count: number;  
-  profiles?: { name: string } | null;      
+  is_blinded: boolean;    // 테이블 컬럼명 is_blinded
+  likes: number;          // likes_count에서 likes로 수정
+  dislikes: number;       // dislikes_count에서 dislikes로 수정
+  reports: number;        // reports_count에서 reports로 수정
+  report_count: number;   // 테이블 컬럼명 report_count
   popup_stores?: { title: string } | null; 
 }
 
@@ -91,33 +93,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     if (logData) setSearchLogs(logData);
   };
 
-  // 핵심 수정: 리뷰 데이터를 불러올 때 foreign key 관계를 명확히 선언
+  // 핵심 수정: 테이블 스키마 이미지의 컬럼명(popup_id, content 등)으로 쿼리 수정
   const fetchReviews = async () => {
     setIsLoadingReviews(true);
     try {
-      // .select() 내부의 관계 매핑 확인 (profiles, popup_stores 테이블과의 연결)
       let query = supabase
         .from('reviews')
         .select(`
           id,
-          store_id,
+          popup_id,
           user_id,
+          user_nickname,
           rating,
-          comment,
+          content,
+          image_url,
           created_at,
           is_blinded,
-          likes_count,
-          dislikes_count,
-          reports_count,
-          profiles ( name ),
-          popup_stores ( title )
+          likes,
+          dislikes,
+          reports,
+          report_count,
+          popup_stores:popup_id ( title )
         `);
 
       if (showOnlyReported) {
-        query = query.gt('reports_count', 0);
+        // 이미지 스키마의 report_count 컬럼 사용
+        query = query.gt('report_count', 0);
       }
 
-      query = query.order(reviewSortOrder === 'reports' ? 'reports_count' : 'created_at', { ascending: false });
+      // 정렬 기준도 실제 컬럼명에 맞춤
+      query = query.order(reviewSortOrder === 'reports' ? 'report_count' : 'created_at', { ascending: false });
       
       const { data, error } = await query;
       
@@ -144,7 +149,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
   const handleUpdateReview = async () => {
     if (!editingReview) return;
     const { error } = await supabase.from('reviews').update({ 
-      comment: editingReview.comment, 
+      content: editingReview.content, // comment -> content
       rating: editingReview.rating 
     }).eq('id', editingReview.id);
     
@@ -312,7 +317,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
              </div>
           )}
 
-          {/* 4. 리뷰 관리 탭 - 데이터 렌더링 안정화 */}
+          {/* 4. 리뷰 관리 탭 - 실제 이미지 스키마 반영 렌더링 */}
           {activeTab === 'reviews' && (
             <div className="space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -335,7 +340,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-[11px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">
-                          {review.popup_stores?.title || '정보 없음'}
+                          {review.popup_stores?.title || `Popup ID: ${review.popup_id}`}
                         </span>
                         {review.is_blinded && <span className="text-[11px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">블라인드 상태</span>}
                       </div>
@@ -350,16 +355,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                       <button onClick={() => { if(confirm('영구 삭제?')) supabase.from('reviews').delete().eq('id', review.id).then(fetchReviews) }} className="px-3 py-1.5 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold">삭제</button>
                     </div>
                   </div>
-                  {/* 리뷰 코멘트 렌더링 확인 */}
+                  {/* 리뷰 본문 (content 컬럼) */}
                   <p className="text-[15px] text-gray-700 bg-gray-50 p-4 rounded-2xl mb-4 whitespace-pre-wrap leading-relaxed">
-                    {review.comment || <span className="text-gray-400 italic">내용이 없는 리뷰입니다.</span>}
+                    {review.content || <span className="text-gray-400 italic">내용이 없는 리뷰입니다.</span>}
                   </p>
+                  {/* 리뷰 이미지 추가 표시 (image_url 컬럼) */}
+                  {review.image_url && (
+                    <img src={review.image_url} className="w-24 h-24 rounded-xl object-cover mb-4 border border-gray-100" alt="리뷰 첨부 이미지" />
+                  )}
                   <div className="flex items-center justify-between text-[11px]">
                     <div className="flex items-center gap-4">
-                      <span className="font-bold text-gray-900">작성자: {review.profiles?.name || '익명'}</span>
-                      <span className="text-gray-400">좋아요 {review.likes_count} / 싫어요 {review.dislikes_count}</span>
+                      <span className="font-bold text-gray-900">작성자: {review.user_nickname || '익명'}</span>
+                      <span className="text-gray-400">좋아요 {review.likes || 0} / 싫어요 {review.dislikes || 0}</span>
                     </div>
-                    <div className={`font-bold px-3 py-1 rounded-full ${review.reports_count > 0 ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-400'}`}>신고 누적: {review.reports_count}회</div>
+                    <div className={`font-bold px-3 py-1 rounded-full ${review.report_count > 0 ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-400'}`}>신고 누적: {review.report_count || 0}회</div>
                   </div>
                 </div>
               ))}
@@ -368,7 +377,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
         </div>
       </main>
 
-      {/* --- 팝업 수정 모달 (생략된 것 없이 기존 유지) --- */}
+      {/* --- 팝업 수정 모달 (기존 유지) --- */}
       {isEditModalOpen && editingStore && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md">
           <div className="relative bg-white w-full max-w-[520px] rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
@@ -450,7 +459,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                   <button key={star} onClick={() => setEditingReview({...editingReview, rating: star})} className={`w-11 h-11 rounded-xl font-bold ${editingReview.rating === star ? 'bg-[#3182f6] text-white' : 'bg-gray-50 text-gray-400'}`}>{star}</button>
                 ))}
               </div>
-              <textarea value={editingReview.comment} onChange={(e) => setEditingReview({...editingReview, comment: e.target.value})} className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[15px] outline-none min-h-[150px] resize-none" />
+              <textarea value={editingReview.content} onChange={(e) => setEditingReview({...editingReview, content: e.target.value})} className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[15px] outline-none min-h-[150px] resize-none" />
             </div>
             <div className="grid grid-cols-2 gap-3 mt-8">
               <button onClick={() => setEditingReview(null)} className="h-14 bg-gray-100 text-gray-500 rounded-2xl font-bold">취소</button>
