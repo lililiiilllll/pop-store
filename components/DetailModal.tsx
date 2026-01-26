@@ -72,11 +72,11 @@ const CorrectionModal: React.FC<{
         
         <div className="space-y-4">
           <div>
-            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 제목 (선택)</label>
+            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 제목 (필수)</label>
             <input value={titleFix} onChange={(e) => setTitleFix(e.target.value)} placeholder="변경할 이름을 입력하세요" className="w-full bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 내용 (선택)</label>
+            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 내용 (필수)</label>
             <textarea value={descriptionFix} onChange={(e) => setDescriptionFix(e.target.value)} placeholder="변경할 상세 정보를 입력하세요" className="w-full h-24 bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
           </div>
           <div>
