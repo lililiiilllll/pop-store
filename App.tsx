@@ -87,10 +87,11 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // --- [핸들러] 로그인 및 액션 ---
+  // --- [핸들러] 로그인 및 액션 (수정 포인트) ---
   const handleAdminLogin = useCallback(() => {
+    console.log("관리자 모드 활성화");
     setIsAdminLoggedIn(true);
-    setIsAdminOpen(true); // 권한 획득과 동시에 대시보드 열기
+    setIsAdminOpen(true); 
     setSuccessConfig({
       isOpen: true,
       title: '관리자 인증 완료',
@@ -99,8 +100,17 @@ const App: React.FC = () => {
   }, []);
 
   const handleUserLogin = useCallback(() => {
+    console.log("일반 유저 모드 전환: 모든 오버레이 초기화");
     setIsAdminLoggedIn(false);
     setIsAdminOpen(false);
+    
+    // 흐림 현상 방지를 위해 모든 열린 상태 강제 초기화
+    setIsMobileListOpen(false);
+    setIsSearchOpen(false);
+    setIsLocationSelectorOpen(false);
+    setDetailStore(null);
+    setSelectedStoreId(null);
+    
     setSuccessConfig({
       isOpen: true,
       title: '일반 모드 전환',
@@ -126,14 +136,9 @@ const App: React.FC = () => {
   // --- [필터링] 화면에 보여줄 팝업 계산 ---
   const visibleStores = useMemo(() => {
     let filtered = allStores;
-    
-    // 1. 관리자가 아닌 경우 승인된(is_verified) 것만 보여주거나, [제보] 말머리 필터링 (선택사항)
-    // if (!isAdminLoggedIn) filtered = filtered.filter(s => !s.title.includes('[제보]'));
-
     if (activeTab === 'saved') {
       filtered = filtered.filter(s => savedStoreIds.includes(s.id));
     }
-    
     if (selectedFilter !== '전체') {
       if (selectedFilter === '무료입장') {
         filtered = filtered.filter(s => s.is_free);
@@ -141,7 +146,6 @@ const App: React.FC = () => {
         filtered = filtered.filter(s => s.category === selectedFilter);
       }
     }
-
     if (activeTab === 'home' && mapBounds) {
       filtered = filtered.filter(s => 
         s.lat >= mapBounds.minLat && s.lat <= mapBounds.maxLat && 
@@ -149,7 +153,7 @@ const App: React.FC = () => {
       );
     }
     return filtered;
-  }, [allStores, selectedFilter, mapBounds, activeTab, savedStoreIds, isAdminLoggedIn]);
+  }, [allStores, selectedFilter, mapBounds, activeTab, savedStoreIds]);
 
   // --- [조건부 렌더링] 관리자 대시보드 ---
   if (isAdminOpen && isAdminLoggedIn) {
@@ -176,10 +180,10 @@ const App: React.FC = () => {
               <span className="text-[12px] font-bold text-[#3182f6]">DEBUG MODE</span>
               <button onClick={() => setIsTestPanelOpen(false)} className="text-[#8b95a1] hover:text-black p-1"><XIcon size={16} /></button>
             </div>
-            <button onClick={handleAdminLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all ${isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>
+            <button onClick={handleAdminLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all ${isAdminLoggedIn ? 'bg-[#3182f6] text-white shadow-md' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>
               관리자 모드
             </button>
-            <button onClick={handleUserLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all ${!isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>
+            <button onClick={handleUserLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all ${!isAdminLoggedIn ? 'bg-[#3182f6] text-white shadow-md' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>
               일반 유저 모드
             </button>
           </motion.div>
@@ -225,7 +229,7 @@ const App: React.FC = () => {
           mapCenter={mapCenter} 
           userLocation={userCoords} 
           onMapIdle={(bounds, center) => { setMapBounds(bounds); setMapCenter(center); }}
-          onMapClick={() => { setIsMobileListOpen(false); setDetailStore(null); }}
+          onMapClick={() => { setIsMobileListOpen(false); setDetailStore(null); setSelectedStoreId(null); }}
         />
         
         {/* 모바일 상단 헤더 */}
@@ -236,7 +240,7 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* 모바일 하단 내비게이션 및 리스트 제어 */}
+        {/* 모바일 하단 리스트 제어 */}
         {!isMobileListOpen && (
           <div className="lg:hidden absolute bottom-28 left-1/2 -translate-x-1/2 z-30">
             <button onClick={() => setIsMobileListOpen(true)} className="bg-[#191f28] text-white px-8 py-4 rounded-full shadow-2xl font-bold text-[15px] flex items-center gap-2">
@@ -263,8 +267,16 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* 모달 레이어 */}
+      {/* 모달 레이어 (Z-index 및 흐림 현상 제어) */}
       <AnimatePresence>
+        {(isSearchOpen || isLocationSelectorOpen) && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+            className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[90]"
+            onClick={() => { setIsSearchOpen(false); setIsLocationSelectorOpen(false); }}
+          />
+        )}
+        
         {detailStore && (
           <div className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center p-0 lg:p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDetailStore(null)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
@@ -279,6 +291,7 @@ const App: React.FC = () => {
             </motion.div>
           </div>
         )}
+        
         {isSearchOpen && <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} stores={allStores} onSelectResult={handleStoreSelect} />}
         {successConfig.isOpen && <SuccessModal isOpen={successConfig.isOpen} title={successConfig.title} message={successConfig.message} onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} />}
       </AnimatePresence>
@@ -286,4 +299,5 @@ const App: React.FC = () => {
   );
 };
 
+export default App;
 export default App;
