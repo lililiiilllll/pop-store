@@ -26,9 +26,9 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1531050171669-7df9b208
  * [기능 플래그 (Feature Flag)]
  */
 const AUTH_CONFIG = {
-  KAKAO: { enabled: true, provider: 'kakao' as const },
+  KAKAO: { enabled: false, provider: 'kakao' as const },
   NAVER: { enabled: false, provider: 'naver' as const },
-  TOSS: { enabled: false, provider: 'toss' as const },
+  TOSS: { enabled: true, provider: 'toss' as const },
 };
 
 const App: React.FC = () => {
