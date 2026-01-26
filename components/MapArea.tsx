@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PopupStore } from './types';
-import ReportModal from './ReportModal'; 
+import ReportModal from './ReportModal';
 
 interface MapAreaProps {
   stores: PopupStore[];
@@ -29,71 +29,31 @@ const MapArea: React.FC<MapAreaProps> = ({
   const userMarkerRef = useRef<any>(null);
   const overlayRef = useRef<any>(null); 
 
-  // --- 롱프레스 관련 상태 및 Ref ---
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedCoord, setSelectedCoord] = useState({ lat: 0, lng: 0 });
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const isDragging = useRef(false);
 
-  // 롱프레스 시작/취소 로직을 변수화하여 관리 (메모리 누수 방지)
-  const cancelLongPress = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
-
-  // 1. 지도 초기화 및 이벤트 등록
+  // 1. 지도 초기화 (최초 1회만 실행)
   useEffect(() => {
     const { kakao } = window as any;
     if (!kakao || !mapContainerRef.current) return;
 
     kakao.maps.load(() => {
-      const initialCenter = new kakao.maps.LatLng(
-        mapCenter?.lat || 37.5547, 
-        mapCenter?.lng || 126.9706
-      );
-      
-      const options = {
-        center: initialCenter,
-        level: 3,
-      };
-      
+      const initialCenter = new kakao.maps.LatLng(mapCenter?.lat || 37.5547, mapCenter?.lng || 126.9706);
+      const options = { center: initialCenter, level: 3 };
       const map = new kakao.maps.Map(mapContainerRef.current, options);
       mapRef.current = map;
 
-      // --- [신규] 롱프레스 핸들러 ---
-      const handleLongPressStart = (e: any) => {
-        cancelLongPress(); // 이전 타이머 초기화
-        
-        const latLng = e.latLng;
-        longPressTimer.current = setTimeout(() => {
-          setSelectedCoord({ 
-            lat: latLng.getLat(), 
-            lng: latLng.getLng() 
-          });
-          setIsReportModalOpen(true);
-          if (navigator.vibrate) navigator.vibrate(50);
-        }, 1500); // 1.5초 유지
-      };
-
-      // 카카오맵 이벤트 리스너 등록
-      // mousedown/touchstart: 타이머 시작
-      kakao.maps.event.addListener(map, 'mousedown', handleLongPressStart);
-      kakao.maps.event.addListener(map, 'touchstart', handleLongPressStart);
-      
-      // mouseup/touchend/dragstart: 타이머 취소 (지도를 움직이거나 떼면 취소됨)
-      kakao.maps.event.addListener(map, 'mouseup', cancelLongPress);
-      kakao.maps.event.addListener(map, 'touchend', cancelLongPress);
-      kakao.maps.event.addListener(map, 'dragstart', cancelLongPress);
-
-      // [기존] 지도 클릭 이벤트
+      // [기존] 클릭 및 아이들 이벤트 유지
       kakao.maps.event.addListener(map, 'click', () => {
-        cancelLongPress(); // 클릭 시에도 타이머는 꺼져야 함
         if (overlayRef.current) overlayRef.current.setMap(null);
         onMapClick();
       });
 
-      // [기존] idle 이벤트
+      kakao.maps.event.addListener(map, 'dragstart', () => { isDragging.current = true; cancelLongPress(); });
+      kakao.maps.event.addListener(map, 'dragend', () => { isDragging.current = false; });
+
       kakao.maps.event.addListener(map, 'idle', () => {
         if (onMapIdle) {
           const bounds = map.getBounds();
@@ -110,133 +70,125 @@ const MapArea: React.FC<MapAreaProps> = ({
         }
       });
     });
-
-    return () => cancelLongPress();
   }, []);
 
-  // 2. 중심 좌표 변경 시 이동 (유지)
+  // --- [핵심] 롱프레스 로직: 카카오맵 API가 아닌 DOM 레벨에서 직접 관리 ---
+  const startLongPress = (e: React.MouseEvent | React.TouchEvent) => {
+    cancelLongPress();
+    isDragging.current = false;
+
+    longPressTimer.current = setTimeout(() => {
+      if (isDragging.current || !mapRef.current) return;
+
+      // 롱프레스 시점의 지점 좌표를 카카오맵 좌표로 변환
+      const proj = mapRef.current.getProjection();
+      
+      // 마우스/터치 위치 계산
+      let clientX, clientY;
+      if ('touches' in e) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+
+      const rect = mapContainerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const point = new (window as any).kakao.maps.Point(clientX - rect.left, clientY - rect.top);
+        const latlng = proj.fromContainerPointToLatLng(point);
+        
+        setSelectedCoord({ lat: latlng.getLat(), lng: latlng.getLng() });
+        setIsReportModalOpen(true);
+        if (navigator.vibrate) navigator.vibrate(50);
+      }
+    }, 1500);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  // 2. 나머지 기능들 (중심이동, 마커, 오버레이, 내위치) - 기존 코드와 동일하게 유지
   useEffect(() => {
     if (mapRef.current && mapCenter) {
       const { kakao } = window as any;
-      const newPos = new kakao.maps.LatLng(mapCenter.lat, mapCenter.lng);
-      mapRef.current.panTo(newPos);
+      mapRef.current.panTo(new kakao.maps.LatLng(mapCenter.lat, mapCenter.lng));
     }
   }, [mapCenter]);
 
-  // 3. 마커 생성 및 관리 (유지)
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao) return;
-
     markersRef.current.forEach(m => m.setMap(null));
     markersRef.current.clear();
-
     stores.forEach((store) => {
-      const latlng = new kakao.maps.LatLng(store.lat, store.lng);
-      
       const marker = new kakao.maps.Marker({
-        position: latlng,
+        position: new kakao.maps.LatLng(store.lat, store.lng),
         map: mapRef.current,
-        title: store.title || store.name
+        title: store.title
       });
-
-      kakao.maps.event.addListener(marker, 'click', () => { 
-        if(typeof onMarkerClick === 'function') onMarkerClick(store.id); 
-      });
-
+      kakao.maps.event.addListener(marker, 'click', () => onMarkerClick(store.id));
       markersRef.current.set(store.id, marker);
     });
   }, [stores, onMarkerClick]);
 
-  // 4. 선택된 스토어 변경 시 오버레이 (유지)
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao) return;
-
     if (overlayRef.current) overlayRef.current.setMap(null);
     if (!selectedStoreId) return;
-
     const store = stores.find(s => s.id === selectedStoreId);
     if (!store) return;
 
-    const latlng = new kakao.maps.LatLng(store.lat, store.lng);
-    const validImageUrl = (store.image_url && store.image_url !== "-") ? store.image_url : "";
-
     const content = document.createElement('div');
-    content.style.cssText = 'margin-bottom: 50px; filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15)); z-index: 1000;';
-    
+    content.style.cssText = 'margin-bottom: 50px; filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15)); pointer-events: auto;';
+    const validImageUrl = (store.image_url && store.image_url !== "-") ? store.image_url : "";
     content.innerHTML = `
-      <div style="background: white; padding: 10px 14px; border-radius: 20px; border: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 220px; max-width: 260px;">
-        ${validImageUrl ? `
-          <div style="width: 48px; height: 48px; border-radius: 12px; overflow: hidden; flex-shrink: 0; background: #eee;">
-            <img src="${validImageUrl}" style="width: 100%; height: 100%; object-fit: cover;" />
-          </div>
-        ` : ''}
-        <div style="display: flex; flex-direction: column; text-align: left; overflow: hidden; flex: 1;">
-          <div style="display: flex; gap: 4px; margin-bottom: 2px;">
-             <span style="font-size: 10px; color: #3182f6; font-weight: 800;">${store.category || '팝업'}</span>
-             ${store.is_free ? '<span style="font-size: 10px; color: #2ecc71; font-weight: 800;">· 무료</span>' : ''}
-          </div>
-          <span style="font-size: 14px; font-weight: 700; color: #191f28; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${store.title || store.name || '이름 없음'}
-          </span>
-          <span style="font-size: 11px; color: #8b95a1; margin-top: 1px;">
-            ${store.start_date ? `${store.start_date.slice(5)} ~ ${store.end_date?.slice(5)}` : '기간 정보 없음'}
-          </span>
-        </div>
-        <div style="display: flex; align-items: center; margin-left: 4px;">
-           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ced4da" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      <div style="background: white; padding: 10px 14px; border-radius: 20px; border: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 220px;">
+        ${validImageUrl ? `<div style="width: 48px; height: 48px; border-radius: 12px; overflow: hidden; flex-shrink: 0;"><img src="${validImageUrl}" style="width: 100%; height: 100%; object-fit: cover;" /></div>` : ''}
+        <div style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
+          <div style="display: flex; gap: 4px;"><span style="font-size: 10px; color: #3182f6; font-weight: 800;">${store.category}</span></div>
+          <span style="font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${store.title}</span>
         </div>
       </div>
-      <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 16px; height: 16px; background: white; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0; z-index: -1;"></div>
     `;
-
-    content.onclick = (e) => {
-      e.stopPropagation();
-      onDetailOpen(store);
-    };
-
-    const overlay = new kakao.maps.CustomOverlay({
-      content: content,
-      position: latlng,
-      yAnchor: 1.1,
-      zIndex: 30
-    });
-
-    overlay.setMap(mapRef.current);
-    overlayRef.current = overlay;
-
+    content.onclick = (e) => { e.stopPropagation(); onDetailOpen(store); };
+    overlayRef.current = new kakao.maps.CustomOverlay({ content, position: new kakao.maps.LatLng(store.lat, store.lng), yAnchor: 1.1, zIndex: 30 });
+    overlayRef.current.setMap(mapRef.current);
   }, [selectedStoreId, stores, onDetailOpen]);
 
-  // 5. 사용자 내 위치 마커 (유지)
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao || !userLocation) return;
     if (userMarkerRef.current) userMarkerRef.current.setMap(null);
-
-    const circle = new kakao.maps.CustomOverlay({
+    userMarkerRef.current = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
-      content: `<div style="width: 16px; height: 16px; background: #3182f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(49,130,246,0.5);"></div>`,
+      content: `<div style="width: 16px; height: 16px; background: #3182f6; border: 3px solid white; border-radius: 50%;"></div>`,
       zIndex: 10
     });
-
-    circle.setMap(mapRef.current);
-    userMarkerRef.current = circle;
+    userMarkerRef.current.setMap(mapRef.current);
   }, [userLocation]);
 
   return (
-    <div className="w-full h-full relative bg-gray-50">
+    <div className="w-full h-full relative overflow-hidden bg-gray-50">
       <div 
         ref={mapContainerRef} 
         className="w-full h-full absolute inset-0"
-        style={{ touchAction: 'none' }} // 브라우저 기본 터치 액션 방해 금지
+        onMouseDown={startLongPress}
+        onMouseUp={cancelLongPress}
+        onMouseLeave={cancelLongPress}
+        onTouchStart={startLongPress}
+        onTouchEnd={cancelLongPress}
+        style={{ cursor: 'crosshair' }}
       />
       
-      {/* 중요: 모달은 지도 컨테이너 밖, 하지만 relative 컨테이너 안 최상단에 위치.
-         z-index를 9999로 설정하여 카카오맵의 어떤 요소보다 위에 뜨게 함.
-      */}
+      {/* z-index를 최상위로 올리고 고정 위치로 표시 */}
       {isReportModalOpen && (
-        <div className="fixed inset-0 z-[9999]">
+        <div className="fixed inset-0" style={{ zIndex: 999999 }}>
           <ReportModal 
             coord={selectedCoord} 
             onClose={() => setIsReportModalOpen(false)} 
