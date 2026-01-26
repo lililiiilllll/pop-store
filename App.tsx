@@ -28,9 +28,9 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1531050171669-7df9b208
  * - enabled: true면 버튼이 보이고, false면 UI에서 아예 렌더링되지 않습니다.
  */
 const AUTH_CONFIG = {
-  KAKAO: { enabled: true, provider: 'kakao' },
+  KAKAO: { enabled: false, provider: 'kakao' },  // 로그인 버튼 활성화
   NAVER: { enabled: false, provider: 'naver' }, // 검수 중일 때 false로 설정
-  TOSS: { enabled: false, provider: 'toss' },   // 연동 준비 중일 때 false로 설정
+  TOSS: { enabled: true, provider: 'toss' },   // 연동 준비 중일 때 false로 설정
 };
 
 const App: React.FC = () => {
