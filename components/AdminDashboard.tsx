@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 
 const CATEGORIES = ['패션', '푸드', '아트', '엔터', '라이프스타일', '기타'];
 
-// --- 인터페이스 정의 (DB 스키마 기반 100% 매칭) ---
+// --- 인터페이스 정의 ---
 interface RecommendedKeyword {
   id: number;
   keyword: string;
@@ -35,7 +35,6 @@ interface Review {
   popup_stores?: { title: string } | null;
 }
 
-// 수정된 제보 인터페이스
 interface CorrectionRequest {
   id: number;
   popup_id: number;
@@ -57,6 +56,7 @@ interface AdminDashboardProps {
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRefresh }) => {
   const [activeTab, setActiveTab] = useState<'approval' | 'keywords' | 'edit_request' | 'reviews'>('approval');
   const [approvalSubTab, setApprovalSubTab] = useState<'pending' | 'verified'>('pending');
+  const [editRequestSubTab, setEditRequestSubTab] = useState<'pending' | 'approved'>('pending');
   
   const [editingStore, setEditingStore] = useState<PopupStore | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -74,14 +74,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
   const [reviewSortOrder, setReviewSortOrder] = useState<'latest' | 'reports'>('latest'); 
   const [editingReview, setEditingReview] = useState<Review | null>(null); 
 
-  // 제보 데이터 상태 (테이블명 변경 반영)
   const [correctionRequests, setCorrectionRequests] = useState<CorrectionRequest[]>([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'keywords') fetchKeywordAdminData();
     if (activeTab === 'reviews') fetchReviews();
     if (activeTab === 'edit_request') fetchCorrectionRequests();
-  }, [activeTab, showOnlyReported, reviewSortOrder]);
+  }, [activeTab, showOnlyReported, reviewSortOrder, editRequestSubTab]);
 
   const fetchKeywordAdminData = async () => {
     const { data: recData } = await supabase.from('recommended_keywords').select('*').order('order_index', { ascending: true });
@@ -93,16 +93,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
   const fetchReviews = async () => {
     setIsLoadingReviews(true);
     try {
-      let query = supabase
-        .from('reviews')
-        .select(`*, popup_stores:popup_id ( title )`);
-
-      if (showOnlyReported) {
-        query = query.gt('report_count', 0);
-      }
-
+      let query = supabase.from('reviews').select(`*, popup_stores:popup_id ( title )`);
+      if (showOnlyReported) query = query.gt('report_count', 0);
       query = query.order(reviewSortOrder === 'reports' ? 'report_count' : 'created_at', { ascending: false });
-      
       const { data, error } = await query;
       if (error) throw error;
       setReviews(data as any || []);
@@ -113,18 +106,56 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     }
   };
 
-  // 핵심 수정: correction_requests 테이블 페칭 로직
   const fetchCorrectionRequests = async () => {
+    setIsLoadingRequests(true);
     try {
       const { data, error } = await supabase
         .from('correction_requests')
         .select(`*, popup_stores:popup_id ( title )`)
+        .eq('status', editRequestSubTab)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       setCorrectionRequests(data as any || []);
     } catch (err) {
       console.error("제보 데이터 로드 실패:", err);
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  };
+
+  // --- 핵심 기능: 제보 내용을 실제 팝업에 반영 ---
+  const handleApproveCorrection = async (req: CorrectionRequest) => {
+    if (!window.confirm('제보된 내용으로 실제 정보를 수정하고 완료 처리하시겠습니까?')) return;
+
+    try {
+      // 1. 팝업 스토어 실제 정보 업데이트
+      const updateData: any = {};
+      if (req.title_fix) updateData.title = req.title_fix;
+      if (req.description_fix) updateData.description = req.description_fix;
+
+      if (Object.keys(updateData).length > 0) {
+        const { error: storeError } = await supabase
+          .from('popup_stores')
+          .update(updateData)
+          .eq('id', req.popup_id);
+        if (storeError) throw storeError;
+      }
+
+      // 2. 제보 요청 상태 변경
+      const { error: reqError } = await supabase
+        .from('correction_requests')
+        .update({ status: 'approved' })
+        .eq('id', req.id);
+      
+      if (reqError) throw reqError;
+
+      alert('정보 수정 및 처리가 완료되었습니다.');
+      fetchCorrectionRequests();
+      onRefresh(); // 메인 데이터 새로고침
+    } catch (err) {
+      console.error(err);
+      alert('처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -194,7 +225,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
     if (!editingStore) return;
     const finalCategory = (editingStore.category === '기타' && customCategory.trim() !== '') ? customCategory.trim() : editingStore.category;
     
-    // 핵심 수정: DB 컬럼명 requires_reservation 매칭
     const { error } = await supabase.from('popup_stores').update({
       title: editingStore.title, 
       address: editingStore.address, 
@@ -202,7 +232,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
       description: editingStore.description, 
       image_url: editingStore.imageUrl, 
       is_free: editingStore.is_free, 
-      requires_reservation: editingStore.is_reservation_required, // 매칭 완료
+      requires_reservation: editingStore.is_reservation_required,
       is_verified: statusOverride !== undefined ? statusOverride : editingStore.is_verified,
       keywords: editingStore.keywords || []
     }).eq('id', editingStore.id);
@@ -241,8 +271,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
           {activeTab === 'approval' && (
             <>
               <div className="flex gap-2 mb-6">
-                <button onClick={() => setApprovalSubTab('pending')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] ${approvalSubTab === 'pending' ? 'bg-[#3182f6] text-white' : 'bg-white text-gray-400'}`}>대기중</button>
-                <button onClick={() => setApprovalSubTab('verified')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] ${approvalSubTab === 'verified' ? 'bg-[#3182f6] text-white' : 'bg-white text-gray-400'}`}>승인됨</button>
+                <button onClick={() => setApprovalSubTab('pending')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] ${approvalSubTab === 'pending' ? 'bg-[#3182f6] text-white shadow-md' : 'bg-white text-gray-400'}`}>대기중</button>
+                <button onClick={() => setApprovalSubTab('verified')} className={`px-6 py-2.5 rounded-2xl font-bold text-[14px] ${approvalSubTab === 'verified' ? 'bg-[#3182f6] text-white shadow-md' : 'bg-white text-gray-400'}`}>승인됨</button>
               </div>
               <div className="space-y-3">
                 {allStores.filter(s => approvalSubTab === 'pending' ? !s.is_verified : s.is_verified).map(store => (
@@ -313,32 +343,45 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
             </div>
           )}
 
-          {/* TAB 3: 수정 제보 (DB 스키마 맞춤형 수정) */}
+          {/* TAB 3: 수정 제보 (탭 구분 및 적용 기능 추가) */}
           {activeTab === 'edit_request' && (
-            <div className="space-y-4">
-              <h2 className="text-[18px] font-bold mb-6">사용자 제보 수정 요청 ({correctionRequests.length})</h2>
-              {correctionRequests.length === 0 ? (
-                <div className="py-20 text-center text-gray-400 bg-white rounded-[32px] border border-dashed border-gray-200">등록된 제보가 없습니다.</div>
+            <div className="space-y-6">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="text-[18px] font-bold">사용자 정보 제보 관리</h2>
+                <div className="flex gap-2 p-1 bg-gray-100 rounded-2xl">
+                  <button onClick={() => setEditRequestSubTab('pending')} className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-all ${editRequestSubTab === 'pending' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400'}`}>처리 대기</button>
+                  <button onClick={() => setEditRequestSubTab('approved')} className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-all ${editRequestSubTab === 'approved' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400'}`}>처리 완료</button>
+                </div>
+              </div>
+
+              {isLoadingRequests ? (
+                <div className="py-20 text-center text-gray-400 bg-white rounded-[32px]">제보를 불러오는 중...</div>
+              ) : correctionRequests.length === 0 ? (
+                <div className="py-20 text-center text-gray-400 bg-white rounded-[32px] border border-dashed border-gray-200">
+                  {editRequestSubTab === 'pending' ? '새로운 제보가 없습니다.' : '처리 완료된 내역이 없습니다.'}
+                </div>
               ) : correctionRequests.map(req => (
                 <div key={req.id} className="bg-white p-6 rounded-[28px] shadow-sm border border-gray-50">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <span className="text-[12px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">대상: {req.popup_stores?.title}</span>
+                      <span className="text-[12px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">대상: {req.popup_stores?.title || 'ID: '+req.popup_id}</span>
                       <p className="text-[13px] text-gray-400 mt-2">제보일: {new Date(req.created_at).toLocaleString()}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold">적용 완료</button>
-                      <button onClick={() => { if(confirm('제보를 삭제하시겠습니까?')) supabase.from('correction_requests').delete().eq('id', req.id).then(fetchCorrectionRequests) }} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold">삭제</button>
+                      {req.status === 'pending' && (
+                        <button onClick={() => handleApproveCorrection(req)} className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold shadow-sm active:scale-95 transition-all">적용 완료</button>
+                      )}
+                      <button onClick={() => { if(confirm('제보를 삭제하시겠습니까?')) supabase.from('correction_requests').delete().eq('id', req.id).then(fetchCorrectionRequests) }} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold hover:bg-red-100 transition-colors">삭제</button>
                     </div>
                   </div>
                   <div className="bg-gray-50 p-5 rounded-2xl text-[14px] space-y-3">
                     <div className="grid grid-cols-[100px_1fr] gap-2">
                       <span className="font-bold text-gray-400">수정 제목:</span>
-                      <span className="font-bold">{req.title_fix || '변경 없음'}</span>
+                      <span className="font-bold">{req.title_fix || <span className="text-gray-300 font-normal">(변경 없음)</span>}</span>
                     </div>
                     <div className="grid grid-cols-[100px_1fr] gap-2">
                       <span className="font-bold text-gray-400">수정 내용:</span>
-                      <span className="text-gray-700">{req.description_fix || '변경 없음'}</span>
+                      <span className="text-gray-700">{req.description_fix || <span className="text-gray-300">(변경 없음)</span>}</span>
                     </div>
                     <div className="grid grid-cols-[100px_1fr] gap-2 border-t border-gray-100 pt-2 mt-2">
                       <span className="font-bold text-[#3182f6]">제보 사유:</span>
