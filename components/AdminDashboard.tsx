@@ -378,12 +378,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                   <button 
                     onClick={() => {
                       setEditingStore({
-                        ...req.popup_stores,
-                        title: req.title_fix || req.popup_stores?.title,
-                        description: req.description_fix || req.popup_stores?.description,
-                        is_from_report: true,
-                        report_id: req.id
-                      });
+                        id: req.popup_id,             // 실제 수정될 팝업의 ID
+                        title: req.title_fix || req.popup_stores?.title,   // 제보된 제목 (없으면 기존 제목)
+                        description: req.description_fix || req.popup_stores?.description, // 제보된 설명
+                        category: req.popup_stores?.category,
+                        image_url: req.popup_stores?.image_url,
+                        lat: req.popup_stores?.lat,
+                        lng: req.popup_stores?.lng,
+    
+                        // [중요] 제보 처리용 플래그와 제보 ID 추가
+                        is_from_report: true, 
+                        report_id: req.id 
+                        });
                       setIsEditModalOpen(true);
                     }} 
                     className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold shadow-sm active:scale-95 transition-all"
