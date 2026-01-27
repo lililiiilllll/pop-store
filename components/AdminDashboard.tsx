@@ -344,88 +344,77 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
           )}
 
           {/* TAB 3: 수정 제보 (탭 구분 및 적용 기능 추가) */}
-          {activeTab === 'edit_request' && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-[18px] font-bold">사용자 정보 제보 관리</h2>
-                <div className="flex gap-2 p-1 bg-gray-100 rounded-2xl">
-                  <button onClick={() => setEditRequestSubTab('pending')} className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-all ${editRequestSubTab === 'pending' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400'}`}>처리 대기</button>
-                  <button onClick={() => setEditRequestSubTab('approved')} className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-all ${editRequestSubTab === 'approved' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400'}`}>처리 완료</button>
-                </div>
-              </div>
-
-              {isLoadingRequests ? (
-                <div className="py-20 text-center text-gray-400 bg-white rounded-[32px]">제보를 불러오는 중...</div>
-              ) : correctionRequests.length === 0 ? (
-                <div className="py-20 text-center text-gray-400 bg-white rounded-[32px] border border-dashed border-gray-200">
-                  {editRequestSubTab === 'pending' ? '새로운 제보가 없습니다.' : '처리 완료된 내역이 없습니다.'}
-                </div>
-) : correctionRequests.map(req => {
-  // 1. 제보자 이름 확인 (profiles Join 데이터가 있다면 사용, 없으면 비회원)
-  const reporterName = req.profiles?.name || "비회원";
-
-  return (
-    <div key={req.id} className="bg-white p-6 rounded-[28px] shadow-sm border border-gray-50">
-      <div className="flex justify-between items-start mb-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">
-              대상: {req.popup_stores?.title || 'ID: '+req.popup_id}
-            </span>
-            {/* 2. 제보자 정보 노출 추가 */}
-            <span className={`text-[12px] font-bold ${req.profiles?.name ? 'text-gray-600' : 'text-gray-400'}`}>
-              제보자: {reporterName}
-            </span>
-          </div>
-          <p className="text-[13px] text-gray-400 mt-2">제보일: {new Date(req.created_at).toLocaleString()}</p>
-        </div>
-        
-        <div className="flex gap-2">
-          {req.status === 'pending' && (
-            // 3. '적용 완료' 대신 '상세 검토(수정창)'로 변경
-            <button 
-              onClick={() => {
-                // 기존 수정창(모달)을 여는 함수에 제보 데이터를 담아 호출
-                setSelectedStore({
-                  ...req.popup_stores, // 기존 팝업 데이터
-                  title: req.title_fix || req.popup_stores?.title, // 제보된 제목 우선
-                  description: req.description_fix || req.popup_stores?.description, // 제보된 내용 우선
-                  is_from_report: true, // 제보 처리용 플래그
-                  report_id: req.id     // 제보 ID 기록
-                });
-                setIsEditModalOpen(true);
-              }} 
-              className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold shadow-sm active:scale-95 transition-all"
-            >
-              상세 검토
-            </button>
-          )}
-          <button 
-            onClick={() => { if(confirm('제보를 삭제하시겠습니까?')) supabase.from('correction_requests').delete().eq('id', req.id).then(fetchCorrectionRequests) }} 
-            className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold hover:bg-red-100 transition-colors"
-          >
-            삭제
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-gray-50 p-5 rounded-2xl text-[14px] space-y-3">
-        <div className="grid grid-cols-[100px_1fr] gap-2">
-          <span className="font-bold text-gray-400">수정 제목:</span>
-          <span className="font-bold">{req.title_fix || <span className="text-gray-300 font-normal">(변경 없음)</span>}</span>
-        </div>
-        <div className="grid grid-cols-[100px_1fr] gap-2">
-          <span className="font-bold text-gray-400">수정 내용:</span>
-          <span className="text-gray-700">{req.description_fix || <span className="text-gray-300">(변경 없음)</span>}</span>
-        </div>
-        <div className="grid grid-cols-[100px_1fr] gap-2 border-t border-gray-100 pt-2 mt-2">
-          <span className="font-bold text-[#3182f6]">제보 사유:</span>
-          <span className="font-bold text-[#3182f6]">{req.reason}</span>
-        </div>
+          {/* TAB 3: 수정 제보 (탭 구분 및 적용 기능 추가) */}
+{activeTab === 'edit_request' && (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center mb-2">
+      <h2 className="text-[18px] font-bold">사용자 정보 제보 관리</h2>
+      <div className="flex gap-2 p-1 bg-gray-100 rounded-2xl">
+        <button onClick={() => setEditRequestSubTab('pending')} className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-all ${editRequestSubTab === 'pending' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400'}`}>처리 대기</button>
+        <button onClick={() => setEditRequestSubTab('approved')} className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-all ${editRequestSubTab === 'approved' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400'}`}>처리 완료</button>
       </div>
     </div>
-  );
-})}
+
+    {isLoadingRequests ? (
+      <div className="py-20 text-center text-gray-400 bg-white rounded-[32px]">제보를 불러오는 중...</div>
+    ) : correctionRequests.length === 0 ? (
+      <div className="py-20 text-center text-gray-400 bg-white rounded-[32px] border border-dashed border-gray-200">
+        {editRequestSubTab === 'pending' ? '새로운 제보가 없습니다.' : '처리 완료된 내역이 없습니다.'}
+      </div>
+    ) : (
+      correctionRequests.map(req => {
+        const reporterName = req.profiles?.name || "비회원";
+        return (
+          <div key={req.id} className="bg-white p-6 rounded-[28px] shadow-sm border border-gray-50">
+            <div className="flex justify-between items-start mb-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] font-bold text-[#3182f6] bg-blue-50 px-2 py-1 rounded-lg">대상: {req.popup_stores?.title || 'ID: '+req.popup_id}</span>
+                  <span className={`text-[12px] font-bold ${req.profiles?.name ? 'text-gray-600' : 'text-gray-400'}`}>제보자: {reporterName}</span>
+                </div>
+                <p className="text-[13px] text-gray-400 mt-2">제보일: {new Date(req.created_at).toLocaleString()}</p>
+              </div>
+              <div className="flex gap-2">
+                {req.status === 'pending' && (
+                  <button 
+                    onClick={() => {
+                      setSelectedStore({
+                        ...req.popup_stores,
+                        title: req.title_fix || req.popup_stores?.title,
+                        description: req.description_fix || req.popup_stores?.description,
+                        is_from_report: true,
+                        report_id: req.id
+                      });
+                      setIsEditModalOpen(true);
+                    }} 
+                    className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold shadow-sm active:scale-95 transition-all"
+                  >
+                    상세 검토
+                  </button>
+                )}
+                <button onClick={() => { if(confirm('제보를 삭제하시겠습니까?')) supabase.from('correction_requests').delete().eq('id', req.id).then(fetchCorrectionRequests) }} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold hover:bg-red-100 transition-colors">삭제</button>
+              </div>
+            </div>
+            <div className="bg-gray-50 p-5 rounded-2xl text-[14px] space-y-3">
+              <div className="grid grid-cols-[100px_1fr] gap-2">
+                <span className="font-bold text-gray-400">수정 제목:</span>
+                <span className="font-bold">{req.title_fix || <span className="text-gray-300 font-normal">(변경 없음)</span>}</span>
+              </div>
+              <div className="grid grid-cols-[100px_1fr] gap-2">
+                <span className="font-bold text-gray-400">수정 내용:</span>
+                <span className="text-gray-700">{req.description_fix || <span className="text-gray-300">(변경 없음)</span>}</span>
+              </div>
+              <div className="grid grid-cols-[100px_1fr] gap-2 border-t border-gray-100 pt-2 mt-2">
+                <span className="font-bold text-[#3182f6]">제보 사유:</span>
+                <span className="font-bold text-[#3182f6]">{req.reason}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })
+    )}
+  </div>
+)}
 
           {/* TAB 4: 리뷰 관리 */}
           {activeTab === 'reviews' && (
