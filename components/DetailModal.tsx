@@ -433,33 +433,34 @@ const handleAddReview = async () => {
             </div>
           )}
 
-          {isLoading ? (
-            <div className="py-10 text-center text-gray-400 text-[14px]">후기를 불러오는 중...</div>
-          ) : (
-            <>
-              {(isWriting || editingId !== null) && (
-                <div className="mb-8 p-5 bg-gray-50 rounded-2xl border border-blue-100 shadow-sm animate-in fade-in slide-in-from-top-2">
-                  <div className="flex gap-2 mb-3">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <button key={star} onClick={() => setEditRating(star)} className={`text-2xl ${editRating >= star ? 'text-yellow-400' : 'text-gray-200'}`}>★</button>
-                    ))}
-                  </div>
-                  <textarea 
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    placeholder="솔직한 후기를 남겨주세요."
-                    className="w-full h-28 p-4 bg-white rounded-xl border-none text-[14px] focus:ring-2 focus:ring-blue-500 shadow-inner resize-none"
-                  />
-                  <div className="flex gap-2 mt-3">
-                    <button onClick={resetReviewState} className="flex-1 py-3 bg-white text-gray-400 rounded-xl font-bold text-[13px]">취소</button>
-                    <button 
-                      onClick={() => editingId !== null ? handleUpdateReview(editingId) : handleAddReview()}
-                      className="flex-[2] py-3 bg-[#3182f6] text-white rounded-xl font-bold text-[13px] shadow-lg active:scale-[0.98]"
-                    >
-                      {editingId !== null ? "수정 완료" : "등록하기"}
-                    </button>
-                  </div>
-                </div>
+{isWriting && (
+  <div className="mb-8 p-5 bg-gray-50 rounded-[24px]">
+    <div className="flex gap-1 mb-3">
+      {[1, 2, 3, 4, 5].map(s => (
+        <button 
+          key={s} 
+          onClick={() => setEditRating(s)} 
+          className={`text-xl ${editRating >= s ? 'text-orange-500' : 'text-gray-300'}`}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+    <textarea 
+      value={editContent} 
+      onChange={(e) => setEditContent(e.target.value)} 
+      placeholder={currentUser ? "방문 경험을 공유해주세요." : "로그인 후 후기를 남겨보세요!"}
+      className="w-full h-24 bg-transparent border-none focus:ring-0 text-[14px] resize-none p-0"
+    />
+    <div className="flex justify-end mt-2">
+      <button 
+        onClick={handleAddReview} 
+        className="px-5 py-2 bg-[#3182f6] text-white rounded-xl text-[13px] font-bold"
+      >
+        등록하기
+      </button>
+    </div>
+  </div>
               )}
 
               <div className="divide-y divide-gray-100">
