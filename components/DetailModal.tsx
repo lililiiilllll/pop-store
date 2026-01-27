@@ -126,7 +126,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
     const fetchStatsAndLikes = async () => {
       if (!store?.id) return;
       // 별점 데이터 가져오기
-      const { data: revData } = await supabase.from('reviews').select('rating').eq('popup_id', store.id);
+      const { data: revData } = await supabase.from('reviews').select('rating').eq('popup_id', store.id).eq('is_blinded', false);
       if (revData && revData.length > 0) {
         const total = revData.reduce((acc, curr) => acc + curr.rating, 0);
         setAverageRating(Number((total / revData.length).toFixed(1)));
@@ -395,24 +395,23 @@ const handleAddReview = async () => {
         )}
 
 {/* 리뷰 섹션 */}
-        <div className="pt-8 border-t border-gray-100">
+        <div className="mt-10 pt-8 border-t border-gray-100">
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-2">
-              <h3 className="text-[18px] font-bold text-[#191f28]">방문자 후기</h3>
-              {/* ✅ 별점을 후기 제목 옆으로 이동 */}
-              <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 rounded-lg text-orange-500 text-[14px] font-bold">
+              <h3 className="text-lg font-bold text-[#191f28]">방문자 후기</h3>
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 rounded-lg text-orange-500 text-sm font-bold">
                 <span>★</span><span>{averageRating}</span>
               </div>
-              <span className="text-gray-400 text-[14px]">({reviews.length})</span>
+              <span className="text-gray-400 text-sm">({reviews.length})</span>
             </div>
-            <button onClick={() => setIsWriting(true)} className="text-[#3182f6] text-[13px] font-bold px-3 py-1.5 bg-blue-50 rounded-full">
+            <button onClick={() => setIsWriting(true)} className="text-[#3182f6] text-sm font-bold px-3 py-1.5 bg-blue-50 rounded-full">
               기록하기
             </button>
           </div>
-          
-{/* ✅ 중복 제거된 단일 작성/수정 폼 */}
+
+          {/* 리뷰 작성/수정 폼 */}
           {(isWriting || editingId !== null) && (
-            <div className="mb-8 p-5 bg-gray-50 rounded-[24px] border border-blue-100">
+            <div className="mb-8 p-5 bg-gray-50 rounded-[24px]">
               <div className="flex gap-1 mb-3">
                 {[1, 2, 3, 4, 5].map(s => (
                   <button key={s} onClick={() => setEditRating(s)} className={`text-xl ${editRating >= s ? 'text-orange-500' : 'text-gray-300'}`}>★</button>
@@ -422,84 +421,75 @@ const handleAddReview = async () => {
                 value={editContent} 
                 onChange={(e) => setEditContent(e.target.value)} 
                 placeholder={currentUser ? "방문 경험을 공유해주세요." : "로그인 후 후기를 남겨보세요!"}
-                className="w-full h-24 bg-transparent border-none focus:ring-0 text-[14px] resize-none p-0"
+                className="w-full h-24 bg-transparent border-none focus:ring-0 text-sm resize-none p-0" 
               />
-              <div className="flex gap-2 mt-3">
-                <button onClick={resetReviewState} className="flex-1 py-3 bg-white text-gray-400 rounded-xl font-bold text-[13px]">취소</button>
+              <div className="flex justify-end gap-2 mt-2">
+                <button onClick={() => { setIsWriting(false); setEditingId(null); setEditContent(''); }} className="px-4 py-2 text-gray-400 text-sm">취소</button>
                 <button 
-                  onClick={() => editingId !== null ? handleUpdateReview(editingId) : handleAddReview()}
-                  className="flex-[2] py-3 bg-[#3182f6] text-white rounded-xl font-bold text-[13px] shadow-lg"
+                  onClick={() => editingId !== null ? handleUpdateReview(editingId) : handleAddReview()} 
+                  className="px-5 py-2 bg-[#3182f6] text-white rounded-xl text-sm font-bold"
                 >
-                  {editingId !== null ? "수정 완료" : "등록하기"}
+                  {editingId !== null ? '수정완료' : '등록하기'}
                 </button>
               </div>
             </div>
           )}
-          
-              <div className="divide-y divide-gray-100">
-                {reviews.length === 0 ? (
-                  <div className="py-10 text-center text-gray-400 text-[14px]">아직 작성된 후기가 없습니다.</div>
-                ) : (
-                  reviews.map((review) => {
-                    const isMyReview = currentUser?.id === review.user_id;
-                    const reaction = myReactions[review.id];
-                    
-                    // --- 블라인드 로직 처리 ---
-                    // 볼 수 있는 권한: 관리자이거나 작성자 본인인 경우
-                    const canSeeContent = isAdmin || isMyReview;
-                    
-                    if (review.is_blinded && !canSeeContent) {
-                      // 블라인드 처리된 리뷰 (일반 사용자 화면)
-                      return (
-                        <div key={review.id} className="py-6 flex flex-col bg-gray-50/50 rounded-2xl px-4 my-2 border border-dashed border-gray-200">
-                          <p className="text-[13px] text-gray-400 font-medium italic">
-                            🚫 정책 위반 우려로 인한 블라인드 처리되었습니다.
-                          </p>
-                        </div>
-                      );
-                    }
 
-                    return (
-                      <div key={review.id} className={`py-6 flex flex-col ${review.is_blinded ? 'bg-red-50/30 rounded-2xl px-4 my-2 border border-red-100' : ''}`}>
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-[15px] text-[#333d4b]">
-                                {review.user_nickname} {isMyReview && <span className="text-[11px] text-blue-500 font-medium">(나)</span>}
-                              </span>
-                              {review.is_blinded && (
-                                <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full font-bold">블라인드 상태</span>
-                              )}
-                            </div>
-                            <div className="flex text-yellow-400 text-[11px]">
-                              {"★".repeat(review.rating)}
-                              <span className="text-gray-300 ml-2 font-normal">{new Date(review.created_at).toLocaleDateString()}</span>
-                            </div>
-                          </div>
-                          {(isMyReview || isAdmin) && editingId !== review.id && (
-                            <div className="flex gap-3 text-[12px] font-medium text-gray-400">
-                              <button onClick={() => { setEditingId(review.id); setEditContent(review.content); setEditRating(review.rating); }}>수정</button>
-                              <button onClick={() => handleDeleteReview(review)} className="text-red-400 hover:text-red-600">삭제</button>
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-[14px] text-[#4e5968] leading-relaxed mb-4 whitespace-pre-wrap">{review.content}</p>
-                        <div className="flex gap-2">
-                          <button onClick={() => handleReaction(review.id, 'like')} className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${reaction === 'like' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-100 text-gray-500'}`}>
-                            👍 {review.likes}
-                          </button>
-                          <button onClick={() => handleReaction(review.id, 'dislike')} className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-[12px] font-bold transition-all ${reaction === 'dislike' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-100 text-gray-500'}`}>
-                            👎 {review.dislikes}
-                          </button>
-                        </div>
+          {/* 리뷰 리스트 (블라인드 기능 포함) */}
+          <div className="space-y-4">
+            {isLoading ? (
+              <div className="py-10 text-center text-gray-300 text-sm">불러오는 중...</div>
+            ) : reviews.length > 0 ? (
+              reviews.map(review => (
+                <div key={review.id} className="p-5 bg-white border border-gray-100 rounded-[24px]">
+                  <div className="flex justify-between mb-2">
+                    <span className="font-bold text-sm">{review.user_nickname}</span>
+                    <span className="text-xs text-gray-300">{new Date(review.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex text-orange-400 text-xs mb-2">{'★'.repeat(review.rating)}</div>
+
+                  {/* 블라인드 판별 로직 */}
+                  {review.is_blinded && !isAdmin ? (
+                    <p className="text-sm text-gray-300 italic py-2">관리자에 의해 블라인드 처리된 후기입니다.</p>
+                  ) : (
+                    <>
+                      {review.is_blinded && isAdmin && (
+                        <div className="mb-2 px-2 py-1 bg-red-50 text-red-500 text-[10px] font-bold rounded inline-block">블라인드 상태 (관리자 노출)</div>
+                      )}
+                      <p className="text-sm text-gray-600 mb-3 leading-relaxed whitespace-pre-wrap">{review.content}</p>
+                    {/* ✅ 좋아요/싫어요 버튼 복구 */}
+                      <div className="flex gap-2 mb-3">
+                        <button 
+                          onClick={() => handleReaction(review.id, 'like')} 
+                          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-100 rounded-xl text-[12px] font-bold text-gray-500 bg-white hover:bg-blue-50 transition-all"
+                        >
+                          👍 {review.likes || 0}
+                        </button>
+                        <button 
+                          onClick={() => handleReaction(review.id, 'dislike')} 
+                          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-100 rounded-xl text-[12px] font-bold text-gray-500 bg-white hover:bg-red-50 transition-all"
+                        >
+                          👎 {review.dislikes || 0}
+                        </button>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </>
-          )}
+                    </>
+                  )}
+
+                  {/* 수정/삭제 버튼 (작성자/관리자 전용) */}
+                  {(currentUser?.id === review.user_id || isAdmin) && (
+                    <div className="flex gap-3 mt-2">
+                      <button onClick={() => { setEditingId(review.id); setEditContent(review.content); setEditRating(review.rating); }} className="text-xs text-gray-400">수정</button>
+                      <button onClick={() => handleDeleteReview(review.id)} className="text-xs text-red-300">삭제</button>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="py-20 text-center text-gray-300 text-sm">첫 번째 후기를 남겨보세요!</div>
+            )}
+          </div>
         </div>
+      </div> {/* overflow-y-auto 영역 닫기 */}
 
 
       {/* 3. 하단 고정 액션 바 */}
