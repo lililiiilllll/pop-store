@@ -383,9 +383,9 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
       </div>
     </div>
 
-    {/* ✅ 간략 설명 (description) : 핵심 요약 문구 */}
+    {/* ✅ 간략 설명 (description) */}
     {store.description && (
-      <p className="text-[#4e5968] text-[15px] font-medium leading-relaxed mb-6 border-l-4 border-blue-100 pl-3">
+      <p className="text-[#4e5968] text-[15px] leading-relaxed mb-6 whitespace-pre-line">
         {store.description}
       </p>
     )}
@@ -407,14 +407,18 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
     </div>
   </div>
 
-  {/* ✅ 상세 설명 (detailed_content) : 긴 글 정보 */}
-  {(store.detailed_content || store.detail_content) && (
-    <div className="mb-10">
-      <h3 className="text-[17px] font-bold text-[#191f28] mb-3 border-b pb-2">상세 정보</h3>
-      <p className="text-[14px] text-[#4e5968] leading-[1.8] whitespace-pre-wrap">
+  {/* ✅ 상세 정보 섹션 (데이터가 있을 때만 노출) */}
+  {(store.detailed_content || store.detail_content) ? (
+    <div className="mb-10 animate-fade-in">
+      <h3 className="text-[17px] font-bold text-[#191f28] mb-3">상세 정보</h3>
+      <div className="w-full h-[1px] bg-gray-100 mb-4" /> {/* 시각적 구분선 */}
+      <p className="text-[14px] text-[#4e5968] leading-[1.6] whitespace-pre-wrap">
         {store.detailed_content || store.detail_content}
       </p>
     </div>
+  ) : (
+    /* 데이터가 없을 경우 관리자에게 알림 (테스트용) */
+    isAdmin && <div className="mb-10 text-xs text-red-400 font-mono">DEBUG: 상세 정보 데이터(detailed_content)가 비어있습니다.</div>
   )}
 
         {/* 리뷰 섹션 */}
