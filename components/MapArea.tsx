@@ -123,12 +123,22 @@ const MapArea: React.FC<MapAreaProps> = ({
     return () => cancelLongPress();
   }, []);
 
-  useEffect(() => {
-    if (mapRef.current && mapCenter) {
-      const { kakao } = window as any;
+useEffect(() => {
+  if (mapRef.current && mapCenter) {
+    const { kakao } = window as any;
+    const currentCenter = mapRef.current.getCenter();
+    
+    // 현재 지도의 실제 위경도와 전달받은 mapCenter의 차이를 계산
+    const latDiff = Math.abs(currentCenter.getLat() - mapCenter.lat);
+    const lngDiff = Math.abs(currentCenter.getLng() - mapCenter.lng);
+
+    // 차이가 0.00001(약 1m)보다 클 때만 지도를 이동시킴
+    // 이 조건이 없으면 미세한 오차 때문에 지도가 계속 꿈틀거립니다.
+    if (latDiff > 0.00001 || lngDiff > 0.00001) {
       mapRef.current.panTo(new kakao.maps.LatLng(mapCenter.lat, mapCenter.lng));
     }
-  }, [mapCenter]);
+  }
+}, [mapCenter]);
 
   // 마커 생성 (토스 스타일 핀 적용)
   useEffect(() => {
