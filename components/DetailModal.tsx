@@ -366,47 +366,56 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
         </div>
       </div>
 
-{/* 2. 컨텐츠 영역 (pt-2로 상단 여백 축소) */}
-      <div className="flex-1 overflow-y-auto p-6 pt-2 pb-32 text-left custom-scrollbar">
-        <div className="mb-6">
-          <h2 className="text-[24px] font-extrabold text-[#191f28] mb-3">{store.title}</h2>
-          <div className="flex flex-wrap gap-2 mb-4">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-full text-[#3182f6] text-[12px] font-bold">
-              🚇 {getAutoWalkTime()}
-            </div>
-            <div className={`px-3 py-1.5 rounded-full text-[12px] font-bold ${store.is_free ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-              {store.is_free ? '🎁 무료입장' : '유료입장'}
-            </div>
-            <div className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-full text-[12px] font-bold">
-              {store.is_reservation_required ? '📅 예약필수' : '✅ 상시입장'}
-            </div>
-          </div>
-          <p className="text-gray-600 text-[14px] leading-relaxed whitespace-pre-line mb-6">{store.description}</p>
-        </div>
+{/* 2. 컨텐츠 영역 */}
+<div className="flex-1 overflow-y-auto p-6 pt-2 pb-32 text-left custom-scrollbar">
+  <div className="mb-6">
+    <h2 className="text-[24px] font-extrabold text-[#191f28] mb-3">{store.title}</h2>
+    
+    <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-full text-[#3182f6] text-[12px] font-bold">
+        🚇 {getAutoWalkTime()}
+      </div>
+      <div className={`px-3 py-1.5 rounded-full text-[12px] font-bold ${store.is_free ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+        {store.is_free ? '🎁 무료입장' : '유료입장'}
+      </div>
+      <div className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-full text-[12px] font-bold">
+        {store.is_reservation_required ? '📅 예약필수' : '✅ 상시입장'}
+      </div>
+    </div>
 
-        <div className="space-y-4 mb-8 bg-gray-50 p-5 rounded-2xl">
-          <div className="flex items-start gap-3">
-            <span className="text-[14px] font-bold text-[#191f28] w-16 shrink-0">운영 기간</span>
-            <span className="text-[14px] text-[#4e5968]">{store.start_date || '-'} ~ {store.end_date || '-'}</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="text-[14px] font-bold text-[#191f28] w-16 shrink-0">상세 주소</span>
-            <span className="text-[14px] text-[#4e5968]">{store.address || '정보 없음'}</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="text-[14px] font-bold text-[#191f28] w-16 shrink-0">운영 시간</span>
-            <span className="text-[14px] text-[#4e5968] whitespace-pre-line">{store.operating_hours || '정보 없음'}</span>
-          </div>
-        </div>
+    {/* ✅ 간략 설명 (description) : 핵심 요약 문구 */}
+    {store.description && (
+      <p className="text-[#4e5968] text-[15px] font-medium leading-relaxed mb-6 border-l-4 border-blue-100 pl-3">
+        {store.description}
+      </p>
+    )}
+  </div>
 
-          {(store.detailed_content || store.detail_content) && (
-            <div className="mb-10">
-              <h3 className="text-[17px] font-bold text-[#191f28] mb-3">상세 정보</h3>
-              <p className="text-[14px] text-[#4e5968] leading-[1.6] whitespace-pre-wrap">
-                {store.detailed_content || store.detail_content}
-              </p>
-            </div>
-          )}
+  {/* 기본 정보 카드 */}
+  <div className="space-y-4 mb-8 bg-gray-50 p-5 rounded-2xl">
+    <div className="flex items-start gap-3">
+      <span className="text-[14px] font-bold text-[#191f28] w-16 shrink-0">운영 기간</span>
+      <span className="text-[14px] text-[#4e5968]">{store.start_date || '-'} ~ {store.end_date || '-'}</span>
+    </div>
+    <div className="flex items-start gap-3">
+      <span className="text-[14px] font-bold text-[#191f28] w-16 shrink-0">상세 주소</span>
+      <span className="text-[14px] text-[#4e5968]">{store.address || '정보 없음'}</span>
+    </div>
+    <div className="flex items-start gap-3">
+      <span className="text-[14px] font-bold text-[#191f28] w-16 shrink-0">운영 시간</span>
+      <span className="text-[14px] text-[#4e5968] whitespace-pre-line">{store.operating_hours || '정보 없음'}</span>
+    </div>
+  </div>
+
+  {/* ✅ 상세 설명 (detailed_content) : 긴 글 정보 */}
+  {(store.detailed_content || store.detail_content) && (
+    <div className="mb-10">
+      <h3 className="text-[17px] font-bold text-[#191f28] mb-3 border-b pb-2">상세 정보</h3>
+      <p className="text-[14px] text-[#4e5968] leading-[1.8] whitespace-pre-wrap">
+        {store.detailed_content || store.detail_content}
+      </p>
+    </div>
+  )}
 
         {/* 리뷰 섹션 */}
         <div className="pt-8 border-t border-gray-100">
