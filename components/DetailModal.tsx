@@ -394,17 +394,17 @@ const handleAddReview = async () => {
           </div>
         )}
 
-{/* 리뷰 섹션 */}
-        <div className="mt-10 pt-8 border-t border-gray-100">
+        {/* 리뷰 섹션 */}
+        <div className="pt-8 border-t border-gray-100">
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-bold text-[#191f28]">방문자 후기</h3>
-              <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 rounded-lg text-orange-500 text-sm font-bold">
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 rounded-lg text-orange-500 text-[14px] font-bold">
                 <span>★</span><span>{averageRating}</span>
               </div>
-              <span className="text-gray-400 text-sm">({reviews.length})</span>
+              <span className="text-gray-400 text-[14px]">({reviews.length})</span>
             </div>
-            <button onClick={() => setIsWriting(true)} className="text-[#3182f6] text-sm font-bold px-3 py-1.5 bg-blue-50 rounded-full">
+            <button onClick={() => setIsWriting(true)} className="text-[#3182f6] text-[13px] font-bold px-3 py-1.5 bg-blue-50 rounded-full">
               기록하기
             </button>
           </div>
