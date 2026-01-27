@@ -234,7 +234,7 @@ useEffect(() => {
 
     const content = document.createElement('div');
     content.style.cssText = 'margin-bottom: 55px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));';
-    const validImageUrl = (store.image_url && store.image_url !== "-") ? store.image_url : "";
+   const validImageUrl = store.image_url && store.image_url.length > 1 ? store.image_url : null;
     
     content.innerHTML = `
       <div style="background: white; padding: 12px; border-radius: 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; min-width: 200px; border: 1px solid #f2f4f6;">
