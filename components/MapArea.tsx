@@ -13,6 +13,70 @@ interface MapAreaProps {
   onDetailOpen: (store: PopupStore) => void;
 }
 
+interface MapAreaProps {
+  stores: PopupStore[];
+  onMarkerClick: (id: string) => void;
+  selectedStoreId: string | null;
+  onMapClick: () => void;
+  mapCenter?: { lat: number; lng: number };
+  userLocation: { lat: number; lng: number } | null;
+  onMapIdle?: (bounds: any, center: { lat: number; lng: number }) => void;
+  onDetailOpen: (store: PopupStore) => void;
+  // setUserLocation이 상위에서 내려온다고 가정 (없으면 내부 state로 관리 가능)
+  setUserLocation: (loc: { lat: number; lng: number }) => void; 
+}
+
+const MapArea: React.FC<MapAreaProps> = ({
+  stores,
+  onMarkerClick,
+  selectedStoreId,
+  onMapClick,
+  mapCenter,
+  userLocation,
+  onMapIdle,
+  onDetailOpen,
+  setUserLocation
+}) => {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const overlayRef = useRef<any>(null);
+  const userMarkerRef = useRef<any>(null);
+
+  // 1. 앱 시작 시 내 위치로 지도 초기 설정
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const coords = { lat, lng };
+          
+          setUserLocation(coords); // 상위 상태 업데이트
+
+          if (mapRef.current) {
+            const { kakao } = window as any;
+            const moveLatLng = new kakao.maps.LatLng(lat, lng);
+            mapRef.current.setCenter(moveLatLng);
+          }
+        },
+        (error) => {
+          console.error("위치 정보를 가져오는데 실패했습니다.", error);
+        }
+      );
+    }
+  }, []);
+
+  // 2. 내 위치로 이동하는 함수 (버튼 클릭용)
+  const handleMoveToUserLocation = () => {
+    if (userLocation && mapRef.current) {
+      const { kakao } = window as any;
+      const moveLatLng = new kakao.maps.LatLng(userLocation.lat, userLocation.lng);
+      mapRef.current.panTo(moveLatLng); // 부드럽게 이동
+    } else {
+      alert("위치 정보를 불러오는 중입니다.");
+    }
+  };
+
 // --- 토스 스타일의 SVG 핀 데이터 ---
 const PIN_SVG = {
   // 토스 블루 포인트 핀
@@ -279,4 +343,26 @@ useEffect(() => {
   );
 };
 
+  return (
+    <div className="relative w-full h-full">
+      {/* 지도 컨테이너 */}
+      <div ref={mapContainerRef} className="w-full h-full" />
+
+      {/* 내 위치 바로가기 버튼 */}
+      <button
+        onClick={handleMoveToUserLocation}
+        className="absolute bottom-24 right-5 z-40 p-3 bg-white rounded-full shadow-xl border border-gray-100 active:scale-90 transition-all"
+        style={{ touchAction: 'none' }}
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 8C9.79086 8 8 9.79086 8 12C8 14.2091 9.79086 16 12 16C14.2091 16 16 14.2091 16 12C16 9.79086 14.2091 8 12 8Z" fill="#3182F6"/>
+          <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.47715 2 2 6.47715 2 12C2 17.5239 6.47715 22 12 22C17.5228 22 22 17.5239 22 12C22 6.47715 17.5228 2 12 2ZM4 12C4 7.58172 7.58172 4 12 4C16.4183 4 20 7.58172 20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12Z" fill="#3182F6"/>
+        </svg>
+      </button>
+
+      {/* (옵션) 제보하기 모달 등 기존 컴포넌트 */}
+    </div>
+  );
+};
+  
 export default MapArea;
