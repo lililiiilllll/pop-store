@@ -97,12 +97,12 @@ const CorrectionModal: React.FC<{
 };
 
 // --- 메인 DetailModal 컴포넌트 ---
-const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess, currentUser, isAdmin = false }) => {
-  store,
-  onClose,
-  onShowSuccess,
-  currentUser,
-  isAdmin = false
+const DetailModal: React.FC<DetailModalProps> = ({ 
+  store, 
+  onClose, 
+  onShowSuccess, 
+  currentUser, 
+  isAdmin = false 
 }) => {
   const [isMapSelectOpen, setIsMapSelectOpen] = useState(false);
   const [isCorrectionOpen, setIsCorrectionOpen] = useState(false); 
