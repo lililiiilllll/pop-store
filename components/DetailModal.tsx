@@ -24,27 +24,6 @@ interface DetailModalProps {
   isAdmin?: boolean;
 }
 
-// 리뷰 별점 평균 계산로
-const [averageRating, setAverageRating] = useState(0);
-const [reviewCount, setReviewCount] = useState(0);
-
-useEffect(() => {
-  const fetchReviewStats = async () => {
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('rating')
-      .eq('popup_id', popupId);
-
-    if (!error && data.length > 0) {
-      const total = data.reduce((acc, curr) => acc + curr.rating, 0);
-      setAverageRating(Number((total / data.length).toFixed(1))); // 소수점 첫째자리까지
-      setReviewCount(data.length);
-    }
-  };
-  fetchReviewStats();
-}, [popupId]);
-
-
 // 상세페이지 내 찜 개수 조회 로직
 const [likeCount, setLikeCount] = useState(0);
 
@@ -152,18 +131,20 @@ const DetailModal: React.FC<DetailModalProps> = ({
   const [editContent, setEditContent] = useState('');
   const [editRating, setEditRating] = useState(5);
 
+// --- 새로 추가한 로직 시작 ---
   const [averageRating, setAverageRating] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
   const [likeCount, setLikeCount] = useState(0);
+  const [isLiked, setIsLiked] = useState(false); // 내가 찜했는지 여부
 
-  // 별점 평균 및 리뷰 개수 가져오기
+  // 별점 및 리뷰 통계 가져오기
   useEffect(() => {
     const fetchReviewStats = async () => {
       if (!store?.id) return;
       const { data, error } = await supabase
         .from('reviews')
         .select('rating')
-        .eq('popup_id', store.id); // popupId 대신 store.id 사용
+        .eq('popup_id', store.id);
 
       if (!error && data && data.length > 0) {
         const total = data.reduce((acc, curr) => acc + curr.rating, 0);
@@ -176,6 +157,51 @@ const DetailModal: React.FC<DetailModalProps> = ({
     };
     fetchReviewStats();
   }, [store?.id]);
+
+  // 찜 개수 및 나의 찜 상태 확인
+  useEffect(() => {
+    const fetchLikeData = async () => {
+      if (!store?.id) return;
+
+      // 전체 찜 개수 조회
+      const { count } = await supabase
+        .from('favorites')
+        .select('*', { count: 'exact', head: true })
+        .eq('popup_id', store.id);
+      
+      setLikeCount(count || 0);
+
+      // 내가 찜했는지 확인 (로그인 시)
+      if (currentUser?.id) {
+        const { data } = await supabase
+          .from('favorites')
+          .select('*')
+          .eq('popup_id', store.id)
+          .eq('user_id', currentUser.id)
+          .single();
+        setIsLiked(!!data);
+      }
+    };
+    fetchLikeData();
+  }, [store?.id, currentUser?.id]);
+
+  // 찜 토글 함수
+  const handleLikeToggle = async () => {
+    if (!currentUser) {
+      alert("로그인이 필요한 기능입니다.");
+      return;
+    }
+
+    if (isLiked) {
+      await supabase.from('favorites').delete().eq('popup_id', store.id).eq('user_id', currentUser.id);
+      setIsLiked(false);
+      setLikeCount(prev => prev - 1);
+    } else {
+      await supabase.from('favorites').insert({ popup_id: store.id, user_id: currentUser.id });
+      setIsLiked(true);
+      setLikeCount(prev => prev + 1);
+    }
+  };
 
   // 찜 개수 조회 로직
   useEffect(() => {
