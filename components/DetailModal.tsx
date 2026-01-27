@@ -294,6 +294,12 @@ const handleAddReview = async () => {
           setMyReactions({ ...myReactions, [reviewId]: type });
         }
         return { ...r, likes, dislikes };
+        const column = type === 'like' ? 'likes' : 'dislikes';
+          await supabase.rpc('increment_review_reaction', { 
+          row_id: reviewId, 
+          col_name: column 
+            });
+          };
       }
       return r;
     }));
@@ -385,14 +391,14 @@ const handleAddReview = async () => {
           </div>
         </div>
 
-        {store.detailed_content && (
-          <div className="mb-10">
-            <h3 className="text-[17px] font-bold text-[#191f28] mb-3">상세 정보</h3>
-            <p className="text-[14px] text-[#4e5968] leading-[1.6] whitespace-pre-wrap">
-              {store.detailed_content}
-            </p>
-          </div>
-        )}
+          {(store.detailed_content || store.detail_content) && (
+            <div className="mb-10">
+              <h3 className="text-[17px] font-bold text-[#191f28] mb-3">상세 정보</h3>
+              <p className="text-[14px] text-[#4e5968] leading-[1.6] whitespace-pre-wrap">
+                {store.detailed_content || store.detail_content}
+              </p>
+            </div>
+          )}
 
         {/* 리뷰 섹션 */}
         <div className="pt-8 border-t border-gray-100">
@@ -479,7 +485,7 @@ const handleAddReview = async () => {
                   {(currentUser?.id === review.user_id || isAdmin) && (
                     <div className="flex gap-3 mt-2">
                       <button onClick={() => { setEditingId(review.id); setEditContent(review.content); setEditRating(review.rating); }} className="text-xs text-gray-400">수정</button>
-                      <button onClick={() => handleDeleteReview(review.id)} className="text-xs text-red-300">삭제</button>
+                      <button onClick={() => handleDeleteReview(review)} className="text-xs text-red-300">삭제</button>
                     </div>
                   )}
                 </div>
