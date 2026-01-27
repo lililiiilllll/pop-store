@@ -24,21 +24,6 @@ interface DetailModalProps {
   isAdmin?: boolean;
 }
 
-// 상세페이지 내 찜 개수 조회 로직
-const [likeCount, setLikeCount] = useState(0);
-
-useEffect(() => {
-  const fetchLikeCount = async () => {
-    const { count, error } = await supabase
-      .from('favorites')
-      .select('*', { count: 'exact', head: true }) // 데이터를 가져오지 않고 개수만 셈
-      .eq('popup_id', popupId);
-
-    if (!error) setLikeCount(count || 0);
-  };
-  fetchLikeCount();
-}, [popupId]);
-
 // --- [신규] 수정 요청 모달 컴포넌트 ---
 const CorrectionModal: React.FC<{
   popupId: number;
