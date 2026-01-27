@@ -344,7 +344,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
           )}
 
           {/* TAB 3: 수정 제보 (탭 구분 및 적용 기능 추가) */}
-          {/* TAB 3: 수정 제보 (탭 구분 및 적용 기능 추가) */}
 {activeTab === 'edit_request' && (
   <div className="space-y-6">
     <div className="flex justify-between items-center mb-2">
@@ -389,7 +388,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                     }} 
                     className="px-4 py-2 bg-[#3182f6] text-white rounded-xl text-[12px] font-bold shadow-sm active:scale-95 transition-all"
                   >
-                    상세 검토
+                    검토
                   </button>
                 )}
                 <button onClick={() => { if(confirm('제보를 삭제하시겠습니까?')) supabase.from('correction_requests').delete().eq('id', req.id).then(fetchCorrectionRequests) }} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[12px] font-bold hover:bg-red-100 transition-colors">삭제</button>
