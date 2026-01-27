@@ -367,11 +367,12 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
       </div>
 
 {/* 2. 컨텐츠 영역 */}
-<div className="flex-1 overflow-y-auto p-6 pt-2 pb-32 text-left custom-scrollbar">
+<div className="flex-1 overflow-y-auto p-6 pt-5 pb-32 text-left custom-scrollbar">
   <div className="mb-6">
     <h2 className="text-[24px] font-extrabold text-[#191f28] mb-3">{store.title}</h2>
     
     <div className="flex flex-wrap gap-2 mb-4">
+      {/* 기본 정보 배지들 */}
       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-full text-[#3182f6] text-[12px] font-bold">
         🚇 {getAutoWalkTime()}
       </div>
@@ -379,8 +380,21 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
         {store.is_free ? '🎁 무료입장' : '유료입장'}
       </div>
       <div className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-full text-[12px] font-bold">
-        {store.is_reservation_required ? '📅 예약필수' : '✅ 상시입장'}
+        {store.requires_reservation ? '📅 예약필수' : '✅ 현장입장'}
       </div>
+
+      {/* ✅ 추가: 공식 홈페이지 이동 버튼 (link_url 셀 연동) */}
+      {store.link_url && (
+        <button 
+          onClick={() => window.open(store.link_url, '_blank')}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-full text-[12px] font-bold hover:bg-gray-700 transition-all active:scale-95 shadow-sm"
+        >
+          <span>공식 홈페이지</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
+          </svg>
+        </button>
+      )}
     </div>
 
     {/* ✅ 간략 설명 (description) */}
