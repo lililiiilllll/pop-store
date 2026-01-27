@@ -152,6 +152,45 @@ const DetailModal: React.FC<DetailModalProps> = ({
   const [editContent, setEditContent] = useState('');
   const [editRating, setEditRating] = useState(5);
 
+  const [averageRating, setAverageRating] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [likeCount, setLikeCount] = useState(0);
+
+  // 별점 평균 및 리뷰 개수 가져오기
+  useEffect(() => {
+    const fetchReviewStats = async () => {
+      if (!store?.id) return;
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('rating')
+        .eq('popup_id', store.id); // popupId 대신 store.id 사용
+
+      if (!error && data && data.length > 0) {
+        const total = data.reduce((acc, curr) => acc + curr.rating, 0);
+        setAverageRating(Number((total / data.length).toFixed(1)));
+        setReviewCount(data.length);
+      } else {
+        setAverageRating(0);
+        setReviewCount(0);
+      }
+    };
+    fetchReviewStats();
+  }, [store?.id]);
+
+  // 찜 개수 조회 로직
+  useEffect(() => {
+    const fetchLikeCount = async () => {
+      if (!store?.id) return;
+      const { count, error } = await supabase
+        .from('favorites')
+        .select('*', { count: 'exact', head: true })
+        .eq('popup_id', store.id); // popupId 대신 store.id 사용
+
+      if (!error) setLikeCount(count || 0);
+    };
+    fetchLikeCount();
+  }, [store?.id]);
+  
   const fetchReviews = useCallback(async () => {
     if (!store?.id) return;
     setIsLoading(true);
@@ -287,7 +326,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
     setIsMapSelectOpen(false);
   };
 
-  return (
+ return (
     <div onClick={(e) => e.stopPropagation()} className="relative flex flex-col w-full h-[90vh] lg:h-auto lg:max-h-[85vh] bg-white overflow-hidden rounded-t-[32px] lg:rounded-2xl shadow-2xl">
       
       {/* 1. 이미지 영역 */}
@@ -298,18 +337,24 @@ const DetailModal: React.FC<DetailModalProps> = ({
         </button>
       </div>
 
-      <div className="flex items-center gap-3 mt-2 text-sm font-medium">
-  <div className="flex items-center gap-1 text-orange-500">
-    <span>★</span>
-    <span className="text-gray-900">{averageRating}</span>
-    <span className="text-gray-400">({reviewCount})</span>
-  </div>
-  <div className="w-[1px] h-3 bg-gray-200" /> {/* 구분선 */}
-  <div className="flex items-center gap-1 text-red-500">
-    <span>♥</span>
-    <span className="text-gray-900">{likeCount}명이 찜했어요</span>
-  </div>
-</div>
+      {/* 별점 및 찜 표시 UI 위치 수정 (이미지 아래 컨텐츠 영역 시작점) */}
+      <div className="px-6 pt-4 flex items-center gap-3 text-sm font-medium">
+        <div className="flex items-center gap-1 text-orange-500">
+          <span className="text-lg">★</span>
+          <span className="text-[#191f28] text-base">{averageRating}</span>
+          <span className="text-gray-400">({reviewCount})</span>
+        </div>
+        <div className="w-[1px] h-3 bg-gray-200" /> 
+        <div className="flex items-center gap-1.5 text-red-500">
+          <span className="text-base">♥</span>
+          <span className="text-[#191f28]">{likeCount}명이 찜했어요</span>
+        </div>
+      </div>
+
+      {/* 2. 컨텐츠 영역 (여기서부터는 기존 코드와 동일) */}
+      <div className="flex-1 overflow-y-auto p-6 pt-2 pb-32 text-left custom-scrollbar">
+        {/* ... 제목, 설명, 리뷰 리스트 등 기존 JSX ... */}
+      </div>
 
       {/* 2. 컨텐츠 영역 */}
       <div className="flex-1 overflow-y-auto p-6 pb-32 text-left custom-scrollbar">
