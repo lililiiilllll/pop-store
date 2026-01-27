@@ -143,16 +143,22 @@ const DetailModal: React.FC<DetailModalProps> = ({
     fetchStatsAndLikes();
   }, [store?.id, currentUser?.id]);
 
-  // 찜 토글 핸들러
+// 찜 토글 핸들러 (비회원 대응)
   const handleLikeToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!currentUser) return alert("로그인이 필요합니다.");
+    
+    // 🔔 비회원 체크
+    if (!currentUser) {
+      alert("로그인이 필요한 기능입니다. 로그인 후 찜해보세요! 💖");
+      return;
+    }
+
     if (isLiked) {
-      await supabase.from('favorites').delete().eq('popup_id', store.id).eq('user_id', currentUser.id);
-      setIsLiked(false); setLikeCount(prev => prev - 1);
+      const { error } = await supabase.from('favorites').delete().eq('popup_id', store.id).eq('user_id', currentUser.id);
+      if (!error) { setIsLiked(false); setLikeCount(prev => Math.max(0, prev - 1)); }
     } else {
-      await supabase.from('favorites').insert({ popup_id: store.id, user_id: currentUser.id });
-      setIsLiked(true); setLikeCount(prev => prev + 1);
+      const { error } = await supabase.from('favorites').insert({ popup_id: store.id, user_id: currentUser.id });
+      if (!error) { setIsLiked(true); setLikeCount(prev => prev + 1); }
     }
   };
 
@@ -210,8 +216,12 @@ const DetailModal: React.FC<DetailModalProps> = ({
     setEditRating(5);
   };
 
-  const handleAddReview = async () => {
-    if (!currentUser) return alert("로그인이 필요한 서비스입니다.");
+const handleAddReview = async () => {
+    // 🔔 비회원 체크
+    if (!currentUser) {
+      alert("로그인 후 소중한 후기를 남겨주세요! 😊");
+      return;
+    }
     if (!editContent.trim()) return alert("내용을 입력해주세요.");
     try {
       const { data, error } = await supabase
