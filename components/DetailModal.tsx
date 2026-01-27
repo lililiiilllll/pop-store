@@ -116,8 +116,8 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
   const [editContent, setEditContent] = useState('');
   const [editRating, setEditRating] = useState(5);
 
-// --- 새로 추가되는 상태 ---
-const [averageRating, setAverageRating] = useState(0);
+  // --- 새로 추가되는 상태 ---
+  const [averageRating, setAverageRating] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
   const [likeCount, setLikeCount] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
