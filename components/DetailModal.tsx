@@ -341,12 +341,21 @@ const handleLikeToggle = async (e: React.MouseEvent) => {
     <div onClick={(e) => e.stopPropagation()} className="relative flex flex-col w-full h-[90vh] lg:h-auto lg:max-h-[85vh] bg-white overflow-hidden rounded-t-[32px] lg:rounded-2xl shadow-2xl">
       
       {/* 1. 이미지 영역 */}
-      <div className="relative h-60 lg:h-72 w-full flex-shrink-0 bg-gray-100">
-        <img src={store.image_url || store.imageUrl} alt={store.title} className="w-full h-full object-cover" />
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black/30 backdrop-blur-md rounded-full text-white z-10">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-      </div>
+        <div className="relative h-64 lg:h-80 w-full flex-shrink-0 bg-gray-100">
+          <img src={store.image_url} alt={store.title} className="w-full h-full object-cover" />
+              {/* ✅ 이미지 왼쪽 상단에 찜 버튼 배치 */}
+            <button 
+              onClick={handleLikeToggle}
+              className="absolute top-5 left-5 p-3 bg-white/90 backdrop-blur-md rounded-full shadow-lg z-20"
+              >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill={isLiked ? "#FF4B4B" : "none"} stroke={isLiked ? "#FF4B4B" : "#191f28"} strokeWidth="2.5">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+              </svg>
+            </button>
+  
+            {/* 닫기 버튼 */}
+            <button onClick={onClose} className="absolute top-5 right-5 ...">...</button>
+            </div>
 
       {/* 별점 및 찜 표시 UI 위치 수정 (이미지 아래 컨텐츠 영역 시작점) */}
       <div className="px-6 pt-4 flex items-center gap-3 text-sm font-medium">
@@ -360,11 +369,6 @@ const handleLikeToggle = async (e: React.MouseEvent) => {
           <span className="text-base">♥</span>
           <span className="text-[#191f28]">{likeCount}명이 찜했어요</span>
         </div>
-      </div>
-
-      {/* 2. 컨텐츠 영역 (여기서부터는 기존 코드와 동일) */}
-      <div className="flex-1 overflow-y-auto p-6 pt-2 pb-32 text-left custom-scrollbar">
-        {/* ... 제목, 설명, 리뷰 리스트 등 기존 JSX ... */}
       </div>
 
       {/* 2. 컨텐츠 영역 */}
@@ -413,9 +417,17 @@ const handleLikeToggle = async (e: React.MouseEvent) => {
         )}
 
         {/* 리뷰 섹션 */}
-        <div className="pt-8 border-t-[8px] border-gray-50 -mx-6 px-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-[18px] font-bold text-[#191f28]">방문자 후기 <span className="text-[#3182f6] ml-1">{reviews.length}</span></h3>
+          <div className="pt-8 border-t border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <h3 className="text-[18px] font-bold text-[#191f28]">방문자 후기</h3>
+                {/* ✅ 제목 옆으로 이동한 별점 통계 */}
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 rounded-lg text-orange-500 text-[14px] font-bold">
+                  <span>★</span>
+                  <span>{averageRating}</span>
+                </div>
+                <span className="text-gray-400 text-[14px]">({reviews.length})</span>
+              </div>
             {currentUser && !isWriting && editingId === null && (
               <button 
                 onClick={() => setIsWriting(true)}
