@@ -117,29 +117,24 @@ const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess
   const [editRating, setEditRating] = useState(5);
 
 // --- 새로 추가되는 상태 ---
-  const [averageRating, setAverageRating] = useState(0); // 평균 별점
-  const [reviewCount, setReviewCount] = useState(0);   // 리뷰 개수
-  const [likeCount, setLikeCount] = useState(0);      // 총 찜 개수
-  const [isLiked, setIsLiked] = useState(false);       // 내가 찜했는지 여부
+const [averageRating, setAverageRating] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [likeCount, setLikeCount] = useState(0);
+  const [isLiked, setIsLiked] = useState(false);
 
-  // 별점 및 리뷰 통계 가져오기
-useEffect(() => {
+  useEffect(() => {
     const fetchStatsAndLikes = async () => {
       if (!store?.id) return;
-      
-      // 1. 별점 평균 및 리뷰 수
+      // 별점 데이터 가져오기
       const { data: revData } = await supabase.from('reviews').select('rating').eq('popup_id', store.id);
       if (revData && revData.length > 0) {
         const total = revData.reduce((acc, curr) => acc + curr.rating, 0);
         setAverageRating(Number((total / revData.length).toFixed(1)));
         setReviewCount(revData.length);
       }
-
-      // 2. 찜 전체 개수
+      // 찜 데이터 가져오기
       const { count } = await supabase.from('favorites').select('*', { count: 'exact', head: true }).eq('popup_id', store.id);
       setLikeCount(count || 0);
-
-      // 3. 내 찜 상태
       if (currentUser?.id) {
         const { data } = await supabase.from('favorites').select('*').eq('popup_id', store.id).eq('user_id', currentUser.id).single();
         setIsLiked(!!data);
@@ -148,43 +143,16 @@ useEffect(() => {
     fetchStatsAndLikes();
   }, [store?.id, currentUser?.id]);
 
-  // 찜 개수 및 나의 찜 상태 확인
-  useEffect(() => {
-    const fetchLikeData = async () => {
-      if (!store?.id) return;
-
-      // 전체 찜 개수 조회
-      const { count } = await supabase
-        .from('favorites')
-        .select('*', { count: 'exact', head: true })
-        .eq('popup_id', store.id);
-      
-      setLikeCount(count || 0);
-
-      // 내가 찜했는지 확인 (로그인 시)
-      if (currentUser?.id) {
-        const { data } = await supabase
-          .from('favorites')
-          .select('*')
-          .eq('popup_id', store.id)
-          .eq('user_id', currentUser.id)
-          .single();
-        setIsLiked(!!data);
-      }
-    };
-    fetchLikeData();
-  }, [store?.id, currentUser?.id]);
-
-  // 찜 토글 함수
-const handleLikeToggle = async (e: React.MouseEvent) => {
+  // 찜 토글 핸들러
+  const handleLikeToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!currentUser) return alert("로그인이 필요한 기능입니다.");
+    if (!currentUser) return alert("로그인이 필요합니다.");
     if (isLiked) {
-      const { error } = await supabase.from('favorites').delete().eq('popup_id', store.id).eq('user_id', currentUser.id);
-      if (!error) { setIsLiked(false); setLikeCount(prev => prev - 1); }
+      await supabase.from('favorites').delete().eq('popup_id', store.id).eq('user_id', currentUser.id);
+      setIsLiked(false); setLikeCount(prev => prev - 1);
     } else {
-      const { error } = await supabase.from('favorites').insert({ popup_id: store.id, user_id: currentUser.id });
-      if (!error) { setIsLiked(true); setLikeCount(prev => prev + 1); }
+      await supabase.from('favorites').insert({ popup_id: store.id, user_id: currentUser.id });
+      setIsLiked(true); setLikeCount(prev => prev + 1);
     }
   };
 
@@ -341,17 +309,18 @@ const handleLikeToggle = async (e: React.MouseEvent) => {
     <div onClick={(e) => e.stopPropagation()} className="relative flex flex-col w-full h-[90vh] lg:h-auto lg:max-h-[85vh] bg-white overflow-hidden rounded-t-[32px] lg:rounded-2xl shadow-2xl">
       
       {/* 1. 이미지 영역 */}
-        <div className="relative h-64 lg:h-80 w-full flex-shrink-0 bg-gray-100">
-          <img src={store.image_url} alt={store.title} className="w-full h-full object-cover" />
-              {/* ✅ 이미지 왼쪽 상단에 찜 버튼 배치 */}
-            <button 
-              onClick={handleLikeToggle}
-              className="absolute top-5 left-5 p-3 bg-white/90 backdrop-blur-md rounded-full shadow-lg z-20"
-              >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill={isLiked ? "#FF4B4B" : "none"} stroke={isLiked ? "#FF4B4B" : "#191f28"} strokeWidth="2.5">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-              </svg>
-            </button>
+<div className="relative h-64 lg:h-80 w-full flex-shrink-0 bg-gray-100">
+  <img src={store.image_url} alt={store.title} className="w-full h-full object-cover" />
+  
+  {/* ✅ 이미지 위에 찜 버튼 추가 */}
+  <button 
+    onClick={handleLikeToggle}
+    className="absolute top-5 left-5 p-3 bg-white/90 backdrop-blur-md rounded-full shadow-lg z-20 transition-transform active:scale-90"
+  >
+    <svg width="22" height="22" viewBox="0 0 24 24" fill={isLiked ? "#FF4B4B" : "none"} stroke={isLiked ? "#FF4B4B" : "#191f28"} strokeWidth="2.5">
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+    </svg>
+  </button>
   
             {/* 닫기 버튼 */}
             <button onClick={onClose} className="absolute top-5 right-5 ...">...</button>
@@ -419,15 +388,16 @@ const handleLikeToggle = async (e: React.MouseEvent) => {
         {/* 리뷰 섹션 */}
           <div className="pt-8 border-t border-gray-100">
             <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-2">
-                <h3 className="text-[18px] font-bold text-[#191f28]">방문자 후기</h3>
-                {/* ✅ 제목 옆으로 이동한 별점 통계 */}
-                <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 rounded-lg text-orange-500 text-[14px] font-bold">
-                  <span>★</span>
-                  <span>{averageRating}</span>
-                </div>
-                <span className="text-gray-400 text-[14px]">({reviews.length})</span>
-              </div>
+             <div className="flex items-center gap-2 mb-6">
+  <h3 className="text-[18px] font-bold text-[#191f28]">방문자 후기</h3>
+  
+  {/* ✅ 별점을 후기 제목 옆으로 이동 */}
+  <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 rounded-lg text-orange-500 text-[14px] font-bold">
+    <span>★</span>
+    <span>{averageRating}</span>
+  </div>
+  <span className="text-gray-400 text-[14px]">({reviews.length})</span>
+</div>
             {currentUser && !isWriting && editingId === null && (
               <button 
                 onClick={() => setIsWriting(true)}
