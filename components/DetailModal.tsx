@@ -408,15 +408,31 @@ const handleAddReview = async () => {
   </div>
   <span className="text-gray-400 text-[14px]">({reviews.length})</span>
 </div>
-            {currentUser && !isWriting && editingId === null && (
-              <button 
-                onClick={() => setIsWriting(true)}
-                className="text-[#3182f6] text-[14px] font-bold px-4 py-2 bg-blue-50 rounded-full active:scale-95 transition-all"
-              >
-                후기 작성하기
-              </button>
-            )}
+          {/* 비회원도 작성 버튼 보임 */}
+            <button onClick={() => setIsWriting(true)} className="text-[#3182f6] text-[13px] font-bold px-3 py-1.5 bg-blue-50 rounded-full transition-all">
+              기록하기
+            </button>
           </div>
+
+          {/* 작성 폼 (항상 노출하도록 조건문 수정) */}
+          {isWriting && (
+            <div className="mb-8 p-5 bg-gray-50 rounded-[24px]">
+              <div className="flex gap-1 mb-3">
+                {[1,2,3,4,5].map(s => (
+                  <button key={s} onClick={() => setNewRating(s)} className={`text-xl ${newRating >= s ? 'text-orange-500' : 'text-gray-300'}`}>★</button>
+                ))}
+              </div>
+              <textarea 
+                value={newReview} 
+                onChange={(e) => setNewReview(e.target.value)} 
+                placeholder={currentUser ? "방문 경험을 공유해주세요." : "로그인 후 후기를 남겨보세요!"}
+                className="w-full h-24 bg-transparent border-none focus:ring-0 text-[14px] resize-none"
+              />
+              <div className="flex justify-end mt-2">
+                <button onClick={handleAddReview} className="px-5 py-2 bg-[#3182f6] text-white rounded-xl text-[13px] font-bold">등록하기</button>
+              </div>
+            </div>
+          )}
 
           {isLoading ? (
             <div className="py-10 text-center text-gray-400 text-[14px]">후기를 불러오는 중...</div>
