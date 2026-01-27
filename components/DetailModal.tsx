@@ -513,7 +513,7 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
           </svg>
           길찾기 시작
         </button>
-      </div>
+
 
       {/* 모달 렌더링 영역 */}
       <AnimatePresence>
@@ -526,7 +526,7 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
             onSuccess={onShowSuccess}
           />
         )}
-
+      </div>
         {isMapSelectOpen && (
           <div className="fixed inset-0 z-[10001] flex items-center justify-center p-6">
             <motion.div 
