@@ -97,7 +97,7 @@ const CorrectionModal: React.FC<{
 };
 
 // --- 메인 DetailModal 컴포넌트 ---
-const DetailModal: React.FC<DetailModalProps> = ({
+const DetailModal: React.FC<DetailModalProps> = ({ store, onClose, onShowSuccess, currentUser, isAdmin = false }) => {
   store,
   onClose,
   onShowSuccess,
@@ -116,32 +116,37 @@ const DetailModal: React.FC<DetailModalProps> = ({
   const [editContent, setEditContent] = useState('');
   const [editRating, setEditRating] = useState(5);
 
-// --- 새로 추가한 로직 시작 ---
-  const [averageRating, setAverageRating] = useState(0);
-  const [reviewCount, setReviewCount] = useState(0);
-  const [likeCount, setLikeCount] = useState(0);
-  const [isLiked, setIsLiked] = useState(false); // 내가 찜했는지 여부
+// --- 새로 추가되는 상태 ---
+  const [averageRating, setAverageRating] = useState(0); // 평균 별점
+  const [reviewCount, setReviewCount] = useState(0);   // 리뷰 개수
+  const [likeCount, setLikeCount] = useState(0);      // 총 찜 개수
+  const [isLiked, setIsLiked] = useState(false);       // 내가 찜했는지 여부
 
   // 별점 및 리뷰 통계 가져오기
-  useEffect(() => {
-    const fetchReviewStats = async () => {
+useEffect(() => {
+    const fetchStatsAndLikes = async () => {
       if (!store?.id) return;
-      const { data, error } = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('popup_id', store.id);
+      
+      // 1. 별점 평균 및 리뷰 수
+      const { data: revData } = await supabase.from('reviews').select('rating').eq('popup_id', store.id);
+      if (revData && revData.length > 0) {
+        const total = revData.reduce((acc, curr) => acc + curr.rating, 0);
+        setAverageRating(Number((total / revData.length).toFixed(1)));
+        setReviewCount(revData.length);
+      }
 
-      if (!error && data && data.length > 0) {
-        const total = data.reduce((acc, curr) => acc + curr.rating, 0);
-        setAverageRating(Number((total / data.length).toFixed(1)));
-        setReviewCount(data.length);
-      } else {
-        setAverageRating(0);
-        setReviewCount(0);
+      // 2. 찜 전체 개수
+      const { count } = await supabase.from('favorites').select('*', { count: 'exact', head: true }).eq('popup_id', store.id);
+      setLikeCount(count || 0);
+
+      // 3. 내 찜 상태
+      if (currentUser?.id) {
+        const { data } = await supabase.from('favorites').select('*').eq('popup_id', store.id).eq('user_id', currentUser.id).single();
+        setIsLiked(!!data);
       }
     };
-    fetchReviewStats();
-  }, [store?.id]);
+    fetchStatsAndLikes();
+  }, [store?.id, currentUser?.id]);
 
   // 찜 개수 및 나의 찜 상태 확인
   useEffect(() => {
@@ -171,20 +176,15 @@ const DetailModal: React.FC<DetailModalProps> = ({
   }, [store?.id, currentUser?.id]);
 
   // 찜 토글 함수
-  const handleLikeToggle = async () => {
-    if (!currentUser) {
-      alert("로그인이 필요한 기능입니다.");
-      return;
-    }
-
+const handleLikeToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentUser) return alert("로그인이 필요한 기능입니다.");
     if (isLiked) {
-      await supabase.from('favorites').delete().eq('popup_id', store.id).eq('user_id', currentUser.id);
-      setIsLiked(false);
-      setLikeCount(prev => prev - 1);
+      const { error } = await supabase.from('favorites').delete().eq('popup_id', store.id).eq('user_id', currentUser.id);
+      if (!error) { setIsLiked(false); setLikeCount(prev => prev - 1); }
     } else {
-      await supabase.from('favorites').insert({ popup_id: store.id, user_id: currentUser.id });
-      setIsLiked(true);
-      setLikeCount(prev => prev + 1);
+      const { error } = await supabase.from('favorites').insert({ popup_id: store.id, user_id: currentUser.id });
+      if (!error) { setIsLiked(true); setLikeCount(prev => prev + 1); }
     }
   };
 
