@@ -278,9 +278,12 @@ const handleAddReview = async () => {
     }
   };
 
-  const handleReaction = (reviewId: number, type: 'like' | 'dislike') => {
+const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
     if (!currentUser) return alert("로그인 후 이용 가능합니다.");
+    
     const prevReaction = myReactions[reviewId];
+    
+    // UI 즉각 반영 (Optimistic Update)
     setReviews(reviews.map(r => {
       if (r.id === reviewId) {
         let { likes, dislikes } = r;
@@ -294,16 +297,9 @@ const handleAddReview = async () => {
           setMyReactions({ ...myReactions, [reviewId]: type });
         }
         return { ...r, likes, dislikes };
-        const column = type === 'like' ? 'likes' : 'dislikes';
-          await supabase.rpc('increment_review_reaction', { 
-          row_id: reviewId, 
-          col_name: column 
-            });
-          };
       }
       return r;
     }));
-  };
 
   const openMap = (type: 'naver' | 'kakao') => {
     const { lat, lng, title } = store;
@@ -455,31 +451,32 @@ const handleAddReview = async () => {
                   <div className="flex text-orange-400 text-xs mb-2">{'★'.repeat(review.rating)}</div>
 
                   {/* 블라인드 판별 로직 */}
-                  {review.is_blinded && !isAdmin ? (
-                    <p className="text-sm text-gray-300 italic py-2">관리자에 의해 블라인드 처리된 후기입니다.</p>
-                  ) : (
-                    <>
-                      {review.is_blinded && isAdmin && (
-                        <div className="mb-2 px-2 py-1 bg-red-50 text-red-500 text-[10px] font-bold rounded inline-block">블라인드 상태 (관리자 노출)</div>
-                      )}
-                      <p className="text-sm text-gray-600 mb-3 leading-relaxed whitespace-pre-wrap">{review.content}</p>
-                    {/* ✅ 좋아요/싫어요 버튼 복구 */}
-                      <div className="flex gap-2 mb-3">
-                        <button 
-                          onClick={() => handleReaction(review.id, 'like')} 
-                          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-100 rounded-xl text-[12px] font-bold text-gray-500 bg-white hover:bg-blue-50 transition-all"
-                        >
-                          👍 {review.likes || 0}
-                        </button>
-                        <button 
-                          onClick={() => handleReaction(review.id, 'dislike')} 
-                          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-100 rounded-xl text-[12px] font-bold text-gray-500 bg-white hover:bg-red-50 transition-all"
-                        >
-                          👎 {review.dislikes || 0}
-                        </button>
-                      </div>
-                    </>
-                  )}
+{review.is_blinded && !isAdmin ? (
+  <p className="text-sm text-gray-300 italic py-2">관리자에 의해 블라인드 처리된 후기입니다.</p>
+) : (
+  <>
+    {review.is_blinded && isAdmin && (
+      <div className="mb-2 px-2 py-1 bg-red-50 text-red-500 text-[10px] font-bold rounded inline-block">관리자 확인: 블라인드 상태</div>
+    )}
+    <p className="text-[14px] text-[#4e5968] leading-relaxed mb-4 whitespace-pre-wrap">{review.content}</p>
+    
+    {/* ✅ 좋아요/싫어요 버튼 섹션 */}
+    <div className="flex gap-2 mb-4">
+      <button 
+        onClick={() => handleReaction(review.id, 'like')} 
+        className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-100 rounded-xl text-[12px] font-bold text-gray-500 bg-white hover:bg-blue-50 transition-all"
+      >
+        👍 {review.likes || 0}
+      </button>
+      <button 
+        onClick={() => handleReaction(review.id, 'dislike')} 
+        className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-100 rounded-xl text-[12px] font-bold text-gray-500 bg-white hover:bg-red-50 transition-all"
+      >
+        👎 {review.dislikes || 0}
+      </button>
+    </div>
+  </>
+)}
 
                   {/* 수정/삭제 버튼 (작성자/관리자 전용) */}
                   {(currentUser?.id === review.user_id || isAdmin) && (
