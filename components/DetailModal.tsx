@@ -337,9 +337,6 @@ const handleAddReview = async () => {
         </button>
       </div>
   
-            {/* 닫기 버튼 */}
-            <button onClick={onClose} className="absolute top-5 right-5 ...">...</button>
-            </div>
 
       {/* 별점 및 찜 표시 UI 위치 수정 (이미지 아래 컨텐츠 영역 시작점) */}
       <div className="px-6 pt-4 flex items-center gap-3 text-sm font-medium">
