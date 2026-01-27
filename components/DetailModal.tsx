@@ -318,19 +318,24 @@ const handleAddReview = async () => {
  return (
     <div onClick={(e) => e.stopPropagation()} className="relative flex flex-col w-full h-[90vh] lg:h-auto lg:max-h-[85vh] bg-white overflow-hidden rounded-t-[32px] lg:rounded-2xl shadow-2xl">
       
-      {/* 1. 이미지 영역 */}
-<div className="relative h-64 lg:h-80 w-full flex-shrink-0 bg-gray-100">
-  <img src={store.image_url} alt={store.title} className="w-full h-full object-cover" />
-  
-  {/* ✅ 이미지 위에 찜 버튼 추가 */}
-  <button 
-    onClick={handleLikeToggle}
-    className="absolute top-5 left-5 p-3 bg-white/90 backdrop-blur-md rounded-full shadow-lg z-20 transition-transform active:scale-90"
-  >
-    <svg width="22" height="22" viewBox="0 0 24 24" fill={isLiked ? "#FF4B4B" : "none"} stroke={isLiked ? "#FF4B4B" : "#191f28"} strokeWidth="2.5">
-      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-    </svg>
-  </button>
+{/* 1. 이미지 영역 */}
+      <div className="relative h-64 lg:h-80 w-full flex-shrink-0 bg-gray-100">
+        <img src={store.image_url} alt={store.title} className="w-full h-full object-cover" />
+        
+        {/* ✅ 이미지 위 찜 버튼 */}
+        <button 
+          onClick={handleLikeToggle}
+          className="absolute top-5 left-5 p-3 bg-white/90 backdrop-blur-md rounded-full shadow-lg z-20 transition-transform active:scale-90"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill={isLiked ? "#FF4B4B" : "none"} stroke={isLiked ? "#FF4B4B" : "#191f28"} strokeWidth="2.5">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+          </svg>
+        </button>
+        
+        <button onClick={onClose} className="absolute top-5 right-5 p-2 bg-black/20 backdrop-blur-md rounded-full text-white z-10">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
   
             {/* 닫기 버튼 */}
             <button onClick={onClose} className="absolute top-5 right-5 ...">...</button>
@@ -350,8 +355,8 @@ const handleAddReview = async () => {
         </div>
       </div>
 
-      {/* 2. 컨텐츠 영역 */}
-      <div className="flex-1 overflow-y-auto p-6 pb-32 text-left custom-scrollbar">
+{/* 2. 컨텐츠 영역 (pt-2로 상단 여백 축소) */}
+      <div className="flex-1 overflow-y-auto p-6 pt-2 pb-32 text-left custom-scrollbar">
         <div className="mb-6">
           <h2 className="text-[24px] font-extrabold text-[#191f28] mb-3">{store.title}</h2>
           <div className="flex flex-wrap gap-2 mb-4">
@@ -364,9 +369,6 @@ const handleAddReview = async () => {
             <div className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-full text-[12px] font-bold">
               {store.is_reservation_required ? '📅 예약필수' : '✅ 상시입장'}
             </div>
-            {store.link_url && (
-              <a href={store.link_url} target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-gray-900 text-white rounded-full text-[12px] font-bold transition-transform active:scale-95">🌐 공식 홈페이지</a>
-            )}
           </div>
           <p className="text-gray-600 text-[14px] leading-relaxed whitespace-pre-line mb-6">{store.description}</p>
         </div>
@@ -395,74 +397,48 @@ const handleAddReview = async () => {
           </div>
         )}
 
-        {/* 리뷰 섹션 */}
-          <div className="pt-8 border-t border-gray-100">
-            <div className="flex justify-between items-center mb-6">
-             <div className="flex items-center gap-2 mb-6">
-  <h3 className="text-[18px] font-bold text-[#191f28]">방문자 후기</h3>
-  
-  {/* ✅ 별점을 후기 제목 옆으로 이동 */}
-  <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 rounded-lg text-orange-500 text-[14px] font-bold">
-    <span>★</span>
-    <span>{averageRating}</span>
-  </div>
-  <span className="text-gray-400 text-[14px]">({reviews.length})</span>
-</div>
-          {/* 비회원도 작성 버튼 보임 */}
-            <button onClick={() => setIsWriting(true)} className="text-[#3182f6] text-[13px] font-bold px-3 py-1.5 bg-blue-50 rounded-full transition-all">
+{/* 리뷰 섹션 */}
+        <div className="pt-8 border-t border-gray-100">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-2">
+              <h3 className="text-[18px] font-bold text-[#191f28]">방문자 후기</h3>
+              {/* ✅ 별점을 후기 제목 옆으로 이동 */}
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 rounded-lg text-orange-500 text-[14px] font-bold">
+                <span>★</span><span>{averageRating}</span>
+              </div>
+              <span className="text-gray-400 text-[14px]">({reviews.length})</span>
+            </div>
+            <button onClick={() => setIsWriting(true)} className="text-[#3182f6] text-[13px] font-bold px-3 py-1.5 bg-blue-50 rounded-full">
               기록하기
             </button>
           </div>
-
-          {/* 작성 폼 (항상 노출하도록 조건문 수정) */}
-          {isWriting && (
-            <div className="mb-8 p-5 bg-gray-50 rounded-[24px]">
+          
+{/* ✅ 중복 제거된 단일 작성/수정 폼 */}
+          {(isWriting || editingId !== null) && (
+            <div className="mb-8 p-5 bg-gray-50 rounded-[24px] border border-blue-100">
               <div className="flex gap-1 mb-3">
-                {[1,2,3,4,5].map(s => (
+                {[1, 2, 3, 4, 5].map(s => (
                   <button key={s} onClick={() => setEditRating(s)} className={`text-xl ${editRating >= s ? 'text-orange-500' : 'text-gray-300'}`}>★</button>
                 ))}
-                    <textarea 
-                      value={editContent} 
-                      onChange={(e) => setEditContent(e.target.value)}
-                      placeholder={currentUser ? "방문 경험을 공유해주세요." : "로그인 후 후기를 남겨보세요!"}
-                      className="w-full h-24 bg-transparent border-none focus:ring-0 text-[14px] resize-none"
+              </div>
+              <textarea 
+                value={editContent} 
+                onChange={(e) => setEditContent(e.target.value)} 
+                placeholder={currentUser ? "방문 경험을 공유해주세요." : "로그인 후 후기를 남겨보세요!"}
+                className="w-full h-24 bg-transparent border-none focus:ring-0 text-[14px] resize-none p-0"
               />
-              <div className="flex justify-end mt-2">
-                <button onClick={handleAddReview} className="px-5 py-2 bg-[#3182f6] text-white rounded-xl text-[13px] font-bold">등록하기</button>
+              <div className="flex gap-2 mt-3">
+                <button onClick={resetReviewState} className="flex-1 py-3 bg-white text-gray-400 rounded-xl font-bold text-[13px]">취소</button>
+                <button 
+                  onClick={() => editingId !== null ? handleUpdateReview(editingId) : handleAddReview()}
+                  className="flex-[2] py-3 bg-[#3182f6] text-white rounded-xl font-bold text-[13px] shadow-lg"
+                >
+                  {editingId !== null ? "수정 완료" : "등록하기"}
+                </button>
               </div>
             </div>
           )}
-
-{isWriting && (
-  <div className="mb-8 p-5 bg-gray-50 rounded-[24px]">
-    <div className="flex gap-1 mb-3">
-      {[1, 2, 3, 4, 5].map(s => (
-        <button 
-          key={s} 
-          onClick={() => setEditRating(s)} 
-          className={`text-xl ${editRating >= s ? 'text-orange-500' : 'text-gray-300'}`}
-        >
-          ★
-        </button>
-      ))}
-    </div>
-    <textarea 
-      value={editContent} 
-      onChange={(e) => setEditContent(e.target.value)} 
-      placeholder={currentUser ? "방문 경험을 공유해주세요." : "로그인 후 후기를 남겨보세요!"}
-      className="w-full h-24 bg-transparent border-none focus:ring-0 text-[14px] resize-none p-0"
-    />
-    <div className="flex justify-end mt-2">
-      <button 
-        onClick={handleAddReview} 
-        className="px-5 py-2 bg-[#3182f6] text-white rounded-xl text-[13px] font-bold"
-      >
-        등록하기
-      </button>
-    </div>
-  </div>
-              )}
-
+          
               <div className="divide-y divide-gray-100">
                 {reviews.length === 0 ? (
                   <div className="py-10 text-center text-gray-400 text-[14px]">아직 작성된 후기가 없습니다.</div>
