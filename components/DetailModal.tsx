@@ -24,6 +24,42 @@ interface DetailModalProps {
   isAdmin?: boolean;
 }
 
+// 리뷰 별점 평균 계산로
+const [averageRating, setAverageRating] = useState(0);
+const [reviewCount, setReviewCount] = useState(0);
+
+useEffect(() => {
+  const fetchReviewStats = async () => {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('popup_id', popupId);
+
+    if (!error && data.length > 0) {
+      const total = data.reduce((acc, curr) => acc + curr.rating, 0);
+      setAverageRating(Number((total / data.length).toFixed(1))); // 소수점 첫째자리까지
+      setReviewCount(data.length);
+    }
+  };
+  fetchReviewStats();
+}, [popupId]);
+
+
+// 상세페이지 내 찜 개수 조회 로직
+const [likeCount, setLikeCount] = useState(0);
+
+useEffect(() => {
+  const fetchLikeCount = async () => {
+    const { count, error } = await supabase
+      .from('favorites')
+      .select('*', { count: 'exact', head: true }) // 데이터를 가져오지 않고 개수만 셈
+      .eq('popup_id', popupId);
+
+    if (!error) setLikeCount(count || 0);
+  };
+  fetchLikeCount();
+}, [popupId]);
+
 // --- [신규] 수정 요청 모달 컴포넌트 ---
 const CorrectionModal: React.FC<{
   popupId: number;
@@ -261,6 +297,19 @@ const DetailModal: React.FC<DetailModalProps> = ({
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
+
+      <div className="flex items-center gap-3 mt-2 text-sm font-medium">
+  <div className="flex items-center gap-1 text-orange-500">
+    <span>★</span>
+    <span className="text-gray-900">{averageRating}</span>
+    <span className="text-gray-400">({reviewCount})</span>
+  </div>
+  <div className="w-[1px] h-3 bg-gray-200" /> {/* 구분선 */}
+  <div className="flex items-center gap-1 text-red-500">
+    <span>♥</span>
+    <span className="text-gray-900">{likeCount}명이 찜했어요</span>
+  </div>
+</div>
 
       {/* 2. 컨텐츠 영역 */}
       <div className="flex-1 overflow-y-auto p-6 pb-32 text-left custom-scrollbar">
