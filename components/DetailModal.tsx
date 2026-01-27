@@ -495,7 +495,7 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
       </div> {/* overflow-y-auto 영역 닫기 */}
 
 
-      {/* 3. 하단 고정 액션 바 */}
+{/* 3. 하단 고정 액션 바 */}
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white/95 backdrop-blur-lg flex gap-3 z-30">
         <button 
           onClick={() => setIsCorrectionOpen(true)} 
@@ -503,8 +503,14 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
         >
           수정 요청
         </button>
-        <button onClick={() => setIsMapSelectOpen(true)} className="flex-[2.5] py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        <button 
+          onClick={() => setIsMapSelectOpen(true)} 
+          className="flex-[2.5] py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
           길찾기 시작
         </button>
       </div>
@@ -523,8 +529,19 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
 
         {isMapSelectOpen && (
           <div className="fixed inset-0 z-[10001] flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMapSelectOpen(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-[280px] bg-white rounded-[28px] p-6 shadow-2xl text-center">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setIsMapSelectOpen(false)} 
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.9, opacity: 0 }} 
+              className="relative w-full max-w-[280px] bg-white rounded-[28px] p-6 shadow-2xl text-center"
+            >
               <h4 className="font-bold text-gray-900 mb-6 text-[15px]">길찾기 앱 선택</h4>
               <div className="grid grid-cols-2 gap-6">
                 <button onClick={() => openMap('naver')} className="flex flex-col items-center gap-2">
@@ -533,7 +550,9 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
                 </button>
                 <button onClick={() => openMap('kakao')} className="flex flex-col items-center gap-2">
                   <div className="w-14 h-14 bg-[#FEE500] rounded-2xl flex items-center justify-center shadow-md">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="#3C1E1E"><path d="M12 3C6.477 3 2 6.477 2 10.75c0 2.79 1.857 5.232 4.636 6.643l-1.176 4.314c-.06.22.194.402.383.27l5.085-3.535c.348.037.702.058 1.072.058 5.523 0 10-3.477 10-7.75S17.523 3 12 3z"/></svg>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="#3C1E1E">
+                      <path d="M12 3C6.477 3 2 6.477 2 10.75c0 2.79 1.857 5.232 4.636 6.643l-1.176 4.314c-.06.22.194.402.383.27l5.085-3.535c.348.037.702.058 1.072.058 5.523 0 10-3.477 10-7.75S17.523 3 12 3z"/>
+                    </svg>
                   </div>
                   <span className="text-[11px] font-semibold text-gray-600">카카오</span>
                 </button>
