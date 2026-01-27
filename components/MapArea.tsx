@@ -27,13 +27,13 @@ const MapArea: React.FC<MapAreaProps> = ({
   const mapRef = useRef<any>(null);
   const markersRef = useRef<Map<string, any>>(new Map());
   const userMarkerRef = useRef<any>(null);
-  const infoOverlayRef = useRef<any>(null); // ✅ 상단 정보창(이미지 포함) 전용 Ref
+  const infoOverlayRef = useRef<any>(null); 
   
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedCoord, setSelectedCoord] = useState({ lat: 0, lng: 0 });
   const longPressTimer = useRef<any>(null);
 
-  // 1. [초기화] 지도 생성 및 GPS 위치 추적
+  // 1. [초기화] 지도 생성 및 최초 GPS 추적
   useEffect(() => {
     const { kakao } = window as any;
     if (!kakao || !mapContainerRef.current) return;
@@ -47,13 +47,13 @@ const MapArea: React.FC<MapAreaProps> = ({
         const map = new kakao.maps.Map(mapContainerRef.current, options);
         mapRef.current = map;
 
-        // [이벤트] 지도 클릭 시 정보창 닫기
+        // 지도 클릭 시 정보창 닫기
         kakao.maps.event.addListener(map, 'click', () => {
           if (infoOverlayRef.current) infoOverlayRef.current.setMap(null);
           onMapClick();
         });
 
-        // [이벤트] 롱프레스 제보 (800ms)
+        // 롱프레스 제보 (800ms)
         const handleStart = (e: any) => {
           longPressTimer.current = setTimeout(() => {
             setSelectedCoord({ lat: e.latLng.getLat(), lng: e.latLng.getLng() });
@@ -68,7 +68,7 @@ const MapArea: React.FC<MapAreaProps> = ({
         kakao.maps.event.addListener(map, 'touchstart', handleStart);
         kakao.maps.event.addListener(map, 'touchend', handleEnd);
 
-        // [이벤트] 지도 이동 완료(Idle)
+        // 지도 이동 완료(Idle)
         kakao.maps.event.addListener(map, 'idle', () => {
           if (onMapIdle) {
             const b = map.getBounds();
@@ -81,7 +81,6 @@ const MapArea: React.FC<MapAreaProps> = ({
       });
     };
 
-    // 최초 실행 시 위치 권한 확인 후 지도 생성
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -96,7 +95,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     }
   }, []);
 
-  // 2. [내 위치] 유저 위치 핀 (파동 애니메이션 포함)
+  // 2. [내 위치 핀] 실시간 userLocation 동기화
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !userLocation || !kakao) return;
@@ -117,12 +116,14 @@ const MapArea: React.FC<MapAreaProps> = ({
     userMarkerRef.current = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
       content: content,
-      zIndex: 10
+      zIndex: 10,
+      xAnchor: 0.5,
+      yAnchor: 0.5
     });
     userMarkerRef.current.setMap(mapRef.current);
   }, [userLocation]);
 
-  // 3. [마커] 팝업스토어 마커 렌더링
+  // 3. [마커] 스토어 마커 렌더링 및 미승인 토스트
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao) return;
@@ -158,7 +159,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     });
   }, [stores, onMarkerClick]);
 
-  // 4. [오버레이] 선택된 마커 상단 정보창 (이미지+제목+날짜)
+  // 4. [오버레이] 선택된 마커 상단 정보창 (간격 밀착 수정)
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !selectedStoreId || !kakao) return;
@@ -168,9 +169,10 @@ const MapArea: React.FC<MapAreaProps> = ({
     if (!store) return;
 
     const content = document.createElement('div');
-    content.style.cssText = 'margin-bottom: 130px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));';
+    // margin-bottom을 130px에서 55px로 대폭 줄여 핀 바로 위에 위치하도록 수정
+    content.style.cssText = 'margin-bottom: 55px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
     content.innerHTML = `
-      <div style="background: white; padding: 12px; border-radius: 20px; display: flex; align-items: center; gap: 12px; min-width: 220px; border: 1px solid #f2f4f6;">
+      <div style="background: white; padding: 12px; border-radius: 20px; display: flex; align-items: center; gap: 12px; min-width: 220px; border: 1px solid #f2f4f6; position: relative; z-index: 10;">
         <img src="${store.image_url}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover;" />
         <div style="display: flex; flex-direction: column; text-align: left;">
           <div style="display: flex; gap: 4px; margin-bottom: 2px;">
@@ -181,10 +183,14 @@ const MapArea: React.FC<MapAreaProps> = ({
           <span style="font-size: 11px; color: #8b95a1; margin-top: 2px;">${store.start_date?.slice(5)} ~ ${store.end_date?.slice(5)}</span>
         </div>
       </div>
-      <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 16px; height: 16px; background: white; border-right: 1px solid #f2f4f6; border-bottom: 1px solid #f2f4f6;"></div>
+      <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 14px; height: 14px; background: white; border-right: 1px solid #f2f4f6; border-bottom: 1px solid #f2f4f6; z-index: 5;"></div>
     `;
     
-    content.onclick = () => onDetailOpen(store);
+    // 클릭 이벤트 바인딩
+    content.onclick = (e) => {
+      e.stopPropagation();
+      onDetailOpen(store);
+    };
 
     infoOverlayRef.current = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(store.lat, store.lng),
@@ -194,16 +200,14 @@ const MapArea: React.FC<MapAreaProps> = ({
     });
     infoOverlayRef.current.setMap(mapRef.current);
     
-    // 선택 시 지도를 해당 위치로 부드럽게 이동
     mapRef.current.panTo(new kakao.maps.LatLng(store.lat, store.lng));
-
-  }, [selectedStoreId, stores]);
+  }, [selectedStoreId, stores, onDetailOpen]);
 
   return (
     <div className="w-full h-full relative">
       <div ref={mapContainerRef} className="w-full h-full absolute inset-0" />
       
-      {/* 내 위치 버튼 */}
+      {/* 내 위치 이동 버튼 */}
       <button
         onClick={() => {
           if (userLocation && mapRef.current) {
