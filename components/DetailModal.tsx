@@ -300,6 +300,18 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
       }
       return r;
     }));
+    
+    // DB 업데이트 로직 (필요시 추가)
+    try {
+      const field = type === 'like' ? 'likes' : 'dislikes';
+      await supabase.rpc('increment_review_reaction', { 
+        row_id: reviewId, 
+        field_name: field 
+      });
+    } catch (err) {
+      console.error("반응 업데이트 실패:", err);
+    }
+  }; // <--- 이 중괄호가 닫혀야 오류가 해결됩니다.
 
   const openMap = (type: 'naver' | 'kakao') => {
     const { lat, lng, title } = store;
