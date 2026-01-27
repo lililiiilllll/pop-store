@@ -500,7 +500,7 @@ const handleAddReview = async () => {
             </>
           )}
         </div>
-      </div>
+
 
       {/* 3. 하단 고정 액션 바 */}
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white/95 backdrop-blur-lg flex gap-3 z-30">
