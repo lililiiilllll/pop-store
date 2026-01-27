@@ -187,3 +187,22 @@ export const getCurrentSession = async () => {
   if (error) return null;
   return session;
 };
+
+
+export const fetchAllReports = async () => {
+  const { data, error } = await supabase
+    .from('reports')
+    .select(`
+      *,
+      profiles:user_id (
+        name
+      )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('제보 목록 로딩 실패:', error);
+    return [];
+  }
+  return data;
+};
