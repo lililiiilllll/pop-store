@@ -378,7 +378,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ allStores, onBack, onRe
                 {req.status === 'pending' && (
                   <button 
                     onClick={() => {
-                      setSelectedStore({
+                      setIsEditModalOpen({
                         ...req.popup_stores,
                         title: req.title_fix || req.popup_stores?.title,
                         description: req.description_fix || req.popup_stores?.description,
