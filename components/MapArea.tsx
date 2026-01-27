@@ -16,8 +16,7 @@ interface MapAreaProps {
 
 const PIN_SVG = {
   verified: `data:image/svg+xml;base64,${btoa(`<svg width="34" height="42" viewBox="0 0 34 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 0C7.61117 0 0 7.61117 0 17C0 27.2 17 42 17 42C17 42 34 27.2 34 17C34 7.61117 26.3888 0 17 0Z" fill="#3182F6"/><circle cx="17" cy="17" r="7" fill="white"/></svg>`)}`,
-  unverified: `data:image/svg+xml;base64,${btoa(`<svg width="34" height="42" viewBox="0 0 34 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 0C7.61117 0 0 7.61117 0 17C0 27.2 17 42 17 42C17 42 34 27.2 34 17C34 7.61117 26.3888 0 17 0Z" fill="#ADB5BD"/><circle cx="17" cy="17" r="7" fill="white"/></svg>`)}`,
-  selection: `data:image/svg+xml;base64,${btoa(`<svg width="34" height="42" viewBox="0 0 34 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 0C7.61117 0 0 7.61117 0 17C0 27.2 17 42 17 42C17 42 34 27.2 34 17C34 7.61117 26.3888 0 17 0Z" fill="#F04452"/><circle cx="17" cy="17" r="7" fill="white"/></svg>`)}`
+  unverified: `data:image/svg+xml;base64,${btoa(`<svg width="34" height="42" viewBox="0 0 34 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 0C7.61117 0 0 7.61117 0 17C0 27.2 17 42 17 42C17 42 34 27.2 34 17C34 7.61117 26.3888 0 17 0Z" fill="#ADB5BD"/><circle cx="17" cy="17" r="7" fill="white"/></svg>`)}`
 };
 
 const MapArea: React.FC<MapAreaProps> = ({ 
@@ -28,48 +27,33 @@ const MapArea: React.FC<MapAreaProps> = ({
   const mapRef = useRef<any>(null);
   const markersRef = useRef<Map<string, any>>(new Map());
   const userMarkerRef = useRef<any>(null);
-  const overlayRef = useRef<any>(null); 
+  const infoOverlayRef = useRef<any>(null); // ✅ 상단 정보창(이미지 포함) 전용 Ref
   
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedCoord, setSelectedCoord] = useState({ lat: 0, lng: 0 });
   const longPressTimer = useRef<any>(null);
 
-  // [중요] 1. 앱 시작 시 내 위치를 감지하고 지도를 그 위치에서 생성
+  // 1. [초기화] 지도 생성 및 GPS 위치 추적
   useEffect(() => {
     const { kakao } = window as any;
     if (!kakao || !mapContainerRef.current) return;
 
-    const startApp = () => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            // 상위 컴포넌트의 setUserLocation이 함수인지 확인 후 호출 (에러 방지)
-            if (typeof setUserLocation === 'function') {
-              setUserLocation(coords);
-            }
-            initMap(coords.lat, coords.lng);
-          },
-          () => initMap(37.5665, 126.9780) // 실패 시 서울시청
-        );
-      } else {
-        initMap(37.5665, 126.9780);
-      }
-    };
-
     const initMap = (lat: number, lng: number) => {
       kakao.maps.load(() => {
-        const options = { center: new kakao.maps.LatLng(lat, lng), level: 3 };
+        const options = {
+          center: new kakao.maps.LatLng(lat, lng),
+          level: 3
+        };
         const map = new kakao.maps.Map(mapContainerRef.current, options);
         mapRef.current = map;
 
-        // 지도 이벤트 등록
+        // [이벤트] 지도 클릭 시 정보창 닫기
         kakao.maps.event.addListener(map, 'click', () => {
-          if (overlayRef.current) overlayRef.current.setMap(null);
+          if (infoOverlayRef.current) infoOverlayRef.current.setMap(null);
           onMapClick();
         });
 
-        // 롱프레스 (제보)
+        // [이벤트] 롱프레스 제보 (800ms)
         const handleStart = (e: any) => {
           longPressTimer.current = setTimeout(() => {
             setSelectedCoord({ lat: e.latLng.getLat(), lng: e.latLng.getLng() });
@@ -84,7 +68,7 @@ const MapArea: React.FC<MapAreaProps> = ({
         kakao.maps.event.addListener(map, 'touchstart', handleStart);
         kakao.maps.event.addListener(map, 'touchend', handleEnd);
 
-        // 지도 이동 완료 후 상위로 전달
+        // [이벤트] 지도 이동 완료(Idle)
         kakao.maps.event.addListener(map, 'idle', () => {
           if (onMapIdle) {
             const b = map.getBounds();
@@ -97,35 +81,52 @@ const MapArea: React.FC<MapAreaProps> = ({
       });
     };
 
-    startApp();
+    // 최초 실행 시 위치 권한 확인 후 지도 생성
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          if (typeof setUserLocation === 'function') setUserLocation(coords);
+          initMap(coords.lat, coords.lng);
+        },
+        () => initMap(37.5665, 126.9780) // 거부 시 서울시청
+      );
+    } else {
+      initMap(37.5665, 126.9780);
+    }
   }, []);
 
-  // 2. 내 위치 핀 (토글/핀 형식 강조)
+  // 2. [내 위치] 유저 위치 핀 (파동 애니메이션 포함)
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !userLocation || !kakao) return;
+
     if (userMarkerRef.current) userMarkerRef.current.setMap(null);
 
     const content = document.createElement('div');
     content.innerHTML = `
       <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-        <div style="position: absolute; width: 30px; height: 30px; background: #3182f6; border-radius: 50%; opacity: 0.2; animation: pulse 2s infinite;"></div>
+        <div style="position: absolute; width: 30px; height: 30px; background: #3182f6; border-radius: 50%; opacity: 0.2; animation: user-pulse 2s infinite;"></div>
         <div style="width: 14px; height: 14px; background: #3182f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>
       </div>
-      <style> @keyframes pulse { 0% { transform: scale(0.5); opacity: 0.5; } 100% { transform: scale(2.2); opacity: 0; } } </style>
+      <style>
+        @keyframes user-pulse { 0% { transform: scale(0.5); opacity: 0.5; } 100% { transform: scale(2.2); opacity: 0; } }
+      </style>
     `;
 
     userMarkerRef.current = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
-      content: content, zIndex: 10
+      content: content,
+      zIndex: 10
     });
     userMarkerRef.current.setMap(mapRef.current);
   }, [userLocation]);
 
-  // 3. 마커 업데이트 (원본 기능 100% 유지)
+  // 3. [마커] 팝업스토어 마커 렌더링
   useEffect(() => {
     const { kakao } = window as any;
     if (!mapRef.current || !kakao) return;
+
     markersRef.current.forEach(m => m.setMap(null));
     markersRef.current.clear();
 
@@ -138,10 +139,15 @@ const MapArea: React.FC<MapAreaProps> = ({
           new kakao.maps.Size(28, 35), { offset: new kakao.maps.Point(14, 35) }
         )
       });
+
       kakao.maps.event.addListener(marker, 'click', () => {
         if (!store.is_verified) {
-          const content = `<div style="padding: 10px 16px; background: rgba(0,0,0,0.8); color:#fff; font-size:13px; border-radius:12px; margin-bottom:50px;">승인 대기 중인 장소입니다</div>`;
-          const toast = new kakao.maps.CustomOverlay({ position: marker.getPosition(), content, yAnchor: 1.0 });
+          const toastContent = `<div style="padding: 10px 16px; background: rgba(0,0,0,0.8); color:#fff; font-size:13px; border-radius:12px; margin-bottom:50px; white-space:nowrap;">승인 대기 중인 장소입니다</div>`;
+          const toast = new kakao.maps.CustomOverlay({
+            position: marker.getPosition(),
+            content: toastContent,
+            yAnchor: 1.0
+          });
           toast.setMap(mapRef.current);
           setTimeout(() => toast.setMap(null), 2000);
           return;
@@ -150,20 +156,62 @@ const MapArea: React.FC<MapAreaProps> = ({
       });
       markersRef.current.set(store.id, marker);
     });
-  }, [stores]);
+  }, [stores, onMarkerClick]);
+
+  // 4. [오버레이] 선택된 마커 상단 정보창 (이미지+제목+날짜)
+  useEffect(() => {
+    const { kakao } = window as any;
+    if (!mapRef.current || !selectedStoreId || !kakao) return;
+    if (infoOverlayRef.current) infoOverlayRef.current.setMap(null);
+
+    const store = stores.find(s => s.id === selectedStoreId);
+    if (!store) return;
+
+    const content = document.createElement('div');
+    content.style.cssText = 'margin-bottom: 130px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));';
+    content.innerHTML = `
+      <div style="background: white; padding: 12px; border-radius: 20px; display: flex; align-items: center; gap: 12px; min-width: 220px; border: 1px solid #f2f4f6;">
+        <img src="${store.image_url}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover;" />
+        <div style="display: flex; flex-direction: column; text-align: left;">
+          <div style="display: flex; gap: 4px; margin-bottom: 2px;">
+            <span style="font-size: 10px; color: #3182f6; font-weight: bold;">${store.category || '팝업'}</span>
+            <span style="font-size: 10px; color: #00d084; font-weight: bold; background: #e6f9f2; padding: 1px 4px; border-radius: 4px;">무료입장</span>
+          </div>
+          <span style="font-size: 14px; font-weight: 800; color: #191f28; line-height: 1.2;">${store.title}</span>
+          <span style="font-size: 11px; color: #8b95a1; margin-top: 2px;">${store.start_date?.slice(5)} ~ ${store.end_date?.slice(5)}</span>
+        </div>
+      </div>
+      <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 16px; height: 16px; background: white; border-right: 1px solid #f2f4f6; border-bottom: 1px solid #f2f4f6;"></div>
+    `;
+    
+    content.onclick = () => onDetailOpen(store);
+
+    infoOverlayRef.current = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(store.lat, store.lng),
+      content: content,
+      yAnchor: 1.0,
+      zIndex: 50
+    });
+    infoOverlayRef.current.setMap(mapRef.current);
+    
+    // 선택 시 지도를 해당 위치로 부드럽게 이동
+    mapRef.current.panTo(new kakao.maps.LatLng(store.lat, store.lng));
+
+  }, [selectedStoreId, stores]);
 
   return (
     <div className="w-full h-full relative">
       <div ref={mapContainerRef} className="w-full h-full absolute inset-0" />
       
-      {/* 내 위치 이동 버튼 */}
+      {/* 내 위치 버튼 */}
       <button
         onClick={() => {
           if (userLocation && mapRef.current) {
-            mapRef.current.panTo(new (window as any).kakao.maps.LatLng(userLocation.lat, userLocation.lng));
+            const { kakao } = window as any;
+            mapRef.current.panTo(new kakao.maps.LatLng(userLocation.lat, userLocation.lng));
           }
         }}
-        className="absolute bottom-28 right-5 z-40 w-12 h-12 bg-white rounded-full shadow-2xl flex items-center justify-center border border-gray-100"
+        className="absolute bottom-28 right-5 z-40 w-12 h-12 bg-white rounded-full shadow-2xl flex items-center justify-center border border-gray-100 active:scale-95 transition-all"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="8" stroke="#3182F6" strokeWidth="2"/><circle cx="12" cy="12" r="3" fill="#3182F6"/>
