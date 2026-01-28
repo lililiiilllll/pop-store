@@ -240,8 +240,19 @@ const DetailModal: React.FC<DetailModalProps> = ({
         console.error("데이터 로딩 오류:", error);
       }
     };
-    fetchData();
-  }, [store?.id, currentUser?.id]); // 깔끔하게 여기서 끝냄
+
+    useEffect(() => {
+    const fetchData = async () => {
+      if (!store?.id) return;
+      try {
+        // ... 기존 fetchData 내부 로직 (별점, 찜, 리뷰 페칭) ...
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchData(); // 정의한 직후 호출
+  }, [store?.id, currentUser?.id]);
 
   // --- 3. 비즈니스 로직 함수들 ---
   const handleLike = async () => {
@@ -384,34 +395,39 @@ const handleAddReview = async () => {
     }
   };
 
-const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
-    if (!currentUser) return alert("로그인 후 이용 가능합니다.");
-    
-    const prevReaction = myReactions[reviewId];
-    
-    // UI 즉각 반영 (Optimistic Update)
-    setReviews(reviews.map(r => {
-      if (r.id === reviewId) {
-        let { likes, dislikes } = r;
-        if (prevReaction === type) {
-          type === 'like' ? likes-- : dislikes--;
-          setMyReactions({ ...myReactions, [reviewId]: null });
-        } else {
-          if (prevReaction === 'like') likes--;
-          if (prevReaction === 'dislike') dislikes--;
-          type === 'like' ? likes++ : dislikes++;
-          setMyReactions({ ...myReactions, [reviewId]: type });
-        }
-        return { ...r, likes, dislikes };
+const handleReaction = (reviewId: number, type: 'like' | 'dislike') => {
+  if (!currentUser) return alert("로그인 후 이용 가능합니다.");
+  const prevReaction = myReactions[reviewId];
+
+  setReviews(prevReviews => prevReviews.map(r => {
+    if (r.id === reviewId) {
+      let { likes, dislikes } = r;
+      if (prevReaction === type) { // 같은 거 또 누르면 취소
+        type === 'like' ? (likes = Math.max(0, likes - 1)) : (dislikes = Math.max(0, dislikes - 1));
+        setMyReactions({ ...myReactions, [reviewId]: null });
+      } else { // 새로운 반응이거나 변경
+        if (prevReaction === 'like') likes = Math.max(0, likes - 1);
+        if (prevReaction === 'dislike') dislikes = Math.max(0, dislikes - 1);
+        type === 'like' ? likes++ : dislikes++;
+        setMyReactions({ ...myReactions, [reviewId]: type });
       }
-      return r;
-    })); // setReviews 닫기
-    try {
-      await supabase.rpc('increment_review_reaction', { row_id: reviewId, field_name: type === 'like' ? 'likes' : 'dislikes' });
-    } catch (err) { 
-      console.error(err); 
+      return { ...r, likes, dislikes };
     }
-  };.
+    return r;
+  }));
+};
+    
+    // DB 업데이트 로직 (필요시 추가)
+    try {
+      const field = type === 'like' ? 'likes' : 'dislikes';
+      await supabase.rpc('increment_review_reaction', { 
+        row_id: reviewId, 
+        field_name: field 
+      });
+    } catch (err) {
+      console.error("반응 업데이트 실패:", err);
+    }
+  }; // <--- 이 중괄호가 닫혀야 오류가 해결됩니다.
 
   const openMap = (type: 'naver' | 'kakao') => {
     const { lat, lng, title } = store;
