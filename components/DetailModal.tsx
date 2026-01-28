@@ -202,13 +202,20 @@ const DetailModal: React.FC<DetailModalProps> = ({
       // 찜 데이터 가져오기
       const { count } = await supabase.from('favorites').select('*', { count: 'exact', head: true }).eq('popup_id', store.id);
       setLikeCount(count || 0);
-      if (currentUser?.id) {
-        const { data } = await supabase.from('favorites').select('*').eq('popup_id', store.id).eq('user_id', currentUser.id).single();
-        setIsLiked(!!data);
-      }
-    };
-    fetchStatsAndLikes();
-  }, [store?.id, currentUser?.id]);
+      if (currentUser?.id) { 
+      const { data: fav } = await supabase
+        .from('favorites')
+        .select('*')
+        .eq('popup_id', store.id)
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+      setIsLiked(!!fav);
+    } else {
+      setIsLiked(false); // 비로그인 시 기본값
+    }
+  };
+  fetchData();
+}, [store?.id, currentUser?.id]);
 
 // 찜 토글 핸들러 (비회원 대응)
   const handleLikeToggle = async (e: React.MouseEvent) => {
@@ -237,7 +244,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
         .from('favorites')
         .select('*')
         .eq('popup_id', store.id)
-        .eq('user_id', currentUser.id)
+        .eq('user_id', currentUser?.id)
         .maybeSingle(); // popupId 대신 store.id 사용
 
       if (!error) setLikeCount(count || 0);
