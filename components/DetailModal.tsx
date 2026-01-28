@@ -254,29 +254,77 @@ const DetailModal: React.FC<DetailModalProps> = ({
     fetchData(); // 정의한 직후 호출
   }, [store?.id, currentUser?.id]);
 
-  // --- 3. 비즈니스 로직 함수들 ---
-  const handleLike = async () => {
-    if (!currentUser) return alert('로그인이 필요합니다.');
+// --- 3. 비즈니스 로직 함수들 ---
 
-// 찜 토글 핸들러 (비회원 대응)
-  const handleLikeToggle = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    // 🔔 비회원 체크
-    if (!currentUser) {
-      alert("로그인이 필요한 기능입니다. 로그인 후 찜해보세요! 💖");
-      return;
-    }
+// 1. 찜하기 토글 (기존 handleLike와 handleLikeToggle 통합)
+const handleLikeToggle = async (e: React.MouseEvent) => {
+  e.stopPropagation();
+  if (!currentUser) {
+    alert("로그인이 필요한 기능입니다. 💖");
+    return;
+  }
 
+  try {
     if (isLiked) {
-      const { error } = await supabase.from('favorites').delete().eq('popup_id', store.id).eq('user_id', currentUser.id);
-      if (!error) { setIsLiked(false); setLikeCount(prev => Math.max(0, prev - 1)); }
+      const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('popup_id', store.id)
+        .eq('user_id', currentUser.id);
+      
+      if (!error) {
+        setIsLiked(false);
+        setLikeCount(prev => Math.max(0, prev - 1));
+      }
     } else {
-      const { error } = await supabase.from('favorites').insert({ popup_id: store.id, user_id: currentUser.id });
-      if (!error) { setIsLiked(true); setLikeCount(prev => prev + 1); }
+      const { error } = await supabase
+        .from('favorites')
+        .insert({ popup_id: store.id, user_id: currentUser.id });
+      
+      if (!error) {
+        setIsLiked(true);
+        setLikeCount(prev => prev + 1);
+      }
     }
-  };
+  } catch (err) {
+    console.error(err);
+  }
+};
 
+// 2. 리뷰 반응 (handleReaction) - 마침표(.) 제거 및 안전한 구현
+const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
+  if (!currentUser) return alert("로그인 후 이용 가능합니다.");
+  
+  const prevReaction = myReactions[reviewId];
+  
+  // Optimistic Update (UI 먼저 반영)
+  setReviews(prev => prev.map(r => {
+    if (r.id === reviewId) {
+      let { likes, dislikes } = r;
+      if (prevReaction === type) {
+        type === 'like' ? likes-- : dislikes--;
+        setMyReactions({ ...myReactions, [reviewId]: null });
+      } else {
+        if (prevReaction === 'like') likes--;
+        if (prevReaction === 'dislike') dislikes--;
+        type === 'like' ? likes++ : dislikes++;
+        setMyReactions({ ...myReactions, [reviewId]: type });
+      }
+      return { ...r, likes, dislikes };
+    }
+    return r;
+  }));
+
+  try {
+    // DB 업데이트
+    await supabase.rpc('increment_review_reaction', { 
+      row_id: reviewId, 
+      field_name: type === 'like' ? 'likes' : 'dislikes' 
+    });
+  } catch (err) { 
+    console.error('반응 저장 실패:', err); 
+  }
+};
   // 찜 개수 조회 로직
   useEffect(() => {
     const fetchLikeCount = async () => {
