@@ -37,7 +37,7 @@ const CorrectionModal: React.FC<{
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- [신규] 리뷰 신고 모달 컴포넌트 ---
+// --- [신규] 리뷰 신고 모달 컴포넌트 (파일 내부 정의) ---
 const ReportModal: React.FC<{
   reviewId: number;
   userId: string;
@@ -47,36 +47,58 @@ const ReportModal: React.FC<{
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const reasons = ["스팸/홍보", "욕설/비하 발언", "부적절한 내용", "개인정보 노출", "기타"];
+  const reasons = ["스팸/부적절한 홍보", "욕설/비하 발언", "음란물/유해한 내용", "개인정보 노출", "기타 사유"];
 
   const handleReport = async () => {
     if (!selectedReason) return;
     setIsSubmitting(true);
     try {
       const { error } = await supabase
-        .from('review_reports') // 테이블명 확인됨
-        .insert([{ review_id: reviewId, user_id: userId, reason: selectedReason }]);
+        .from('review_reports') // 테이블명 일치 확인됨
+        .insert([{
+          review_id: reviewId,
+          user_id: userId,
+          reason: selectedReason
+        }]);
 
       if (error) throw error;
-      onSuccess('신고 완료', '정상적으로 접수되었습니다.');
+      onSuccess('신고 완료', '신고가 정상적으로 접수되었습니다.');
       onClose();
     } catch (err) {
-      alert('신고 중 오류가 발생했습니다.');
-    } finally { setIsSubmitting(false); }
+      console.error(err);
+      alert('신고 접수 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  return (
-    <div className="fixed inset-0 z-[10005] flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm">
-      <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-w-[320px] rounded-[28px] p-6 shadow-2xl">
-        <h3 className="text-[18px] font-bold mb-4">리뷰 신고</h3>
-        <div className="space-y-2 mb-6">
+return (
+    <div className="fixed inset-0 z-[10005] flex items-center justify-center p-6">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-[340px] bg-white rounded-[32px] p-7 shadow-2xl">
+        <h3 className="text-[19px] font-bold text-[#191f28] mb-5">리뷰 신고</h3>
+        <div className="space-y-2 mb-8">
           {reasons.map(r => (
-            <button key={r} onClick={() => setSelectedReason(r)} className={`w-full p-3 rounded-xl text-sm text-left ${selectedReason === r ? 'bg-red-50 text-red-600 font-bold' : 'bg-gray-50'}`}>{r}</button>
+            <button
+              key={r}
+              onClick={() => setSelectedReason(r)}
+              className={`w-full p-4 rounded-xl text-left text-[14px] transition-all ${
+                selectedReason === r ? 'bg-red-50 text-red-600 font-bold border border-red-100' : 'bg-gray-50 text-gray-500'
+              }`}
+            >
+              {r}
+            </button>
           ))}
         </div>
-        <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-3 bg-gray-100 rounded-xl font-bold">취소</button>
-          <button onClick={handleReport} disabled={!selectedReason || isSubmitting} className="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold">신고</button>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold">취가</button>
+          <button 
+            onClick={handleReport} 
+            disabled={!selectedReason || isSubmitting}
+            className={`flex-1 py-4 rounded-2xl font-bold text-white transition-all ${selectedReason ? 'bg-red-500 shadow-lg active:scale-95' : 'bg-gray-200'}`}
+          >
+            {isSubmitting ? '처리 중...' : '신고하기'}
+          </button>
         </div>
       </motion.div>
     </div>
@@ -151,8 +173,8 @@ const DetailModal: React.FC<DetailModalProps> = ({
   isAdmin = false 
 }) => {
   const [isMapSelectOpen, setIsMapSelectOpen] = useState(false);
-  const [isCorrectionOpen, setIsCorrectionOpen] = useState(false); 
-  const [reportingReviewId, setReportingReviewId] = useState<number | null>(null);
+  const [isCorrectionOpen, setIsCorrectionOpen] = useState(false);
+  const [reportingReviewId, setReportingReviewId] = useState<number | null>(null); // 신고할 리뷰 ID 상태
   
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -566,7 +588,7 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
           if(!currentUser) return alert("로그인 후 이용 가능합니다.");
           setReportingReviewId(review.id);
         }}
-        className="ml-auto text-[11px] text-gray-400 hover:text-red-400"
+        className="ml-auto text-[11px] text-gray-300 hover:text-red-400 underline underline-offset-2"
         >
         신고하기
         </button>
@@ -656,6 +678,14 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
               <button onClick={() => setIsMapSelectOpen(false)} className="mt-6 text-gray-400 text-[13px] font-medium">닫기</button>
             </motion.div>
           </div>
+        {/* 신고하기 모달 렌더링 */}
+        {reportingReviewId && (
+          <ReportModal 
+            reviewId={reportingReviewId}
+            userId={currentUser?.id || ''}
+            onClose={() => setReportingReviewId(null)}
+            onSuccess={onShowSuccess} // 완료 시 알림창 띄우기
+          />
         )}
       </AnimatePresence>
     </div>
