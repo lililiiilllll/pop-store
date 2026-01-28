@@ -207,7 +207,7 @@ useEffect(() => {
           setReviewCount(revData.length);
         }
 
-// [B] 전체 찜 개수
+      // [B] 전체 찜 개수
         const { count } = await supabase
           .from('favorites')
           .select('*', { count: 'exact', head: true })
