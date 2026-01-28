@@ -454,7 +454,7 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
       
 {/* 1. 이미지 영역 */}
       <div className="relative h-64 lg:h-80 w-full flex-shrink-0 bg-gray-100">
-        <img src={store.image_url} alt={store.title} className="w-full h-full object-cover" />
+        <img src={store.image_url || "https://placehold.co/600x400?text=No+Image"} alt={store.title} className="w-full h-full object-cover" />
         
         {/* ✅ 이미지 위 찜 버튼 */}
         <button 
@@ -565,8 +565,17 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
               </div>
               <span className="text-gray-400 text-[14px]">({reviews.length})</span>
             </div>
-            <button onClick={() => setIsWriting(true)} className="text-[#3182f6] text-[13px] font-bold px-3 py-1.5 bg-blue-50 rounded-full">
-              기록하기
+            <button 
+              onClick={() => {
+                if (!currentUser) {
+                alert("로그인 후 소중한 후기를 남겨주세요!");
+                return;
+                }
+                setIsWriting(true);
+                  }} 
+                className="text-[#3182f6] text-[13px] font-bold px-3 py-1.5 bg-blue-50 rounded-full"
+              >
+              추억 남기기
             </button>
           </div>
 
