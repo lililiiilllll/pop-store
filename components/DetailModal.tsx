@@ -235,8 +235,18 @@ const DetailModal: React.FC<DetailModalProps> = ({
       }
     };
 
-    fetchData();
-  }, [store?.id, currentUser?.id]); // 의존성 배열에 id들 추가
+    useEffect(() => {
+    const fetchData = async () => {
+      if (!store?.id) return;
+      try {
+        // ... 기존 fetchData 내부 로직 (별점, 찜, 리뷰 페칭) ...
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchData(); // 정의한 직후 호출
+  }, [store?.id, currentUser?.id]);
 
   // --- 3. 비즈니스 로직 함수들 ---
   const handleLike = async () => {
