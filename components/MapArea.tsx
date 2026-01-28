@@ -191,22 +191,25 @@ useEffect(() => {
     const content = document.createElement('div');
     // margin-bottom을 130px에서 55px로 대폭 줄여 핀 바로 위에 위치하도록 수정
     content.style.cssText = 'margin-bottom: 48px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
-    // 수정할 부분: 이미지 경로가 없을 경우를 대비한 기본 이미지 처리(선택사항이지만 권장)
-    const imageUrl = store.image_url || '기본_이미지_경로';
-    content.innerHTML = `
-      <div style="background: white; padding: 12px; border-radius: 20px; display: flex; align-items: center; gap: 12px; min-width: 220px; border: 1px solid #f2f4f6; position: relative; z-index: 10;">
-        <img src="${store.image_url}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover;" />
-        <div style="display: flex; flex-direction: column; text-align: left;">
-          <div style="display: flex; gap: 4px; margin-bottom: 2px;">
-            <span style="font-size: 10px; color: #3182f6; font-weight: bold;">${store.category || '팝업'}</span>
-            <span style="font-size: 10px; color: #00d084; font-weight: bold; background: #e6f9f2; padding: 1px 4px; border-radius: 4px;">무료입장</span>
-          </div>
-          <span style="font-size: 14px; font-weight: 800; color: #191f28; line-height: 1.2;">${store.title}</span>
-          <span style="font-size: 11px; color: #8b95a1; margin-top: 2px;">${store.start_date?.slice(5)} ~ ${store.end_date?.slice(5)}</span>
+    // ✅ 이미지 경로가 null일 경우 빈 문자열이나 기본 이미지 처리
+  const imageUrl = store.image_url || 'https://via.placeholder.com/150'; 
+
+  const content = document.createElement('div');
+  content.style.cssText = 'margin-bottom: 48px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
+  
+  content.innerHTML = `
+    <div style="background: white; padding: 12px; border-radius: 20px; display: flex; align-items: center; gap: 12px; min-width: 220px; border: 1px solid #f2f4f6; position: relative; z-index: 10;">
+      <img src="${imageUrl}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/150'"/>
+      <div style="display: flex; flex-direction: column; text-align: left;">
+        <div style="display: flex; gap: 4px; margin-bottom: 2px;">
+          <span style="font-size: 10px; color: #3182f6; font-weight: bold;">${store.category || '팝업'}</span>
         </div>
+        <span style="font-size: 14px; font-weight: 800; color: #191f28; line-height: 1.2;">${store.title || '정보 없음'}</span>
+        <span style="font-size: 11px; color: #8b95a1; margin-top: 2px;">${(store.start_date || '').slice(5)} ~ ${(store.end_date || '').slice(5)}</span>
       </div>
-      <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 14px; height: 14px; background: white; border-right: 1px solid #f2f4f6; border-bottom: 1px solid #f2f4f6; z-index: 5;"></div>
-    `;
+    </div>
+    <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 14px; height: 14px; background: white; border-right: 1px solid #f2f4f6; border-bottom: 1px solid #f2f4f6; z-index: 5;"></div>
+  `;
     
     // 클릭 이벤트 바인딩
     content.onclick = (e) => {
@@ -245,11 +248,15 @@ useEffect(() => {
         </svg>
       </button>
 
-      {isReportModalOpen && (
-        <div className="fixed inset-0 z-[999999]">
-          <ReportModal coord={selectedCoord} onClose={() => setIsReportModalOpen(false)} />
-        </div>
-      )}
+      {isReportModalOpen && selectedCoord && (
+  <div className="fixed inset-0 z-[999999]">
+    <ReportModal 
+      coord={selectedCoord} 
+      // 만약 ReportModal에서 currentUser.id를 쓴다면 아래처럼 안전하게 전달
+      onClose={() => setIsReportModalOpen(false)} 
+    />
+  </div>
+)}
     </div>
   );
 };
