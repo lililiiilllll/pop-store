@@ -192,11 +192,7 @@ useEffect(() => {
     // margin-bottom을 130px에서 55px로 대폭 줄여 핀 바로 위에 위치하도록 수정
     content.style.cssText = 'margin-bottom: 48px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
     // ✅ 이미지 경로가 null일 경우 빈 문자열이나 기본 이미지 처리
-  const imageUrl = store.image_url || 'https://via.placeholder.com/150'; 
 
-  const content = document.createElement('div');
-  content.style.cssText = 'margin-bottom: 48px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
-  
   content.innerHTML = `
     <div style="background: white; padding: 12px; border-radius: 20px; display: flex; align-items: center; gap: 12px; min-width: 220px; border: 1px solid #f2f4f6; position: relative; z-index: 10;">
       <img src="${imageUrl}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/150'"/>
