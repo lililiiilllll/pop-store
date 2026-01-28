@@ -192,7 +192,7 @@ useEffect(() => {
   if (!store) return;
 
   // ✅ 1. 변수 선언 (ReferenceError 방지)
-  const currentImageUrl = store.image_url || 'https://via.placeholder.com/150'; 
+  const currentImageUrl = store.image_url || 'https://placehold.co/400x400?text=No+Image'; 
   const overlayDiv = document.createElement('div'); 
   
   overlayDiv.style.cssText = 'margin-bottom: 48px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
