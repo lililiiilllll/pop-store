@@ -149,7 +149,7 @@ return (
           ))}
         </div>
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold">취가</button>
+          <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold">취소</button>
           <button 
             onClick={handleReport} 
             disabled={!selectedReason || isSubmitting}
@@ -235,8 +235,10 @@ const DetailModal: React.FC<DetailModalProps> = ({
       if (!store?.id) return;
       const { count, error } = await supabase
         .from('favorites')
-        .select('*', { count: 'exact', head: true })
-        .eq('popup_id', store.id); // popupId 대신 store.id 사용
+        .select('*')
+        .eq('popup_id', store.id)
+        .eq('user_id', currentUser.id)
+        .maybeSingle(); // popupId 대신 store.id 사용
 
       if (!error) setLikeCount(count || 0);
     };
