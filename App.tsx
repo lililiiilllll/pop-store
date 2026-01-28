@@ -441,7 +441,8 @@ return (
             >
               <DetailModal 
                 store={detailStore} 
-                isSaved={savedStoreIds.includes(detailStore.id)} 
+                isSaved={savedStoreIds.includes(detailStore.id)}
+                userProfile={userProfile}
                 onToggleSave={() => toggleSaveStore(detailStore.id)} 
                 onClose={() => setDetailStore(null)} 
                 onShowSuccess={(t, m) => setSuccessConfig({ isOpen: true, title: t, message: m })} 
