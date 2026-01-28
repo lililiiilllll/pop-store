@@ -446,6 +446,8 @@ return (
                 onToggleSave={() => toggleSaveStore(detailStore.id)} 
                 onClose={() => setDetailStore(null)} 
                 onShowSuccess={(t, m) => setSuccessConfig({ isOpen: true, title: t, message: m })} 
+                currentUser={userProfile} 
+                isAdmin={userProfile?.role === 'admin'}
               />
             </motion.div>
           </div>
