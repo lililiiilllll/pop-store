@@ -285,53 +285,52 @@ const App: React.FC = () => {
     );
   }
 
-  return (
+return (
     <div className="relative flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white text-[#191f28]">
       
-      {/* [DELETE-ON-PRODUCTION] 디버그 패널 */}
+      {/* 1. 디버그 테스트 패널 */}
       <AnimatePresence>
         {isTestPanelOpen && (
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="fixed top-24 right-6 z-[9999] bg-white/95 backdrop-blur-xl p-5 rounded-[24px] shadow-2xl border border-[#f2f4f6] flex flex-col gap-3 min-w-[200px]">
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} 
+            className="fixed top-24 right-6 z-[9999] bg-white/95 backdrop-blur-xl p-5 rounded-[24px] shadow-2xl border border-[#f2f4f6] flex flex-col gap-3 min-w-[200px]"
+          >
             <div className="flex justify-between items-center mb-1">
               <span className="text-[12px] font-bold text-[#3182f6]">DEBUG MODE</span>
               <button onClick={() => setIsTestPanelOpen(false)} className="text-[#8b95a1] p-1"><XIcon size={16} /></button>
             </div>
-            {/* 현재 권한 상태 표시 */}
-            <div className="px-1 py-1 border-b border-gray-100 mb-1">
-              <p className="text-[10px] text-gray-400 uppercase text-center">Current Role</p>
-              <p className="text-[12px] font-bold text-[#4e5968] text-center">{userProfile?.role || 'Guest'}</p>
-            </div>
-            <button onClick={handleAdminLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${isAdminLoggedIn ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>관리자 모드</button>
-            <button onClick={handleUserDebugLogin} className={`w-full py-3 rounded-xl text-[14px] font-bold ${userProfile?.role === 'user' ? 'bg-[#3182f6] text-white' : 'bg-[#f2f4f6] text-[#4e5968]'}`}>일반 유저 모드</button>
-            {userProfile && (
-               <button onClick={handleLogoutAction} className="w-full py-2 text-[12px] text-red-500 font-medium">로그아웃</button>
-            )}
+            <button onClick={() => loginAsTestAccount('admin@test.com', 'rmfjskqk12!A', '관리자')} className="w-full py-3 bg-[#f2f4f6] rounded-xl text-[14px] font-bold text-[#4e5968] hover:bg-gray-200">관리자 로그인</button>
+            <button onClick={() => loginAsTestAccount('user@test.com', '1234', '일반유저')} className="w-full py-3 bg-[#f2f4f6] rounded-xl text-[14px] font-bold text-[#4e5968] hover:bg-gray-200">일반유저 로그인</button>
+            {userProfile && <button onClick={handleLogoutAction} className="w-full py-2 text-[12px] text-red-500 font-medium">로그아웃</button>}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* PC 사이드바 */}
-        <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-[#f2f4f6] shadow-sm">
-          {/* PC 버전 헤더 */}
-          <Header 
-            location={currentLocationName} 
-            userProfile={userProfile} 
-            onSearchClick={() => setIsSearchOpen(true)} 
-            onAdminClick={() => userProfile?.role === 'admin' ? setIsAdminOpen(true) : alert("관리자 권한이 없습니다.")} 
-            onProfileClick={handleProfileClick} 
-            onLocationClick={() => setIsLocationSelectorOpen(true)} 
-          />
-        <div className="no-scrollbar overflow-x-auto"><CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} /></div>
+      {/* 2. PC 레이아웃: 사이드바 */}
+      <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-[#f2f4f6] shadow-sm">
+        <Header 
+          location={currentLocationName} 
+          userProfile={userProfile} 
+          onSearchClick={() => setIsSearchOpen(true)} 
+          onAdminClick={() => userProfile?.role === 'admin' ? setIsAdminOpen(true) : alert("권한 없음")} 
+          onProfileClick={handleProfileClick} 
+          onLocationClick={() => setIsLocationSelectorOpen(true)} 
+        />
+        <div className="no-scrollbar overflow-x-auto border-b border-[#f9fafb]">
+          <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} />
+        </div>
         <div className="px-5 py-4 border-b border-[#f9fafb]">
-          <div className="flex bg-[#f2f4f6] p-1 rounded-[14px]">
-            <button onClick={() => setActiveTab('home')} className={`flex-1 py-2 text-[14px] font-bold rounded-[12px] ${activeTab === 'home' ? 'bg-white text-[#3182f6] shadow-sm' : 'text-[#8b95a1]'}`}>지도</button>
-            <button onClick={() => setActiveTab('saved')} className={`flex-1 py-2 text-[14px] font-bold rounded-[12px] ${activeTab === 'saved' ? 'bg-white text-[#3182f6] shadow-sm' : 'text-[#8b95a1]'}`}>찜한 목록</button>
+          <div className="flex bg-[#f2f4f6] p-1 rounded-xl">
+            <button onClick={() => setActiveTab('home')} className={`flex-1 py-2 text-sm font-bold rounded-lg ${activeTab === 'home' ? 'bg-white text-[#3182f6] shadow-sm' : 'text-[#8b95a1]'}`}>주변</button>
+            <button onClick={() => setActiveTab('saved')} className={`flex-1 py-2 text-sm font-bold rounded-lg ${activeTab === 'saved' ? 'bg-white text-[#3182f6] shadow-sm' : 'text-[#8b95a1]'}`}>찜한 목록</button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto custom-scrollbar"><PopupList stores={visibleStores} onStoreClick={(s) => handleStoreSelect(s.id)} userLocation={userCoords} /></div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <PopupList stores={visibleStores} onStoreClick={(s) => handleStoreSelect(s.id)} userLocation={userCoords} />
+        </div>
       </aside>
 
-      {/* 지도 영역 */}
+      {/* 3. 메인 영역: 지도 및 모바일 레이어 */}
       <main className="flex-1 relative">
         <MapArea 
           stores={visibleStores} 
@@ -340,104 +339,114 @@ const App: React.FC = () => {
           mapCenter={mapCenter} 
           userLocation={userCoords} 
           onMapIdle={(bounds, center) => { setMapBounds(bounds); setMapCenter(center); }}
-          onMapClick={() => { setIsMobileListOpen(false); setDetailStore(null); }}
+          onMapClick={() => { setIsMobileListOpen(false); setDetailStore(null); setSelectedStoreId(null); }}
           onDetailOpen={(store) => setDetailStore(store)}
           setUserLocation={setUserCoords}
         />
         
-        {/* 모바일 인터페이스 */}
+        {/* 모바일 전용 헤더 (lg:hidden) */}
         <div className="lg:hidden absolute top-0 left-0 right-0 z-20 bg-white/80 backdrop-blur-xl border-b border-[#f2f4f6]">
           <Header location={currentLocationName} userProfile={userProfile} onProfileClick={handleProfileClick} onSearchClick={() => setIsSearchOpen(true)} onLocationClick={() => setIsLocationSelectorOpen(true)} />
-          <div className="no-scrollbar overflow-x-auto"><CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} /></div>
+          <div className="no-scrollbar overflow-x-auto">
+            <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} />
+          </div>
         </div>
 
-        {!isMobileListOpen && (
+        {/* 모바일 목록보기 버튼 */}
+        {!isMobileListOpen && activeTab === 'home' && (
           <div className="lg:hidden absolute bottom-28 left-1/2 -translate-x-1/2 z-30">
-            <button onClick={() => setIsMobileListOpen(true)} className="bg-[#191f28] text-white px-8 py-4 rounded-full shadow-2xl font-bold flex items-center gap-2"><ListIcon size={18} /> 목록보기</button>
+            <button onClick={() => setIsMobileListOpen(true)} className="bg-[#191f28] text-white px-8 py-4 rounded-full shadow-2xl font-bold flex items-center gap-2">
+              <ListIcon size={18} /> 목록보기
+            </button>
           </div>
         )}
 
+        {/* 모바일 바텀 리스트 시트 */}
+        <AnimatePresence>
+          {isMobileListOpen && (
+            <motion.div 
+              initial={{ y: "100%" }} animate={{ y: "0%" }} exit={{ y: "100%" }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white rounded-t-[24px] h-[92vh] flex flex-col shadow-2xl"
+            >
+              <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mt-3 mb-1" />
+              <div className="flex items-center justify-between px-6 py-4">
+                <h2 className="text-lg font-bold">{activeTab === 'home' ? '주변 팝업' : '찜한 팝업'}</h2>
+                <button onClick={() => setIsMobileListOpen(false)} className="p-2 bg-gray-100 rounded-full"><XIcon size={20} /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto pb-32">
+                <PopupList stores={visibleStores} onStoreClick={(s) => handleStoreSelect(s.id)} userLocation={userCoords} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 모바일 하단 내비바 */}
         <div className="lg:hidden">
-          <motion.div initial={{ y: "100%" }} animate={{ y: isMobileListOpen ? "8%" : "100%" }} className="fixed inset-x-0 bottom-0 z-40 bg-white rounded-t-[24px] h-[92vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-50">
-              <h2 className="text-[18px] font-bold">{activeTab === 'home' ? '주변 팝업' : '찜한 팝업'}</h2>
-              <button onClick={() => setIsMobileListOpen(false)} className="p-2 bg-[#f2f4f6] rounded-full"><XIcon size={20} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto pb-32"><PopupList stores={visibleStores} onStoreClick={(s) => handleStoreSelect(s.id)} userLocation={userCoords} /></div>
-          </motion.div>
-          <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+          <BottomNav activeTab={activeTab} onTabChange={(tab) => { setActiveTab(tab); if(tab === 'saved') setIsMobileListOpen(true); }} />
         </div>
       </main>
 
-{/* 모달 및 오버레이 섹션 (z-index 확인) */}
-    <AnimatePresence>
-      {/* 3. 로그인 모달: !userProfile 조건을 제거하여 '익명 사용자'일 때도 뜨게 함 */}
-      {isProfileModalOpen && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }} 
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white p-8 rounded-[32px] shadow-2xl w-full max-w-sm text-center"
-          >
-            <h2 className="text-2xl font-bold mb-6">시작하기</h2>
-            {/* 로그인 버튼들... */}
-            <button 
-              onClick={() => setIsProfileModalOpen(false)} 
-              className="mt-6 text-[#8b95a1] underline text-sm cursor-pointer"
+      {/* 4. 전역 모달/오버레이 레이어 (AnimatePresence 통합관리) */}
+      <AnimatePresence mode="wait">
+        {/* 로그인/프로필 모달 */}
+        {isProfileModalOpen && (
+          <div key="profile-modal" className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setIsProfileModalOpen(false)}>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white p-8 rounded-[32px] shadow-2xl w-full max-w-sm text-center" 
+              onClick={(e) => e.stopPropagation()}
             >
-              나중에 하기
-            </button>
-          </motion.div>
-        </div>
-      )}
-      {/* ... */}
-    </AnimatePresence>
-  </div>
-);
+              <h2 className="text-2xl font-bold mb-6">시작하기</h2>
+              <div className="flex flex-col gap-3">
+                <button onClick={() => handleSocialLogin('toss')} className="w-full py-4 bg-[#3182f6] text-white font-bold rounded-2xl hover:bg-[#1b64da] transition-colors">토스로 시작하기</button>
+                {userProfile && <button onClick={handleLogoutAction} className="w-full py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl">로그아웃</button>}
+              </div>
+              <button onClick={() => setIsProfileModalOpen(false)} className="mt-6 text-[#8b95a1] underline text-sm cursor-pointer">나중에 하기</button>
+            </motion.div>
+          </div>
+        )}
 
-        {/* 배경 딤드 처리 */}
+        {/* 배경 딤드 (검색/위치선택 시) */}
         {(isSearchOpen || isLocationSelectorOpen) && (
-          <motion.div 
-            key="overlay-bg"
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
-            className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[90]" 
-            onClick={() => { setIsSearchOpen(false); setIsLocationSelectorOpen(false); }} 
-          />
+          <motion.div key="dimmer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[90]" onClick={() => { setIsSearchOpen(false); setIsLocationSelectorOpen(false); }} />
         )}
         
-        {/* 지역 선택 모달 */}
+        {/* 위치 선택 모달 */}
         {isLocationSelectorOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div key="location-modal" className="fixed inset-0 z-[100] flex items-center justify-center p-4">
              <LocationSelector onSelect={(loc) => { setCurrentLocationName(loc); setIsLocationSelectorOpen(false); }} onClose={() => setIsLocationSelectorOpen(false)} />
           </div>
         )}
 
+        {/* 검색 오버레이 */}
+        {isSearchOpen && (
+          <SearchOverlay key="search-overlay" isOpen={isSearchOpen} onClose={() => { setIsSearchOpen(false); setSearchQuery(""); }} stores={allStores} onSelectResult={handleStoreSelect} onSearchChange={setSearchQuery} />
+        )}
+
+        {/* 상세 모달 (팝업 정보) */}
         {detailStore && (
-          <div key="detail-container" className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center">
+          <div key="detail-modal" className="fixed inset-0 z-[9999] flex items-end lg:items-center justify-center">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDetailStore(null)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="relative w-full lg:max-w-[480px] bg-white rounded-t-[32px] lg:rounded-[32px] overflow-hidden">
-              <DetailModal store={detailStore} isSaved={savedStoreIds.includes(detailStore.id)} onToggleSave={() => toggleSaveStore(detailStore.id)} onClose={() => setDetailStore(null)} onShowSuccess={(t, m) => setSuccessConfig({ isOpen: true, title: t, message: m })} />
+            <motion.div 
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} 
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="relative w-full lg:max-w-[480px] bg-white rounded-t-[32px] lg:rounded-[32px] overflow-hidden max-h-[95vh] overflow-y-auto"
+            >
+              <DetailModal 
+                store={detailStore} 
+                isSaved={savedStoreIds.includes(detailStore.id)} 
+                onToggleSave={() => toggleSaveStore(detailStore.id)} 
+                onClose={() => setDetailStore(null)} 
+                onShowSuccess={(t, m) => setSuccessConfig({ isOpen: true, title: t, message: m })} 
+              />
             </motion.div>
           </div>
         )}
-        
-        {isSearchOpen && (
-          <SearchOverlay 
-            key="search-overlay"
-            isOpen={isSearchOpen} 
-            onClose={() => { setIsSearchOpen(false); setSearchQuery(""); }} 
-            stores={allStores} 
-            onSelectResult={(id) => handleStoreSelect(id)} 
-            onSearchChange={setSearchQuery} 
-          />
-        )}
 
+        {/* 성공 알림 토스트/모달 */}
         {successConfig.isOpen && (
           <SuccessModal 
-            key="success-modal"
+            key="success-popup"
             isOpen={successConfig.isOpen} 
             title={successConfig.title} 
             message={successConfig.message} 
