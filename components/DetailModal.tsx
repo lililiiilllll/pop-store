@@ -170,7 +170,7 @@ const DetailModal: React.FC<DetailModalProps> = ({
   currentUser, 
   isAdmin = false 
 }) => {
-// --- 1. 상태 정의 (State) ---
+  // --- 1. 상태 정의 (State) ---
   const [isMapSelectOpen, setIsMapSelectOpen] = useState(false);
   const [isCorrectionOpen, setIsCorrectionOpen] = useState(false);
   const [reportingReviewId, setReportingReviewId] = useState<number | null>(null);
@@ -179,52 +179,74 @@ const DetailModal: React.FC<DetailModalProps> = ({
   const [averageRating, setAverageRating] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
   const [likeCount, setLikeCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false); // 추가
-  const [isWriting, setIsWriting] = useState(false); // 추가
-  const [editContent, setEditContent] = useState(''); // 추가
-  const [editRating, setEditRating] = useState(5); // 추가
-  const [editingId, setEditingId] = useState<number | null>(null); // 추가
-  const [myReactions, setMyReactions] = useState<Record<number, 'like' | 'dislike' | null>>({}); // 추가
+  const [isLoading, setIsLoading] = useState(false); 
+  const [isWriting, setIsWriting] = useState(false); 
+  const [editContent, setEditContent] = useState(''); 
+  const [editRating, setEditRating] = useState(5); 
+  const [editingId, setEditingId] = useState<number | null>(null); 
+  const [myReactions, setMyReactions] = useState<Record<number, 'like' | 'dislike' | null>>({});
 
-  // --- 2. 데이터 페칭 함수 (fetchData) ---
-  // useEffect 내부에서 정의하여 호이스팅 문제를 원천 차단합니다.
-useEffect(() => {
-  const loadAllData = async () => {
+  // --- 2. 비즈니스 로직 함수들 (선언부) ---
+  // ⭐ [해결] fetchReviews를 useEffect보다 먼저 정의하여 ReferenceError를 방지합니다.
+  const fetchReviews = useCallback(async () => {
     if (!store?.id) return;
+    setIsLoading(true);
     try {
-      // [A] 별점/리뷰수 로직
-      const { data: revData } = await supabase
+      const { data, error } = await supabase
         .from('reviews')
-        .select('rating')
+        .select('*')
         .eq('popup_id', store.id)
-        .eq('is_blinded', false);
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setReviews(data || []);
+    } catch (err) {
+      console.error('리뷰 로딩 에러:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [store?.id]);
 
-      if (revData) {
-        const avg = revData.length 
-          ? Number((revData.reduce((a, c) => a + c.rating, 0) / revData.length).toFixed(1)) 
-          : 0;
-        setAverageRating(avg);
-        setReviewCount(revData.length);
-      }
-
-      // [B] 전체 찜 개수 및 나의 찜 여부
-      const { count } = await supabase
-        .from('favorites')
-        .select('*', { count: 'exact', head: true })
-        .eq('popup_id', store.id);
-      setLikeCount(count || 0);
-
-      if (currentUser?.id) {
-        const { data: fav } = await supabase
-          .from('favorites')
-          .select('*')
+  // --- 3. 데이터 페칭 실행 (useEffect) ---
+  useEffect(() => {
+    const loadAllData = async () => {
+      if (!store?.id) return;
+      try {
+        // [A] 별점 및 리뷰 수 가져오기
+        const { data: revData } = await supabase
+          .from('reviews')
+          .select('rating')
           .eq('popup_id', store.id)
-          .eq('user_id', currentUser.id)
-          .maybeSingle();
-        setIsLiked(!!fav);
-      }
+          .eq('is_blinded', false);
 
-        // [D] 리뷰 리스트 호출
+        if (revData) {
+          const avg = revData.length 
+            ? Number((revData.reduce((a, c) => a + c.rating, 0) / revData.length).toFixed(1)) 
+            : 0;
+          setAverageRating(avg);
+          setReviewCount(revData.length);
+        }
+
+        // [B] 찜 개수 가져오기
+        const { count } = await supabase
+          .from('favorites')
+          .select('*', { count: 'exact', head: true })
+          .eq('popup_id', store.id);
+        setLikeCount(count || 0);
+
+        // [C] 나의 찜 여부 확인 (비로그인 대응)
+        if (currentUser?.id) {
+          const { data: fav } = await supabase
+            .from('favorites')
+            .select('*')
+            .eq('popup_id', store.id)
+            .eq('user_id', currentUser.id)
+            .maybeSingle(); 
+          setIsLiked(!!fav);
+        } else {
+          setIsLiked(false);
+        }
+
+        // [D] 리뷰 리스트 가져오기 (위에서 정의한 함수 호출)
         await fetchReviews();
 
       } catch (error) {
@@ -232,82 +254,45 @@ useEffect(() => {
       }
     };
 
-      loadAllData();
-  }, [store?.id, currentUser?.id, fetchReviews]); // 모든 의존성 통합
-  
-  // --- 3. 비즈니스 로직 함수들 ---
-const handleLikeToggle = async (e: React.MouseEvent) => {
-  e.stopPropagation();
-  
-  // 1. 비회원 체크 (안내 메시지 유지)
-  if (!currentUser) {
-    alert("로그인이 필요한 기능입니다. 로그인 후 찜해보세요! 💖");
-    return;
-  }
+    loadAllData();
+  }, [store?.id, currentUser?.id, fetchReviews]);
 
-  // 2. 찜 토글 로직
-  try {
-    // 실제 로직 시작
-  if (isLiked) {
-    const { error } = await supabase
-      .from('favorites')
-      .delete()
-      .eq('popup_id', store.id)
-      .eq('user_id', currentUser.id);
-    if (!error) { 
-      setIsLiked(false); 
-      setLikeCount(prev => Math.max(0, prev - 1)); 
+  // --- 4. 인터랙션 함수들 ---
+
+  const handleLikeToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // 1. 비회원 체크
+    if (!currentUser) {
+      alert("로그인이 필요한 기능입니다. 로그인 후 찜해보세요! 💖");
+      return;
     }
-  } else {
-    const { error } = await supabase
-      .from('favorites')
-      .insert({ popup_id: store.id, user_id: currentUser.id });
-    if (!error) { 
-      setIsLiked(true); 
-      setLikeCount(prev => prev + 1); 
+
+    // 2. 찜 토글 로직
+    try {
+      if (isLiked) {
+        const { error } = await supabase
+          .from('favorites')
+          .delete()
+          .eq('popup_id', store.id)
+          .eq('user_id', currentUser.id);
+        if (!error) { 
+          setIsLiked(false); 
+          setLikeCount(prev => Math.max(0, prev - 1)); 
+        }
+      } else {
+        const { error } = await supabase
+          .from('favorites')
+          .insert({ popup_id: store.id, user_id: currentUser.id });
+        if (!error) { 
+          setIsLiked(true); 
+          setLikeCount(prev => prev + 1); 
+        }
+      }
+    } catch (err) {
+      console.error("찜하기 처리 중 오류:", err);
     }
-  }
-  } catch (err) {
-    console.error("찜하기 처리 중 오류:", err);
-  }
-};
-
-  // 찜 개수 조회 로직
-  useEffect(() => {
-    const fetchLikeCount = async () => {
-      if (!store?.id) return;
-      const { count, error } = await supabase
-        .from('favorites')
-        .select('*')
-        .eq('popup_id', store.id)
-        .eq('user_id', currentUser?.id)
-        .maybeSingle(); // popupId 대신 store.id 사용
-
-      if (!error) setLikeCount(count || 0);
-    };
-    fetchLikeCount();
-  }, [store?.id]);
-  
-const fetchReviews = useCallback(async () => {
-  if (!store?.id) return;
-  setIsLoading(true);
-  try {
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('*')
-      .eq('popup_id', store.id)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    setReviews(data || []);
-  } catch (err) {
-    console.error('리뷰 로딩 에러:', err);
-  } finally {
-    setIsLoading(false);
-  }
-}, [store?.id]);
-
-
-  if (!store) return null;
+  };
 
   const getAutoWalkTime = () => {
     if (store.nearby_station && store.walking_time) {
@@ -325,8 +310,7 @@ const fetchReviews = useCallback(async () => {
     setEditRating(5);
   };
 
-const handleAddReview = async () => {
-    // 🔔 비회원 체크
+  const handleAddReview = async () => {
     if (!currentUser) {
       alert("로그인 후 소중한 후기를 남겨주세요! 😊");
       return;
@@ -387,15 +371,14 @@ const handleAddReview = async () => {
     }
   };
 
-const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
-  if (!currentUser?.id) {
-    alert("로그인이 필요한 기능입니다.");
-    return;
-  }
+  const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
+    if (!currentUser?.id) {
+      alert("로그인이 필요한 기능입니다.");
+      return;
+    }
     
     const prevReaction = myReactions[reviewId];
     
-    // UI 즉각 반영 (Optimistic Update)
     setReviews(reviews.map(r => {
       if (r.id === reviewId) {
         let { likes, dislikes } = r;
@@ -413,7 +396,6 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
       return r;
     }));
     
-    // DB 업데이트 로직 (필요시 추가)
     try {
       const field = type === 'like' ? 'likes' : 'dislikes';
       await supabase.rpc('increment_review_reaction', { 
@@ -423,7 +405,7 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
     } catch (err) {
       console.error("반응 업데이트 실패:", err);
     }
-  }; // <--- 이 중괄호가 닫혀야 오류가 해결됩니다.
+  };
 
   const openMap = (type: 'naver' | 'kakao') => {
     const { lat, lng, title } = store;
@@ -436,7 +418,9 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
       : `https://map.kakao.com/link/to/${encodeURIComponent(targetName)},${lat},${lng}`;
 
     const start = Date.now();
-    setTimeout(() => { if (Date.now() - start < 2000) window.open(webUrl, '_blank'); }, 500);
+    setTimeout(() => { 
+      if (Date.now() - start < 2000) window.open(webUrl, '_blank'); 
+    }, 500);
     window.location.href = url;
     setIsMapSelectOpen(false);
   };
