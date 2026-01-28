@@ -179,6 +179,12 @@ const DetailModal: React.FC<DetailModalProps> = ({
   const [averageRating, setAverageRating] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
   const [likeCount, setLikeCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false); // 추가
+  const [isWriting, setIsWriting] = useState(false); // 추가
+  const [editContent, setEditContent] = useState(''); // 추가
+  const [editRating, setEditRating] = useState(5); // 추가
+  const [editingId, setEditingId] = useState<number | null>(null); // 추가
+  const [myReactions, setMyReactions] = useState<Record<number, 'like' | 'dislike' | null>>({}); // 추가
 
   // --- 2. 데이터 페칭 함수 (fetchData) ---
   // useEffect 내부에서 정의하여 호이스팅 문제를 원천 차단합니다.
