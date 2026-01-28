@@ -645,7 +645,7 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
           />
         )}
 
-        {isMapSelectOpen && (
+{isMapSelectOpen && (
           <div className="fixed inset-0 z-[10001] flex items-center justify-center p-6">
             <motion.div 
               initial={{ opacity: 0 }} 
@@ -678,18 +678,22 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
               <button onClick={() => setIsMapSelectOpen(false)} className="mt-6 text-gray-400 text-[13px] font-medium">닫기</button>
             </motion.div>
           </div>
-        {/* 신고하기 모달 렌더링 */}
+        )}
+
+        {/* ✅ 신고하기 모달 추가 위치 (에러 발생 지점 수정) */}
         {reportingReviewId && (
           <ReportModal 
             reviewId={reportingReviewId}
             userId={currentUser?.id || ''}
             onClose={() => setReportingReviewId(null)}
-            onSuccess={onShowSuccess} // 완료 시 알림창 띄우기
+            onSuccess={onShowSuccess}
           />
         )}
       </AnimatePresence>
     </div>
   );
 };
+
+export default DetailModal;
 
 export default DetailModal;
