@@ -695,5 +695,3 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
 };
 
 export default DetailModal;
-
-export default DetailModal;
