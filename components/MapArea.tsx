@@ -179,50 +179,58 @@ useEffect(() => {
     });
   }, [stores, onMarkerClick]);
 
-  // 4. [오버레이] 선택된 마커 상단 정보창 (간격 밀착 수정)
-  useEffect(() => {
-    const { kakao } = window as any;
-    if (!mapRef.current || !selectedStoreId || !kakao) return;
-    if (infoOverlayRef.current) infoOverlayRef.current.setMap(null);
+// 4. [오버레이] 선택된 마커 상단 정보창 (에러 완벽 방지 버전)
+useEffect(() => {
+  const { kakao } = window as any;
+  // mapRef.current나 kakao 객체가 없으면 실행 중단
+  if (!mapRef.current || !selectedStoreId || !kakao) return;
+  
+  // 기존 오버레이가 있다면 제거
+  if (infoOverlayRef.current) infoOverlayRef.current.setMap(null);
 
-    const store = stores.find(s => s.id === selectedStoreId);
-    if (!store) return;
+  const store = stores.find(s => s.id === selectedStoreId);
+  if (!store) return;
 
-    const content = document.createElement('div');
-    // margin-bottom을 130px에서 55px로 대폭 줄여 핀 바로 위에 위치하도록 수정
-    content.style.cssText = 'margin-bottom: 48px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
-    // ✅ 이미지 경로가 null일 경우 빈 문자열이나 기본 이미지 처리
-
-  content.innerHTML = `
+  // ✅ 1. 변수 선언 (ReferenceError 방지)
+  const currentImageUrl = store.image_url || 'https://via.placeholder.com/150'; 
+  const overlayDiv = document.createElement('div'); 
+  
+  overlayDiv.style.cssText = 'margin-bottom: 48px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
+  
+  // ✅ 2. HTML 삽입 (imageUrl 대신 위에서 선언한 currentImageUrl 사용)
+  overlayDiv.innerHTML = `
     <div style="background: white; padding: 12px; border-radius: 20px; display: flex; align-items: center; gap: 12px; min-width: 220px; border: 1px solid #f2f4f6; position: relative; z-index: 10;">
-      <img src="${imageUrl}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/150'"/>
+      <img src="${currentImageUrl}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/150'"/>
       <div style="display: flex; flex-direction: column; text-align: left;">
         <div style="display: flex; gap: 4px; margin-bottom: 2px;">
           <span style="font-size: 10px; color: #3182f6; font-weight: bold;">${store.category || '팝업'}</span>
+          <span style="font-size: 10px; color: #00d084; font-weight: bold; background: #e6f9f2; padding: 1px 4px; border-radius: 4px;">정보</span>
         </div>
-        <span style="font-size: 14px; font-weight: 800; color: #191f28; line-height: 1.2;">${store.title || '정보 없음'}</span>
+        <span style="font-size: 14px; font-weight: 800; color: #191f28; line-height: 1.2;">${store.title || '제목 없음'}</span>
         <span style="font-size: 11px; color: #8b95a1; margin-top: 2px;">${(store.start_date || '').slice(5)} ~ ${(store.end_date || '').slice(5)}</span>
       </div>
     </div>
     <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 14px; height: 14px; background: white; border-right: 1px solid #f2f4f6; border-bottom: 1px solid #f2f4f6; z-index: 5;"></div>
   `;
-    
-    // 클릭 이벤트 바인딩
-    content.onclick = (e) => {
-      e.stopPropagation();
-      onDetailOpen(store);
-    };
+  
+  // ✅ 3. 클릭 이벤트 바인딩
+  overlayDiv.onclick = (e) => {
+    e.stopPropagation();
+    onDetailOpen(store);
+  };
 
-    infoOverlayRef.current = new kakao.maps.CustomOverlay({
-      position: new kakao.maps.LatLng(store.lat, store.lng),
-      content: content,
-      yAnchor: 1.0,
-      zIndex: 50
-    });
-    infoOverlayRef.current.setMap(mapRef.current);
-    
-    mapRef.current.panTo(new kakao.maps.LatLng(store.lat, store.lng));
-  }, [selectedStoreId, stores, onDetailOpen]);
+  // ✅ 4. 오버레이 객체 생성 및 지도 표시
+  infoOverlayRef.current = new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(store.lat, store.lng),
+    content: overlayDiv, 
+    yAnchor: 1.0,
+    zIndex: 50
+  });
+  
+  infoOverlayRef.current.setMap(mapRef.current);
+  mapRef.current.panTo(new kakao.maps.LatLng(store.lat, store.lng));
+
+}, [selectedStoreId, stores, onDetailOpen]);
 
   return (
     <div className="w-full h-full relative">
