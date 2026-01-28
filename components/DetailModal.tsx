@@ -188,12 +188,11 @@ const DetailModal: React.FC<DetailModalProps> = ({
 
   // --- 2. 데이터 페칭 함수 (fetchData) ---
   // useEffect 내부에서 정의하여 호이스팅 문제를 원천 차단합니다.
-  useEffect(() => {
-    const fetchData = async () => {
+useEffect(() => {
+    const loadAllData = async () => {
       if (!store?.id) return;
-
       try {
-        // [A] 별점 및 리뷰 수 가져오기
+        // [A] 별점 및 리뷰 수
         const { data: revData } = await supabase
           .from('reviews')
           .select('rating')
@@ -208,40 +207,36 @@ const DetailModal: React.FC<DetailModalProps> = ({
           setReviewCount(revData.length);
         }
 
-        // [B] 찜 개수 가져오기
+// [B] 전체 찜 개수
         const { count } = await supabase
           .from('favorites')
           .select('*', { count: 'exact', head: true })
           .eq('popup_id', store.id);
         setLikeCount(count || 0);
 
-        // [C] 나의 찜 여부 확인 (비로그인 대응)
+        // [C] 나의 찜 여부 (로그인 유저만)
         if (currentUser?.id) {
           const { data: fav } = await supabase
             .from('favorites')
             .select('*')
             .eq('popup_id', store.id)
             .eq('user_id', currentUser.id)
-            .maybeSingle(); // 406 에러 방지를 위해 .single() 대신 .maybeSingle() 사용
+            .maybeSingle();
           setIsLiked(!!fav);
         } else {
           setIsLiked(false);
         }
 
-        // [D] 리뷰 리스트 가져오기
-        const { data: list } = await supabase
-          .from('reviews')
-          .select('*')
-          .eq('popup_id', store.id)
-          .order('created_at', { ascending: false });
-        setReviews(list || []);
+        // [D] 리뷰 리스트 호출
+        await fetchReviews();
 
       } catch (error) {
         console.error("데이터 로딩 오류:", error);
       }
     };
-    fetchData(); // 정의한 직후 호출
-  }, [store?.id, currentUser?.id]);
+
+    loadAllData();
+  }, [store?.id, currentUser?.id, fetchReviews]); // 모든 의존성 통합
 
   // --- 3. 비즈니스 로직 함수들 ---
 const handleLikeToggle = async (e: React.MouseEvent) => {
