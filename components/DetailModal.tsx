@@ -395,27 +395,28 @@ const handleAddReview = async () => {
     }
   };
 
-const handleReaction = (reviewId: number, type: 'like' | 'dislike') => {
-  if (!currentUser) return alert("로그인 후 이용 가능합니다.");
-  const prevReaction = myReactions[reviewId];
-
-  setReviews(prevReviews => prevReviews.map(r => {
-    if (r.id === reviewId) {
-      let { likes, dislikes } = r;
-      if (prevReaction === type) { // 같은 거 또 누르면 취소
-        type === 'like' ? (likes = Math.max(0, likes - 1)) : (dislikes = Math.max(0, dislikes - 1));
-        setMyReactions({ ...myReactions, [reviewId]: null });
-      } else { // 새로운 반응이거나 변경
-        if (prevReaction === 'like') likes = Math.max(0, likes - 1);
-        if (prevReaction === 'dislike') dislikes = Math.max(0, dislikes - 1);
-        type === 'like' ? likes++ : dislikes++;
-        setMyReactions({ ...myReactions, [reviewId]: type });
+const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
+    if (!currentUser) return alert("로그인 후 이용 가능합니다.");
+    
+    const prevReaction = myReactions[reviewId];
+    
+    // UI 즉각 반영 (Optimistic Update)
+    setReviews(reviews.map(r => {
+      if (r.id === reviewId) {
+        let { likes, dislikes } = r;
+        if (prevReaction === type) {
+          type === 'like' ? likes-- : dislikes--;
+          setMyReactions({ ...myReactions, [reviewId]: null });
+        } else {
+          if (prevReaction === 'like') likes--;
+          if (prevReaction === 'dislike') dislikes--;
+          type === 'like' ? likes++ : dislikes++;
+          setMyReactions({ ...myReactions, [reviewId]: type });
+        }
+        return { ...r, likes, dislikes };
       }
-      return { ...r, likes, dislikes };
-    }
-    return r;
-  }));
-};
+      return r;
+    }));
     
     // DB 업데이트 로직 (필요시 추가)
     try {
