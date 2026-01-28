@@ -47,6 +47,17 @@ const MapArea: React.FC<MapAreaProps> = ({
         const map = new kakao.maps.Map(mapContainerRef.current, options);
         mapRef.current = map;
 
+        // 지도를 드래그하기 시작할 때 실행
+        kakao.maps.event.addListener(map, 'dragstart', () => {
+          // 1. 상세 오버레이(CustomOverlay) 닫기
+          if (infoOverlayRef.current) {
+            infoOverlayRef.current.setMap(null);
+          }
+      
+          // 2. 부모 컴포넌트의 선택 상태 초기화 (selectedStoreId를 null로 만듦)
+          onMapClick(); 
+          });
+
         // 지도 클릭 시 정보창 닫기
         kakao.maps.event.addListener(map, 'click', () => {
           if (infoOverlayRef.current) infoOverlayRef.current.setMap(null);
