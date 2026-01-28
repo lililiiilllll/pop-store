@@ -314,9 +314,6 @@ const handleLikeToggle = async (e: React.MouseEvent) => {
     }
   }, [store?.id]);
 
-  useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
 
   if (!store) return null;
 
@@ -583,7 +580,7 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
           </div>
 
           {/* 리뷰 작성/수정 폼 */}
-          {(isWriting || editingId !== null) && (
+          {currentUser && (isWriting || editingId !== null) && (
             <div className="mb-8 p-5 bg-gray-50 rounded-[24px]">
               <div className="flex gap-1 mb-3">
                 {[1, 2, 3, 4, 5].map(s => (
