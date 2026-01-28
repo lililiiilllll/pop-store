@@ -170,52 +170,77 @@ const DetailModal: React.FC<DetailModalProps> = ({
   currentUser, 
   isAdmin = false 
 }) => {
+// --- 1. 상태 정의 (State) ---
   const [isMapSelectOpen, setIsMapSelectOpen] = useState(false);
   const [isCorrectionOpen, setIsCorrectionOpen] = useState(false);
-  const [reportingReviewId, setReportingReviewId] = useState<number | null>(null); // 신고할 리뷰 ID 상태
-  
+  const [reportingReviewId, setReportingReviewId] = useState<number | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [myReactions, setMyReactions] = useState<Record<number, 'like' | 'dislike' | null>>({});
-  
-  const [isWriting, setIsWriting] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editContent, setEditContent] = useState('');
-  const [editRating, setEditRating] = useState(5);
-
-  // --- 새로 추가되는 상태 ---
+  const [isLiked, setIsLiked] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
   const [likeCount, setLikeCount] = useState(0);
-  const [isLiked, setIsLiked] = useState(false);
 
+  // --- 2. 데이터 페칭 함수 (fetchData) ---
+  // useEffect 내부에서 정의하여 호이스팅 문제를 원천 차단합니다.
   useEffect(() => {
-    const fetchStatsAndLikes = async () => {
+    const fetchData = async () => {
       if (!store?.id) return;
-      // 별점 데이터 가져오기
-      const { data: revData } = await supabase.from('reviews').select('rating').eq('popup_id', store.id).eq('is_blinded', false);
-      if (revData && revData.length > 0) {
-        const total = revData.reduce((acc, curr) => acc + curr.rating, 0);
-        setAverageRating(Number((total / revData.length).toFixed(1)));
-        setReviewCount(revData.length);
+
+      try {
+        // [A] 별점 및 리뷰 수 가져오기
+        const { data: revData } = await supabase
+          .from('reviews')
+          .select('rating')
+          .eq('popup_id', store.id)
+          .eq('is_blinded', false);
+
+        if (revData) {
+          const avg = revData.length 
+            ? Number((revData.reduce((a, c) => a + c.rating, 0) / revData.length).toFixed(1)) 
+            : 0;
+          setAverageRating(avg);
+          setReviewCount(revData.length);
+        }
+
+        // [B] 찜 개수 가져오기
+        const { count } = await supabase
+          .from('favorites')
+          .select('*', { count: 'exact', head: true })
+          .eq('popup_id', store.id);
+        setLikeCount(count || 0);
+
+        // [C] 나의 찜 여부 확인 (비로그인 대응)
+        if (currentUser?.id) {
+          const { data: fav } = await supabase
+            .from('favorites')
+            .select('*')
+            .eq('popup_id', store.id)
+            .eq('user_id', currentUser.id)
+            .maybeSingle(); // 406 에러 방지를 위해 .single() 대신 .maybeSingle() 사용
+          setIsLiked(!!fav);
+        } else {
+          setIsLiked(false);
+        }
+
+        // [D] 리뷰 리스트 가져오기
+        const { data: list } = await supabase
+          .from('reviews')
+          .select('*')
+          .eq('popup_id', store.id)
+          .order('created_at', { ascending: false });
+        setReviews(list || []);
+
+      } catch (error) {
+        console.error("데이터 로딩 오류:", error);
       }
-      // 찜 데이터 가져오기
-      const { count } = await supabase.from('favorites').select('*', { count: 'exact', head: true }).eq('popup_id', store.id);
-      setLikeCount(count || 0);
-      if (currentUser?.id) { 
-      const { data: fav } = await supabase
-        .from('favorites')
-        .select('*')
-        .eq('popup_id', store.id)
-        .eq('user_id', currentUser.id)
-        .maybeSingle();
-      setIsLiked(!!fav);
-    } else {
-      setIsLiked(false); // 비로그인 시 기본값
-    }
-  };
-  fetchData();
-}, [store?.id, currentUser?.id]);
+    };
+
+    fetchData();
+  }, [store?.id, currentUser?.id]); // 의존성 배열에 id들 추가
+
+  // --- 3. 비즈니스 로직 함수들 ---
+  const handleLike = async () => {
+    if (!currentUser) return alert('로그인이 필요합니다.');
 
 // 찜 토글 핸들러 (비회원 대응)
   const handleLikeToggle = async (e: React.MouseEvent) => {
