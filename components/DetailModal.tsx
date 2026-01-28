@@ -240,8 +240,8 @@ const DetailModal: React.FC<DetailModalProps> = ({
         console.error("데이터 로딩 오류:", error);
       }
     };
-    fetchData(); // 정의한 직후 호출
-  }, [store?.id, currentUser?.id]);
+    fetchData();
+  }, [store?.id, currentUser?.id]); // 깔끔하게 여기서 끝냄
 
   // --- 3. 비즈니스 로직 함수들 ---
   const handleLike = async () => {
@@ -405,19 +405,13 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
         return { ...r, likes, dislikes };
       }
       return r;
-    }));
-    
-    // DB 업데이트 로직 (필요시 추가)
+    })); // setReviews 닫기
     try {
-      const field = type === 'like' ? 'likes' : 'dislikes';
-      await supabase.rpc('increment_review_reaction', { 
-        row_id: reviewId, 
-        field_name: field 
-      });
-    } catch (err) {
-      console.error("반응 업데이트 실패:", err);
+      await supabase.rpc('increment_review_reaction', { row_id: reviewId, field_name: type === 'like' ? 'likes' : 'dislikes' });
+    } catch (err) { 
+      console.error(err); 
     }
-  }; // <--- 이 중괄호가 닫혀야 오류가 해결됩니다.
+  };.
 
   const openMap = (type: 'naver' | 'kakao') => {
     const { lat, lng, title } = store;
