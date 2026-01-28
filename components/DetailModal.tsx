@@ -255,24 +255,24 @@ const handleLikeToggle = async (e: React.MouseEvent) => {
 
   // 2. 찜 토글 로직
   try {
-    if (isLiked) {
-      const { error } = await supabase
-        .from('favorites')
-        .delete()
-        .eq('popup_id', store.id)
-        .eq('user_id', currentUser.id);
-      if (!error) { 
-        setIsLiked(false); 
-        setLikeCount(prev => Math.max(0, prev - 1)); 
-      }
-    } else {
-      const { error } = await supabase
-        .from('favorites')
-        .insert({ popup_id: store.id, user_id: currentUser.id });
-      if (!error) { 
-        setIsLiked(true); 
-        setLikeCount(prev => prev + 1); 
-      }
+    // 실제 로직 시작
+  if (isLiked) {
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('popup_id', store.id)
+      .eq('user_id', currentUser.id);
+    if (!error) { 
+      setIsLiked(false); 
+      setLikeCount(prev => Math.max(0, prev - 1)); 
+    }
+  } else {
+    const { error } = await supabase
+      .from('favorites')
+      .insert({ popup_id: store.id, user_id: currentUser.id });
+    if (!error) { 
+      setIsLiked(true); 
+      setLikeCount(prev => prev + 1); 
     }
   } catch (err) {
     console.error("찜하기 처리 중 오류:", err);
