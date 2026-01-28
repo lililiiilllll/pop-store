@@ -240,42 +240,44 @@ const DetailModal: React.FC<DetailModalProps> = ({
         console.error("데이터 로딩 오류:", error);
       }
     };
-
-    useEffect(() => {
-    const fetchData = async () => {
-      if (!store?.id) return;
-      try {
-        // ... 기존 fetchData 내부 로직 (별점, 찜, 리뷰 페칭) ...
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
     fetchData(); // 정의한 직후 호출
   }, [store?.id, currentUser?.id]);
 
   // --- 3. 비즈니스 로직 함수들 ---
-  const handleLike = async () => {
-    if (!currentUser) return alert('로그인이 필요합니다.');
+const handleLikeToggle = async (e: React.MouseEvent) => {
+  e.stopPropagation();
+  
+  // 1. 비회원 체크 (안내 메시지 유지)
+  if (!currentUser) {
+    alert("로그인이 필요한 기능입니다. 로그인 후 찜해보세요! 💖");
+    return;
+  }
 
-// 찜 토글 핸들러 (비회원 대응)
-  const handleLikeToggle = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    // 🔔 비회원 체크
-    if (!currentUser) {
-      alert("로그인이 필요한 기능입니다. 로그인 후 찜해보세요! 💖");
-      return;
-    }
-
+  // 2. 찜 토글 로직
+  try {
     if (isLiked) {
-      const { error } = await supabase.from('favorites').delete().eq('popup_id', store.id).eq('user_id', currentUser.id);
-      if (!error) { setIsLiked(false); setLikeCount(prev => Math.max(0, prev - 1)); }
+      const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('popup_id', store.id)
+        .eq('user_id', currentUser.id);
+      if (!error) { 
+        setIsLiked(false); 
+        setLikeCount(prev => Math.max(0, prev - 1)); 
+      }
     } else {
-      const { error } = await supabase.from('favorites').insert({ popup_id: store.id, user_id: currentUser.id });
-      if (!error) { setIsLiked(true); setLikeCount(prev => prev + 1); }
+      const { error } = await supabase
+        .from('favorites')
+        .insert({ popup_id: store.id, user_id: currentUser.id });
+      if (!error) { 
+        setIsLiked(true); 
+        setLikeCount(prev => prev + 1); 
+      }
     }
-  };
+  } catch (err) {
+    console.error("찜하기 처리 중 오류:", err);
+  }
+};
 
   // 찜 개수 조회 로직
   useEffect(() => {
