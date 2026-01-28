@@ -311,25 +311,16 @@ const App: React.FC = () => {
       </AnimatePresence>
 
       {/* PC 사이드바 */}
-      <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-[#f2f4f6] shadow-sm">
-        // PC용 헤더 (aside 태그 안)
-        <Header 
-          location={currentLocationName} 
-          userProfile={userProfile} 
-          onSearchClick={() => setIsSearchOpen(true)} 
-          onAdminClick={() => userProfile?.role === 'admin' ? setIsAdminOpen(true) : alert("관리자 권한이 없습니다.")} 
-          onProfileClick={handleProfileClick} // 여기!
-          onLocationClick={() => setIsLocationSelectorOpen(true)} 
-        />
-
-        // 모바일용 헤더 (main 태그 안)
-        <Header 
-          location={currentLocationName} 
-          userProfile={userProfile} 
-          onProfileClick={handleProfileClick} // 여기도 반드시 확인!
-          onSearchClick={() => setIsSearchOpen(true)} 
-          onLocationClick={() => setIsLocationSelectorOpen(true)} 
-        />
+        <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-[#f2f4f6] shadow-sm">
+          {/* PC 버전 헤더 */}
+          <Header 
+            location={currentLocationName} 
+            userProfile={userProfile} 
+            onSearchClick={() => setIsSearchOpen(true)} 
+            onAdminClick={() => userProfile?.role === 'admin' ? setIsAdminOpen(true) : alert("관리자 권한이 없습니다.")} 
+            onProfileClick={handleProfileClick} 
+            onLocationClick={() => setIsLocationSelectorOpen(true)} 
+          />
         <div className="no-scrollbar overflow-x-auto"><CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} /></div>
         <div className="px-5 py-4 border-b border-[#f9fafb]">
           <div className="flex bg-[#f2f4f6] p-1 rounded-[14px]">
@@ -378,31 +369,32 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* 오버레이 섹션 */}
-<AnimatePresence>
-  {/* !userProfile 조건을 제거하고 open 상태만 봅니다 */}
-  {isProfileModalOpen && (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <motion.div 
-        initial={{ scale: 0.9, opacity: 0 }} 
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }} // exit 추가
-        className="bg-white p-8 rounded-[32px] shadow-2xl w-full max-w-sm text-center"
-      >
-        <h2 className="text-2xl font-bold mb-6">시작하기</h2>
-        <div className="flex flex-col gap-3">
-          {/* 버튼들... */}
-          <button onClick={() => handleSocialLogin('toss')} className="w-full py-4 bg-[#3182f6] text-white font-bold rounded-2xl">토스로 시작하기</button>
+{/* 모달 및 오버레이 섹션 (z-index 확인) */}
+    <AnimatePresence>
+      {/* 3. 로그인 모달: !userProfile 조건을 제거하여 '익명 사용자'일 때도 뜨게 함 */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white p-8 rounded-[32px] shadow-2xl w-full max-w-sm text-center"
+          >
+            <h2 className="text-2xl font-bold mb-6">시작하기</h2>
+            {/* 로그인 버튼들... */}
+            <button 
+              onClick={() => setIsProfileModalOpen(false)} 
+              className="mt-6 text-[#8b95a1] underline text-sm cursor-pointer"
+            >
+              나중에 하기
+            </button>
+          </motion.div>
         </div>
-        <button 
-          onClick={() => setIsProfileModalOpen(false)} 
-          className="mt-6 text-[#8b95a1] underline text-sm cursor-pointer"
-        >
-          나중에 하기
-        </button>
-      </motion.div>
-    </div>
-  )}
+      )}
+      {/* ... */}
+    </AnimatePresence>
+  </div>
+);
 
         {/* 배경 딤드 처리 */}
         {(isSearchOpen || isLocationSelectorOpen) && (
