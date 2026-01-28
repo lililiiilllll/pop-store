@@ -235,9 +235,9 @@ useEffect(() => {
       }
     };
 
-    loadAllData();
+      loadAllData();
   }, [store?.id, currentUser?.id, fetchReviews]); // 모든 의존성 통합
-
+  
   // --- 3. 비즈니스 로직 함수들 ---
 const handleLikeToggle = async (e: React.MouseEvent) => {
   e.stopPropagation();
