@@ -95,33 +95,35 @@ const MapArea: React.FC<MapAreaProps> = ({
     }
   }, []);
 
-  // 2. [내 위치 핀] 실시간 userLocation 동기화
-  useEffect(() => {
-    const { kakao } = window as any;
-    if (!mapRef.current || !userLocation || !kakao) return;
+// 2. [내 위치 핀] 실시간 userLocation 동기화
+useEffect(() => {
+  const { kakao } = window as any;
+  // mapRef.current가 없을 때 실행되는 것을 방지
+  if (!mapRef.current || !userLocation || !kakao) return;
 
-    if (userMarkerRef.current) userMarkerRef.current.setMap(null);
+  if (userMarkerRef.current) userMarkerRef.current.setMap(null);
 
-    const content = document.createElement('div');
-    content.innerHTML = `
-      <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-        <div style="position: absolute; width: 30px; height: 30px; background: #3182f6; border-radius: 50%; opacity: 0.2; animation: user-pulse 2s infinite;"></div>
-        <div style="width: 14px; height: 14px; background: #3182f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>
-      </div>
-      <style>
-        @keyframes user-pulse { 0% { transform: scale(0.5); opacity: 0.5; } 100% { transform: scale(2.2); opacity: 0; } }
-      </style>
-    `;
+  const content = document.createElement('div');
+  content.innerHTML = `
+    <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+      <div style="position: absolute; width: 30px; height: 30px; background: #3182f6; border-radius: 50%; opacity: 0.2; animation: user-pulse 2s infinite;"></div>
+      <div style="width: 14px; height: 14px; background: #3182f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>
+    </div>
+    <style>
+      @keyframes user-pulse { 0% { transform: scale(0.5); opacity: 0.5; } 100% { transform: scale(2.2); opacity: 0; } }
+    </style>
+  `;
 
-    userMarkerRef.current = new kakao.maps.CustomOverlay({
-      position: new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
-      content: content,
-      zIndex: 10,
-      xAnchor: 0.5,
-      yAnchor: 0.5
-    });
-    userMarkerRef.current.setMap(mapRef.current);
-  }, [userLocation]);
+  userMarkerRef.current = new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
+    content: content,
+    zIndex: 10,
+    xAnchor: 0.5,
+    yAnchor: 0.5
+  });
+  
+  userMarkerRef.current.setMap(mapRef.current);
+}, [userLocation, mapRef.current]); // mapRef.current가 준비되었을 때도 다시 체크하도록 추가
 
   // 3. [마커] 스토어 마커 렌더링 및 미승인 토스트
   useEffect(() => {
@@ -170,7 +172,9 @@ const MapArea: React.FC<MapAreaProps> = ({
 
     const content = document.createElement('div');
     // margin-bottom을 130px에서 55px로 대폭 줄여 핀 바로 위에 위치하도록 수정
-    content.style.cssText = 'margin-bottom: 55px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
+    content.style.cssText = 'margin-bottom: 48px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
+    // 수정할 부분: 이미지 경로가 없을 경우를 대비한 기본 이미지 처리(선택사항이지만 권장)
+    const imageUrl = store.image_url || '기본_이미지_경로';
     content.innerHTML = `
       <div style="background: white; padding: 12px; border-radius: 20px; display: flex; align-items: center; gap: 12px; min-width: 220px; border: 1px solid #f2f4f6; position: relative; z-index: 10;">
         <img src="${store.image_url}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover;" />
