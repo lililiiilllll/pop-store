@@ -399,7 +399,10 @@ const handleAddReview = async () => {
   };
 
 const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
-    if (!currentUser) return alert("로그인 후 이용 가능합니다.");
+  if (!currentUser?.id) {
+    alert("로그인이 필요한 기능입니다.");
+    return;
+  }
     
     const prevReaction = myReactions[reviewId];
     
