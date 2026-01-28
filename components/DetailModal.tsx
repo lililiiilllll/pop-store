@@ -189,43 +189,40 @@ const DetailModal: React.FC<DetailModalProps> = ({
   // --- 2. 데이터 페칭 함수 (fetchData) ---
   // useEffect 내부에서 정의하여 호이스팅 문제를 원천 차단합니다.
 useEffect(() => {
-    const loadAllData = async () => {
-      if (!store?.id) return;
-      try {
-        // [A] 별점 및 리뷰 수
-        const { data: revData } = await supabase
-          .from('reviews')
-          .select('rating')
-          .eq('popup_id', store.id)
-          .eq('is_blinded', false);
+  const loadAllData = async () => {
+    if (!store?.id) return;
+    try {
+      // [A] 별점/리뷰수 로직
+      const { data: revData } = await supabase
+        .from('reviews')
+        .select('rating')
+        .eq('popup_id', store.id)
+        .eq('is_blinded', false);
 
-        if (revData) {
-          const avg = revData.length 
-            ? Number((revData.reduce((a, c) => a + c.rating, 0) / revData.length).toFixed(1)) 
-            : 0;
-          setAverageRating(avg);
-          setReviewCount(revData.length);
-        }
+      if (revData) {
+        const avg = revData.length 
+          ? Number((revData.reduce((a, c) => a + c.rating, 0) / revData.length).toFixed(1)) 
+          : 0;
+        setAverageRating(avg);
+        setReviewCount(revData.length);
+      }
 
-      // [B] 전체 찜 개수
-        const { count } = await supabase
+      // [B] 전체 찜 개수 및 나의 찜 여부
+      const { count } = await supabase
+        .from('favorites')
+        .select('*', { count: 'exact', head: true })
+        .eq('popup_id', store.id);
+      setLikeCount(count || 0);
+
+      if (currentUser?.id) {
+        const { data: fav } = await supabase
           .from('favorites')
-          .select('*', { count: 'exact', head: true })
-          .eq('popup_id', store.id);
-        setLikeCount(count || 0);
-
-        // [C] 나의 찜 여부 (로그인 유저만)
-        if (currentUser?.id) {
-          const { data: fav } = await supabase
-            .from('favorites')
-            .select('*')
-            .eq('popup_id', store.id)
-            .eq('user_id', currentUser.id)
-            .maybeSingle();
-          setIsLiked(!!fav);
-        } else {
-          setIsLiked(false);
-        }
+          .select('*')
+          .eq('popup_id', store.id)
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
+        setIsLiked(!!fav);
+      }
 
         // [D] 리뷰 리스트 호출
         await fetchReviews();
@@ -291,23 +288,23 @@ const handleLikeToggle = async (e: React.MouseEvent) => {
     fetchLikeCount();
   }, [store?.id]);
   
-  const fetchReviews = useCallback(async () => {
-    if (!store?.id) return;
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('reviews')
-        .select('*')
-        .eq('popup_id', store.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setReviews(data || []);
-    } catch (err) {
-      console.error('리뷰 로딩 에러:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [store?.id]);
+const fetchReviews = useCallback(async () => {
+  if (!store?.id) return;
+  setIsLoading(true);
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('popup_id', store.id)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    setReviews(data || []);
+  } catch (err) {
+    console.error('리뷰 로딩 에러:', err);
+  } finally {
+    setIsLoading(false);
+  }
+}, [store?.id]);
 
 
   if (!store) return null;
