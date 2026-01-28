@@ -134,10 +134,13 @@ const App: React.FC = () => {
   // --- [핸들러: 인증 및 로그인 액션] ---
   
   const handleProfileClick = useCallback(() => {
-    if (!userProfile) {
-      setIsProfileModalOpen(true);
-    }
-  }, [userProfile]);
+  if (!userProfile) {
+    setIsProfileModalOpen(true); // 로그인 안 된 경우 로그인 모달 오픈
+  } else {
+    // 이미 로그인 된 경우의 로직 (예: 로그아웃 의사를 묻거나 테스트 패널 열기)
+    setIsTestPanelOpen(true); 
+  }
+}, [userProfile]);
 
   const handleSocialLogin = async (provider: 'kakao' | 'naver' | 'toss') => {
     try {
@@ -337,6 +340,8 @@ const App: React.FC = () => {
           userLocation={userCoords} 
           onMapIdle={(bounds, center) => { setMapBounds(bounds); setMapCenter(center); }}
           onMapClick={() => { setIsMobileListOpen(false); setDetailStore(null); }}
+          onDetailOpen={(store) => setDetailStore(store)}
+          setUserLocation={setUserCoords}
         />
         
         {/* 모바일 인터페이스 */}
