@@ -240,17 +240,6 @@ const DetailModal: React.FC<DetailModalProps> = ({
         console.error("데이터 로딩 오류:", error);
       }
     };
-
-    useEffect(() => {
-    const fetchData = async () => {
-      if (!store?.id) return;
-      try {
-        // ... 기존 fetchData 내부 로직 (별점, 찜, 리뷰 페칭) ...
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
     fetchData(); // 정의한 직후 호출
   }, [store?.id, currentUser?.id]);
 
