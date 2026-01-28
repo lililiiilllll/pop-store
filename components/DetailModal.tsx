@@ -37,6 +37,64 @@ const CorrectionModal: React.FC<{
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleSubmit = async () => {
+    if (!reason.trim()) return alert('수정 요청 사유를 입력해주세요.');
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('correction_requests')
+        .insert([{
+          popup_id: popupId,
+          user_id: userId || null,
+          title_fix: titleFix || null,
+          description_fix: descriptionFix || null,
+          reason: reason,
+          status: 'pending'
+        }]);
+
+      if (error) throw error;
+      onSuccess('제보 완료', '수정 제보가 정상적으로 접수되었습니다.');
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert('접수 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[10002] flex items-center justify-center p-6">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="relative w-full max-w-[400px] bg-white rounded-[32px] p-8 shadow-2xl overflow-hidden">
+        <h3 className="text-[20px] font-bold text-[#191f28] mb-1">정보 수정 요청</h3>
+        <p className="text-[13px] text-gray-400 mb-6">{popupTitle}</p>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 제목 (선택)</label>
+            <input value={titleFix} onChange={(e) => setTitleFix(e.target.value)} placeholder="변경할 이름을 입력하세요" className="w-full bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 내용 (선택)</label>
+            <textarea value={descriptionFix} onChange={(e) => setDescriptionFix(e.target.value)} placeholder="변경할 상세 정보를 입력하세요" className="w-full h-24 bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+          <div>
+            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">제보 사유 (필수)</label>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="잘못된 정보를 알려주세요" className="w-full h-20 bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-8">
+          <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-[14px]">취소</button>
+          <button onClick={handleSubmit} disabled={isSubmitting} className="flex-[2] py-4 bg-[#3182f6] text-white rounded-2xl font-bold text-[14px] shadow-lg active:scale-95 transition-all">
+            {isSubmitting ? '처리 중...' : '제출하기'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 // --- [신규] 리뷰 신고 모달 컴포넌트 (파일 내부 정의) ---
 const ReportModal: React.FC<{
   reviewId: number;
@@ -104,66 +162,6 @@ return (
     </div>
   );
 };
-
-  const handleSubmit = async () => {
-    if (!reason.trim()) return alert('수정 요청 사유를 입력해주세요.');
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from('correction_requests')
-        .insert([{
-          popup_id: popupId,
-          user_id: userId || null,
-          title_fix: titleFix || null,
-          description_fix: descriptionFix || null,
-          reason: reason,
-          status: 'pending'
-        }]);
-
-      if (error) throw error;
-      onSuccess('제보 완료', '수정 제보가 정상적으로 접수되었습니다.');
-      onClose();
-    } catch (err) {
-      console.error(err);
-      alert('접수 중 오류가 발생했습니다.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[10002] flex items-center justify-center p-6">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="relative w-full max-w-[400px] bg-white rounded-[32px] p-8 shadow-2xl overflow-hidden">
-        <h3 className="text-[20px] font-bold text-[#191f28] mb-1">정보 수정 요청</h3>
-        <p className="text-[13px] text-gray-400 mb-6">{popupTitle}</p>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 제목 (선택)</label>
-            <input value={titleFix} onChange={(e) => setTitleFix(e.target.value)} placeholder="변경할 이름을 입력하세요" className="w-full bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div>
-            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">수정할 내용 (선택)</label>
-            <textarea value={descriptionFix} onChange={(e) => setDescriptionFix(e.target.value)} placeholder="변경할 상세 정보를 입력하세요" className="w-full h-24 bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-          </div>
-          <div>
-            <label className="text-[12px] font-bold text-gray-500 ml-1 mb-1 block">제보 사유 (필수)</label>
-            <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="잘못된 정보를 알려주세요" className="w-full h-20 bg-gray-50 border-none rounded-xl p-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-          </div>
-        </div>
-
-        <div className="flex gap-3 mt-8">
-          <button onClick={onClose} className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-[14px]">취소</button>
-          <button onClick={handleSubmit} disabled={isSubmitting} className="flex-[2] py-4 bg-[#3182f6] text-white rounded-2xl font-bold text-[14px] shadow-lg active:scale-95 transition-all">
-            {isSubmitting ? '처리 중...' : '제출하기'}
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
-
 // --- 메인 DetailModal 컴포넌트 ---
 const DetailModal: React.FC<DetailModalProps> = ({ 
   store, 
@@ -683,10 +681,10 @@ const handleReaction = async (reviewId: number, type: 'like' | 'dislike') => {
         {/* ✅ 신고하기 모달 추가 위치 (에러 발생 지점 수정) */}
         {reportingReviewId && (
           <ReportModal 
-            reviewId={reportingReviewId}
-            userId={currentUser?.id || ''}
-            onClose={() => setReportingReviewId(null)}
-            onSuccess={onShowSuccess}
+            reviewId={reportingReviewId} 
+            userId={currentUser?.id || ''} 
+            onClose={() => setReportingReviewId(null)} 
+            onSuccess={onShowSuccess} 
           />
         )}
       </AnimatePresence>
