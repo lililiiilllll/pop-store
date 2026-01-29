@@ -72,7 +72,7 @@ export const CATEGORIES = [
 ];
 
 export const REGIONS = [
-  { name: '성수', lat: 37.5445, lng: 127.0560 },
+  { name: '성수/서울숲', lat: 37.5445, lng: 127.0560 },
   { name: '강남', lat: 37.4979, lng: 127.0276 },
   { name: '홍대', lat: 37.5562, lng: 126.9225 },
   { name: '잠실', lat: 37.5133, lng: 127.1028 },
