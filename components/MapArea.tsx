@@ -234,30 +234,6 @@ useEffect(() => {
 
   return (
     <div className="w-full h-full relative">
-
-      {/* --- [추가] 핀 잇 로고 영역 --- */}
-    <div className="absolute top-6 left-1/2 -translate-x-1/2 md:left-8 md:translate-x-0 z-40 pointer-events-none">
-      <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-xl border border-gray-100">
-        {/* 로고 심볼 (핀 모양) */}
-        <div className="w-8 h-8 bg-[#3182F6] rounded-xl flex items-center justify-center shadow-lg">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zM12 11.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-          </svg>
-        </div>
-        
-        {/* 로고 텍스트 (PC에서만 보임) */}
-        <span className="text-[18px] font-black text-[#191f28] tracking-tight hidden md:block">
-          Pin It <span className="text-[#3182F6] font-normal text-[14px] ml-1">핀 잇</span>
-        </span>
-        
-        {/* 모바일 텍스트 (작게 표시) */}
-        <span className="text-[16px] font-black text-[#191f28] md:hidden">
-          Pin It
-        </span>
-      </div>
-    </div>
-    {/* --- 로고 끝 --- */}
-      
       <div ref={mapContainerRef} className="w-full h-full absolute inset-0" />
       
       {/* 내 위치 이동 버튼 */}
