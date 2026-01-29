@@ -62,6 +62,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState(""); 
   const [mapBounds, setMapBounds] = useState<any>(null);
   const [mapCenter, setMapCenter] = useState<{lat: number, lng: number} | undefined>(undefined);
+  const [mapLevel, setMapLevel] = useState(4); // 🌟 기본 레벨 추가 (4는 적당한 확대 상태)
   const [currentLocationName, setCurrentLocationName] = useState('성수/서울숲');
   const [isMobileListOpen, setIsMobileListOpen] = useState(false);
 
@@ -250,6 +251,7 @@ const handleProfileClick = useCallback(() => {
 
   const handleLocationSelect = (name: string, coords: { lat: number; lng: number }) => {
     setMapCenter(coords);           // 지도의 중심 좌표를 선택한 지역으로 변경
+    setMapLevel(4);
     setCurrentLocationName(name);   // 헤더에 표시되는 지역 이름을 변경 (예: "성수", "강남")
     setIsLocationSelectorOpen(false); // 지역 선택 모달 닫기
   };
