@@ -1,17 +1,25 @@
 import React from 'react';
-import { PopupStore } from './types';
+import { PopupStore } from '../types';
 
 interface PopupListProps {
-  stores: PopupStore[];
+  stores: (PopupStore & { isEnded?: boolean; isRecommendation?: boolean })[];
   onStoreClick: (store: PopupStore) => void;
   userLocation: { lat: number; lng: number } | null;
   onFindNearest?: () => void;
   activeTab?: string;
   userProfile?: any;
-  onLoginClick?: () => void; // 로그인 유도용
+  onLoginClick?: () => void;
 }
 
-const PopupList: React.FC<PopupListProps> = ({ stores, onStoreClick, userLocation, onFindNearest }) => {
+const PopupList: React.FC<PopupListProps> = ({ 
+  stores, 
+  onStoreClick, 
+  userLocation, 
+  onFindNearest,
+  activeTab,
+  userProfile,
+  onLoginClick 
+}) => {
   
   // 💡 거리 계산 함수 (Haversine 공식)
   const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -28,15 +36,38 @@ const PopupList: React.FC<PopupListProps> = ({ stores, onStoreClick, userLocatio
     return `${distance.toFixed(1)}km`;
   };
 
-  // 💡 데이터가 없을 때 표시할 화면
+  // 1. [비로그인] '찜한 목록' 탭인데 로그인이 안 된 경우 전용 화면
+  if (activeTab === 'saved' && !userProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-10 text-center">
+        <div className="w-16 h-16 bg-[#f2f4f6] rounded-full flex items-center justify-center mb-6">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#adb5bd" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+        </div>
+        <h3 className="text-[17px] font-bold text-[#191f28] mb-2">로그인이 필요해요</h3>
+        <p className="text-[#8b95a1] text-[14px] leading-relaxed mb-8">
+          로그인하고 관심 있는 팝업을 저장해서<br/>나만의 리스트를 만들어보세요!
+        </p>
+        <button 
+          onClick={onLoginClick}
+          className="px-8 py-3.5 bg-[#3182f6] text-white text-[15px] font-bold rounded-2xl shadow-lg active:scale-95 transition-all"
+        >
+          로그인하고 시작하기
+        </button>
+      </div>
+    );
+  }
+
+  // 2. [데이터 없음] 검색 결과나 주변 팝업이 하나도 없을 때
   if (stores.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
         </div>
-        <p className="text-gray-500 text-sm font-medium mb-4">현재 지도 영역에 팝업이 없습니다.</p>
-        {onFindNearest && (
+        <p className="text-gray-500 text-sm font-medium mb-4">현재 영역에 표시할 팝업이 없습니다.</p>
+        {onFindNearest && activeTab !== 'saved' && (
           <button 
             onClick={onFindNearest}
             className="px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-md active:scale-95 transition-all"
@@ -47,62 +78,12 @@ const PopupList: React.FC<PopupListProps> = ({ stores, onStoreClick, userLocatio
       </div>
     );
   }
-    
-      return (
-        <div className="flex flex-col pb-20">
-          {stores.map((store) => (
-            <div 
-              key={store.id}
-              onClick={() => onStoreClick(store)}
-              // 🌟 [2] 종료된 팝업 스타일 적용 (opacity-50, 흑백처리)
-              className={`flex items-center gap-4 p-5 border-b border-[#f9fafb] cursor-pointer transition-all active:bg-gray-50 ${
-                store.isEnded ? 'opacity-40 grayscale-[0.8]' : ''
-              }`}
-            >
-              <div className="relative w-24 h-24 shrink-0">
-                <img 
-                  src={store.image_url || 'https://placehold.co/400x400?text=No+Image'} 
-                  className="w-full h-full rounded-2xl object-cover shadow-sm"
-                  alt={store.title}
-                />
-                {/* 종료 뱃지 추가 (선택사항) */}
-                {store.isEnded && (
-                  <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
-                    <span className="text-white text-[11px] font-bold border border-white/50 px-2 py-1 rounded">종료</span>
-                  </div>
-                )}
-              </div>
-    
-              <div className="flex flex-col flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[11px] font-bold text-[#3182f6] uppercase tracking-wider">{store.category}</span>
-                  {store.isRecommendation && (
-                    <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">추천</span>
-                  )}
-                </div>
-                <h3 className="text-[16px] font-bold text-[#191f28] truncate mb-1">{store.title}</h3>
-                <p className="text-[13px] text-[#4e5968] truncate mb-2">{store.address}</p>
-                
-                <div className="flex items-center gap-3">
-                   <span className="text-[12px] font-medium text-[#8b95a1]">
-                    {userLocation ? getDistance(userLocation.lat, userLocation.lng, store.lat, store.lng) : ''}
-                  </span>
-                  <span className="text-[12px] text-[#adb5bd]">|</span>
-                  <span className="text-[12px] font-medium text-[#8b95a1]">
-                    {(store.end_date || '').slice(5).replace('-', '.')} 종료
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    };
 
+  // 3. [메인 리스트] 모든 기능이 포함된 리스트 렌더링
   return (
-    <div className="flex flex-col gap-3 p-4">
+    <div className="flex flex-col gap-3 p-4 pb-24">
       {stores.map((store) => {
-        const distance = userLocation 
+        const distanceStr = userLocation 
           ? getDistance(userLocation.lat, userLocation.lng, store.lat, store.lng)
           : null;
 
@@ -110,54 +91,71 @@ const PopupList: React.FC<PopupListProps> = ({ stores, onStoreClick, userLocatio
           <div 
             key={store.id}
             onClick={() => onStoreClick(store)}
-            className="flex items-center gap-4 p-3 bg-white rounded-2xl border border-gray-100 hover:border-blue-200 transition-all cursor-pointer shadow-sm active:scale-[0.97]"
+            // 🌟 종료된 팝업은 투명도를 낮추고 흑백 처리 (기능 추가)
+            className={`flex items-center gap-4 p-3 bg-white rounded-2xl border border-gray-100 transition-all cursor-pointer shadow-sm active:scale-[0.97] ${
+              store.isEnded ? 'opacity-40 grayscale-[0.8]' : 'hover:border-blue-200'
+            }`}
           >
-            {/* 1. 썸네일 이미지 (고정 크기) */}
+            {/* 썸네일 이미지 영역 */}
             <div className="relative w-24 h-24 flex-shrink-0">
               <img 
-                src={store.imageUrl} 
+                src={store.image_url || store.imageUrl || 'https://placehold.co/400x400?text=No+Image'} 
                 className="w-full h-full object-cover rounded-xl"
-                alt={store.title} // 💡 store.name 대신 store.title 사용
+                alt={store.title}
               />
+              {/* 무료 입장 뱃지 */}
               {store.is_free && (
                 <span className="absolute top-1 left-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow-sm">
                   FREE
                 </span>
               )}
+              {/* 종료 뱃지 (종료된 경우만 노출) */}
+              {store.isEnded && (
+                <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
+                  <span className="text-white text-[10px] font-bold border border-white/50 px-2 py-0.5 rounded">종료</span>
+                </div>
+              )}
             </div>
 
-            {/* 2. 스토어 정보 (사진 옆으로 배치) */}
+            {/* 정보 텍스트 영역 */}
             <div className="flex flex-col justify-between flex-1 min-w-0 h-24 py-0.5 text-left">
               <div>
                 <div className="flex justify-between items-center mb-0.5">
                   <span className="text-[10px] text-blue-500 font-extrabold uppercase">
                     {store.category}
                   </span>
-                  {distance && <span className="text-[11px] text-gray-400 font-medium">{distance}</span>}
+                  {distanceStr && <span className="text-[11px] text-gray-400 font-medium">{distanceStr}</span>}
                 </div>
                 
-                {/* 💡 팝업 이름: store.title로 변경 */}
                 <h3 className="text-[15px] font-bold text-gray-900 truncate mb-0.5">
                   {store.title} 
                 </h3>
                 
                 <p className="text-[12px] text-gray-500 truncate leading-tight">
-                  {store.location}
+                  {store.address || store.location}
                 </p>
               </div>
 
-              {/* 하단 정보 라인 */}
+              {/* 하단 메타 정보 (진행상태, 날짜, 추천여부) */}
               <div className="flex items-center gap-2 mt-1">
                 <div className="flex items-center gap-1.5 overflow-hidden">
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 bg-gray-50 text-gray-600 rounded whitespace-nowrap">
-                    {/* 간단한 날짜 비교 로직이나 상태 표시 */}
-                    {store.period?.includes('~') ? '진행중' : '팝업정보'}
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${
+                    store.isEnded ? 'bg-gray-100 text-gray-400' : 'bg-gray-50 text-gray-600'
+                  }`}>
+                    {store.isEnded ? '종료됨' : '진행중'}
                   </span>
                   <span className="text-[10px] text-gray-400 truncate">
-                    {store.period}
+                    {store.end_date ? `${store.end_date.slice(5).replace('-', '.')} 종료` : store.period}
                   </span>
                 </div>
-                {store.entry_type && (
+                {/* 추천 마크 (거리순 정렬 시 상단 노출용) */}
+                {store.isRecommendation && (
+                  <span className="ml-auto text-[10px] text-blue-600 font-bold whitespace-nowrap bg-blue-50 px-1.5 py-0.5 rounded">
+                    추천
+                  </span>
+                )}
+                {/* 입장 방식 (예약/현장 등) */}
+                {store.entry_type && !store.isRecommendation && (
                   <span className="ml-auto text-[10px] text-orange-500 font-bold whitespace-nowrap">
                     {store.entry_type}
                   </span>
