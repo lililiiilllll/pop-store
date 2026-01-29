@@ -247,7 +247,7 @@ useEffect(() => {
 }, [selectedStoreId, stores, onDetailOpen]);
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative" style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}>
       <div ref={mapContainerRef} className="w-full h-full absolute inset-0" />
       
       {/* 내 위치 이동 버튼 */}
