@@ -455,15 +455,22 @@ return (
         
         {/* [C] 위치 선택 모달: 배경보다 높은 z-index 부여 */}
         {isLocationSelectorOpen && (
-          <div key="location-selector-root" className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-             <div className="pointer-events-auto w-full max-w-md">
-               <LocationSelector 
-                 onSelect={handleLocationSelect} 
-                 onClose={() => setIsLocationSelectorOpen(false)} 
-               />
-             </div>
-          </div>
-        )}
+        /* fixed 레이어 자체가 AnimatePresence 안에 있어야 애니메이션이 씹히지 않습니다 */
+        <div key="location-modal-container" className="fixed inset-0 z-[110] flex items-center justify-center p-4 pointer-events-none">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="pointer-events-auto w-full max-w-md"
+          >
+            <LocationSelector 
+              onSelect={handleLocationSelect} 
+              onClose={() => setIsLocationSelectorOpen(false)} 
+            />
+          </motion.div>
+        </div>
+      )}
 
         {/* [D] 검색 오버레이 */}
         {isSearchOpen && (
