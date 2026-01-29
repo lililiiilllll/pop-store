@@ -19,23 +19,35 @@ const Header: React.FC<HeaderProps> = ({
   onLocationClick,
   onAdminClick 
 }) => {
-  // 아이콘 존재 여부 안전하게 확인
   const SearchIcon = Icons.Search || (() => <span>🔍</span>);
   const UserIcon = Icons.User || (() => <span>👤</span>);
   const ChevronDownIcon = Icons.ChevronDown || (() => <span>▼</span>);
   const SettingsIcon = Icons.Settings || (() => <span>⚙️</span>);
 
   return (
-    <header className="flex items-center justify-between px-5 py-4 bg-white/80 backdrop-blur-md sticky top-0 z-[60] border-b border-gray-100/50">
-      {/* 왼쪽: 위치 선택 */}
-      <div 
-        className="flex items-center gap-1 cursor-pointer active:opacity-60 transition-opacity"
-        onClick={onLocationClick}
-      >
-        <h1 className="text-xl font-bold text-gray-900 leading-tight tracking-tight">{location}</h1>
-        <ChevronDownIcon size={18} className="text-gray-400 mt-0.5" />
+    <header className="flex items-center justify-between px-5 py-3 bg-white/80 backdrop-blur-md sticky top-0 z-[60] border-b border-gray-100/50 h-16">
+      
+      {/* [왼쪽] 위치 선택 아이콘만 배치 (또는 빈 공간) */}
+      <div className="flex-1 flex items-center">
+        <div 
+          className="p-2 hover:bg-gray-100 rounded-full cursor-pointer transition-colors"
+          onClick={onLocationClick}
+        >
+          <ChevronDownIcon size={20} className="text-gray-600" />
+        </div>
       </div>
 
+      {/* [중앙] ✅ 로고 삽입 (기존 성수/서울숲 글자 위치) */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center cursor-pointer active:scale-95 transition-transform" onClick={onLocationClick}>
+        <h1 className="text-[20px] font-black text-[#191f28] tracking-tight leading-none">
+          Pin It
+        </h1>
+        <div className="flex items-center gap-1 mt-0.5">
+          <span className="text-[12px] font-bold text-[#3182f6]">{location}</span>
+          <div className="w-1 h-1 bg-[#3182f6] rounded-full animate-pulse" />
+        </div>
+      </div>
+      
       {/* 오른쪽: 검색 및 유저 버튼 세트 */}
       <div className="flex items-center gap-1.5">
         {/* 검색 버튼 */}
