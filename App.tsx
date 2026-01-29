@@ -18,6 +18,17 @@ import LocationSelector from './components/LocationSelector';
 import SuccessModal from './components/SuccessModal';
 import BottomNav from './components/BottomNav';
 
+const getDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  const R = 6371; // 지구 반지름 (km)
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLng = (lng2 - lng1) * (Math.PI / 180);
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; 
+};
+
 // [상수 설정]
 const DEFAULT_LOCATION = { lat: 37.5547, lng: 126.9706 };
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1531050171669-7df9b2089206?q=80&w=400&auto=format&fit=crop';
@@ -232,47 +243,62 @@ const App: React.FC = () => {
   }, []);
 
   // --- [연산: 검색 및 필터링 통합 로직] ---
+// --- [수정된 visibleStores 연산 로직] ---
   const visibleStores = useMemo(() => {
     let filtered = allStores;
 
-    // 1. 검색어 필터링
+    // 1. 검색어 필터링 (검색 시에는 지도 범위 무시하고 결과 노출)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(s => 
+      return filtered.filter(s => 
         (s.title || "").toLowerCase().includes(q) || 
         (s.category && s.category.toLowerCase().includes(q)) ||
-        (s.description && s.description.toLowerCase().includes(q)) ||
-        (s.address && s.address.toLowerCase().includes(q)) ||
-        (s.nearby_station && s.nearby_station.toLowerCase().includes(q)) ||
         (Array.isArray(s.keywords) && s.keywords.some((k: string) => k.toLowerCase().includes(q)))
       );
-      return filtered;
     }
 
-    // 2. 탭 필터링
+    // 2. 탭 필터링 (찜한 목록)
     if (activeTab === 'saved') {
-      filtered = filtered.filter(s => savedStoreIds.includes(s.id));
+      return filtered.filter(s => savedStoreIds.includes(s.id));
     }
 
-    // 3. 카테고리 필터링
+    // 3. 카테고리 필터링 적용 (임시 변수에 저장)
+    let categoryFiltered = filtered;
     if (selectedFilter !== '전체') {
       if (selectedFilter === '무료입장') {
-        filtered = filtered.filter(s => s.is_free);
+        categoryFiltered = categoryFiltered.filter(s => s.is_free);
       } else {
-        filtered = filtered.filter(s => s.category === selectedFilter);
+        categoryFiltered = categoryFiltered.filter(s => s.category === selectedFilter);
       }
     }
 
-    // 4. 지도 범위 필터링
+    // 4. 지도 범위 필터링 및 "근처 팝업 추천" 로직
     if (activeTab === 'home' && mapBounds) {
-      filtered = filtered.filter(s => 
+      const inBounds = categoryFiltered.filter(s => 
         s.lat >= mapBounds.minLat && s.lat <= mapBounds.maxLat && 
         s.lng >= mapBounds.minLng && s.lng <= mapBounds.maxLng
       );
+
+      // 결과가 있다면 필터링된 결과 반환
+      if (inBounds.length > 0) {
+        return inBounds;
+      }
+
+      // 결과가 0개인데 유저 위치 정보가 있다면, 거리순 정렬하여 2개 추천
+      if (inBounds.length === 0 && userCoords) {
+        return [...categoryFiltered]
+          .map(store => ({
+            ...store,
+            distance: getDistance(userCoords.lat, userCoords.lng, store.lat, store.lng)
+          }))
+          .sort((a, b) => (a.distance || 0) - (b.distance || 0))
+          .slice(0, 2)
+          .map(store => ({ ...store, isRecommendation: true })); // 추천 아이템임을 표시
+      }
     }
 
-    return filtered;
-  }, [allStores, selectedFilter, mapBounds, activeTab, savedStoreIds, searchQuery]);
+    return categoryFiltered;
+  }, [allStores, selectedFilter, mapBounds, activeTab, savedStoreIds, searchQuery, userCoords]);
 
   // 관리자 대시보드 렌더링 (보안 강화)
   if (isAdminOpen && userProfile?.role === 'admin') {
