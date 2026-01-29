@@ -154,7 +154,7 @@ const MapArea: React.FC<MapAreaProps> = ({
     
           // 3. 🌟 추가: 이동 후 지도를 적절한 크기로 확대 (레벨 4)
           // 숫자가 작을수록 더 많이 확대됩니다.
-          mapRef.current.setLevel(4, { animate: true }); 
+          mapRef.current.setLevel(6, { animate: true }); 
         }
       }
     }, [mapCenter]);
