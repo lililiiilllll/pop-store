@@ -440,8 +440,15 @@ return (
         {/* [C] 위치 선택 모달 */}
         {isLocationSelectorOpen && (
           <div key="location-selector-root" className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-             <LocationSelector onSelect={(loc) => { setCurrentLocationName(loc); setIsLocationSelectorOpen(false); }} onClose={() => setIsLocationSelectorOpen(false)} />
-          </div>
+            <LocationSelector 
+              onSelect={(name, coords) => { 
+              setCurrentLocationName(name);   // 헤더 이름 변경
+              setMapCenter(coords);           // 지도 좌표 이동 (핵심)
+              setIsLocationSelectorOpen(false); 
+            }} 
+            onClose={() => setIsLocationSelectorOpen(false)} 
+            />
+        </div>
         )}
 
         {/* [D] 검색 오버레이 */}
