@@ -30,26 +30,10 @@ const Header: React.FC<HeaderProps> = ({
       {/* [왼쪽] 서비스 로고 고정 */}
       <div className="flex-1 flex items-center gap-2">
         <div className="w-8 h-8 bg-[#3182F6] rounded-xl flex items-center justify-center shadow-sm shrink-0">
-          <svg 
-      viewBox="0 0 100 100" 
-      fill="none" 
-      xmlns="http://www.w3.org/2000/svg" 
-      className="w-full h-full"
-    >
-      {/* P 글자 형태이면서 하단이 핀처럼 뾰족한 디자인 */}
-      <path 
-        d="M32 90V10H65C82.6731 10 97 24.3269 97 42C97 59.6731 82.6731 74 65 74H50L35 93" 
-        stroke="#3182F6" 
-        strokeWidth="15" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      />
-      {/* P 내부의 구멍을 핀 머리 모양으로 강조 */}
-      <path 
-        d="M65 42C65 50.2843 58.2843 57 50 57C41.7157 57 35 50.2843 35 42C35 33.7157 41.7157 27 50 27C58.2843 27 65 33.7157 65 42Z" 
-        fill="#3182F6" 
-      />
-    </svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zM12 11.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </div>
         </div>
         <span className="text-[19px] font-black text-[#191f28] tracking-tighter">
           Pin It
