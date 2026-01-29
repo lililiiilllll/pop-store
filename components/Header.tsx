@@ -30,16 +30,34 @@ const Header: React.FC<HeaderProps> = ({
       {/* [왼쪽] 서비스 로고 고정 */}
       <div className="flex-1 flex items-center gap-2">
         <div className="w-8 h-8 bg-[#3182F6] rounded-xl flex items-center justify-center shadow-sm shrink-0">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zM12 11.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-          </svg>
+          <svg 
+      viewBox="0 0 100 100" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg" 
+      className="w-full h-full drop-shadow-sm"
+    >
+      {/* 토스 블루 색상의 P 형태 배경 */}
+      <path 
+        d="M25 15C25 10.5817 28.5817 7 33 7H65C81.5685 7 95 20.4315 95 37C95 53.5685 81.5685 67 65 67H43V85C43 89.4183 39.4183 93 35 93H33C28.5817 93 25 89.4183 25 85V15Z" 
+        fill="#3182F6" 
+      />
+      {/* P 내부에 뚫린 핀(Pin) 모양의 구멍 (Hole) */}
+      <path 
+        fillRule="evenodd" 
+        clipRule="evenodd" 
+        d="M60 37C60 41.4183 56.4183 45 52 45C47.5817 45 44 41.4183 44 37C44 32.5817 47.5817 29 52 29C56.4183 29 60 32.5817 60 37ZM52 57C58 50 64 43.5 64 37C64 30.3726 58.6274 25 52 25C45.3726 25 40 30.3726 40 37C40 43.5 46 50 52 57Z" 
+        fill="white" 
+      />
+    </svg>
         </div>
         <span className="text-[19px] font-black text-[#191f28] tracking-tighter">
           Pin It
         </span>
+        {/*
         <span className="text-[10px] font-black text-[#3182f6] tracking-tighter">
           핀 잇
         </span>
+         */}
       </div>
 
       {/* [중앙] ✅ 성수/서울숲 위치 선택 (완전 중앙 배치) */}
