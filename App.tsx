@@ -276,8 +276,10 @@ const visibleStores = useMemo(() => {
 
     // 2. 탭 필터링 (찜한 목록)
     if (activeTab === 'saved') {
-      filtered = filtered.filter(s => savedStoreIds.includes(s.id));
-    }
+    // 로그인 안 된 경우 빈 배열 반환 (UI에서 문구 노출용)
+    if (!userProfile) return []; 
+    filtered = filtered.filter(s => savedStoreIds.includes(s.id));
+  }
 
     // 3. 카테고리 필터링
     if (selectedFilter !== '전체') {
