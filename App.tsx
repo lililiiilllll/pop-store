@@ -143,24 +143,29 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- [핸들러: 인증 및 로그인 액션] ---
-  
-  const handleProfileClick = useCallback(() => {
-  if (!userProfile) {
-    setIsProfileModalOpen(true); // 로그인 안 된 경우 로그인 모달 오픈
+// --- [핸들러: 인증 및 로그인 액션] ---
+
+const handleProfileClick = useCallback(() => {
+  if (!currentUser) { // userProfile 대신 App에서 사용하는 currentUser 사용
+    // ⭐ 중요: setIsProfileModalOpen이 아니라 isLoginModalOpen을 true로 바꿔야 합니다.
+    setIsLoginModalOpen(true); 
+    console.log("로그인 모달 오픈 요청"); // 작동 확인용
   } else {
-    // 이미 로그인 된 경우의 로직 (예: 로그아웃 의사를 묻거나 테스트 패널 열기)
+    // 이미 로그인 된 경우 마이페이지(테스트 패널) 오픈
     setIsTestPanelOpen(true); 
   }
-}, [userProfile]);
+}, [currentUser]); // 의존성 배열도 currentUser로 변경
 
-  const handleSocialLogin = async (provider: 'kakao' | 'naver' | 'toss') => {
-    try {
-      await signInWithSocial(provider);
-    } catch (e: any) {
-      console.error("로그인 에러:", e.message);
-    }
-  };
+const handleSocialLogin = async (provider: 'kakao' | 'naver' | 'toss') => {
+  try {
+    await signInWithSocial(provider);
+    // 로그인 시도 후 모달 닫기
+    setIsLoginModalOpen(false);
+  } catch (e: any) {
+    console.error("로그인 에러:", e.message);
+    alert("로그인 중 오류가 발생했습니다.");
+  }
+};
 
   // [DELETE-ON-PRODUCTION] 디버그용 통합 테스트 로그인 핸들러 (비밀번호 인자 추가)
   const loginAsTestAccount = async (email: string, password: string, roleName: string) => {
