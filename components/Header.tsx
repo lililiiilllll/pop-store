@@ -34,14 +34,20 @@ const Header: React.FC<HeaderProps> = ({
       viewBox="0 0 100 100" 
       fill="none" 
       xmlns="http://www.w3.org/2000/svg" 
-      className="w-full h-full drop-shadow-sm"
+      className="w-full h-full"
     >
-      {/* P 내부에 뚫린 핀(Pin) 모양의 구멍 (Hole) */}
+      {/* P 글자 형태이면서 하단이 핀처럼 뾰족한 디자인 */}
       <path 
-        fillRule="evenodd" 
-        clipRule="evenodd" 
-        d="M60 37C60 41.4183 56.4183 45 52 45C47.5817 45 44 41.4183 44 37C44 32.5817 47.5817 29 52 29C56.4183 29 60 32.5817 60 37ZM52 57C58 50 64 43.5 64 37C64 30.3726 58.6274 25 52 25C45.3726 25 40 30.3726 40 37C40 43.5 46 50 52 57Z" 
-        fill="white" 
+        d="M32 90V10H65C82.6731 10 97 24.3269 97 42C97 59.6731 82.6731 74 65 74H50L35 93" 
+        stroke="#3182F6" 
+        strokeWidth="15" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+      />
+      {/* P 내부의 구멍을 핀 머리 모양으로 강조 */}
+      <path 
+        d="M65 42C65 50.2843 58.2843 57 50 57C41.7157 57 35 50.2843 35 42C35 33.7157 41.7157 27 50 27C58.2843 27 65 33.7157 65 42Z" 
+        fill="#3182F6" 
       />
     </svg>
         </div>
