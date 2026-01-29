@@ -71,18 +71,32 @@ const MapArea: React.FC<MapAreaProps> = ({
           onMapClick();
         });
 
-        // 롱프레스 제보 (800ms)
+        // --- 롱프레스 제보 기능 개선 영역 ---
         const handleStart = (e: any) => {
+          // 혹시 실행 중인 타이머가 있다면 초기화 (중복 방지)
+          if (longPressTimer.current) clearTimeout(longPressTimer.current);
+
           longPressTimer.current = setTimeout(() => {
+            // 800ms 동안 떼지 않았을 때만 실행
             setSelectedCoord({ lat: e.latLng.getLat(), lng: e.latLng.getLng() });
             setIsReportModalOpen(true);
-            if (navigator.vibrate) navigator.vibrate(50);
+            if (navigator.vibrate) navigator.vibrate(50); // 모바일 진동 피드백
+            longPressTimer.current = null;
           }, 800);
         };
-        const handleEnd = () => clearTimeout(longPressTimer.current);
 
+        const handleEnd = () => {
+          if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+          }
+        };
+
+        // 1. PC 마우스 이벤트
         kakao.maps.event.addListener(map, 'mousedown', handleStart);
         kakao.maps.event.addListener(map, 'mouseup', handleEnd);
+
+        // 2. 모바일 터치 이벤트
         kakao.maps.event.addListener(map, 'touchstart', handleStart);
         kakao.maps.event.addListener(map, 'touchend', handleEnd);
 
