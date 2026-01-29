@@ -91,13 +91,13 @@ const Header: React.FC<HeaderProps> = ({
           }}
           className="flex items-center gap-2 ml-1 px-1 py-1 rounded-full hover:bg-gray-50 cursor-pointer transition-colors active:scale-95"
         >
-          {/* 로그인 상태일 때 이름 표시 (선택 사항, 깔끔함을 위해 추가) */}
-          {userProfile && (
+          {/* 로그인 상태일 때 이름 표시 (선택 사항, 깔끔함을 위해 추가) 임시로 미노출 */}
+          {/*{userProfile && (
             <span className="text-[13px] font-semibold text-gray-700 ml-1 hidden sm:block">
               {userProfile.name}
             </span>
           )}
-          
+          */}
           <div className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 overflow-hidden border border-gray-200 shadow-sm">
             {userProfile?.avatarUrl ? (
               <img src={userProfile.avatarUrl} alt="profile" className="w-full h-full object-cover" />
