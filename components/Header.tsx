@@ -24,12 +24,12 @@ const Header: React.FC<HeaderProps> = ({
   const ChevronDownIcon = Icons.ChevronDown || (() => <span>▼</span>);
   const SettingsIcon = Icons.Settings || (() => <span>⚙️</span>);
 
-return (
+  return (
     <header className="flex items-center justify-between px-5 py-4 bg-white/80 backdrop-blur-md sticky top-0 z-[60] border-b border-gray-100/50 h-16 w-full">
       
-      {/* [왼쪽] ✅ Pin It 서비스 로고 배치 */}
+      {/* [왼쪽] 서비스 로고 고정 */}
       <div className="flex-1 flex items-center gap-2">
-        <div className="w-8 h-8 bg-[#3182F6] rounded-xl flex items-center justify-center shadow-sm">
+        <div className="w-8 h-8 bg-[#3182F6] rounded-xl flex items-center justify-center shadow-sm shrink-0">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zM12 11.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
           </svg>
@@ -39,15 +39,16 @@ return (
         </span>
       </div>
 
-      {/* [중앙] ✅ 성수/서울숲 위치 선택 버튼 배치 */}
+      {/* [중앙] ✅ 성수/서울숲 위치 선택 (완전 중앙 배치) */}
       <div 
-        className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 cursor-pointer bg-gray-50 px-4 py-2 rounded-full hover:bg-gray-100 active:scale-95 transition-all border border-gray-100 shadow-sm"
+        className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 cursor-pointer active:scale-95 transition-transform"
         onClick={onLocationClick}
       >
         <span className="text-[14px] font-bold text-[#3182f6] whitespace-nowrap">
           {location}
         </span>
-        <Icons.ChevronDown size={14} className="text-[#3182f6]" />
+        {/* ✅ Icons.ChevronDown 대신 정의된 변수 사용 */}
+        <ChevronDownIcon size={14} className="text-[#3182f6]" />
       </div>
       
       {/* 오른쪽: 검색 및 유저 버튼 세트 */}
