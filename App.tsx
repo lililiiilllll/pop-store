@@ -242,6 +242,12 @@ const App: React.FC = () => {
     setSavedStoreIds(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   }, []);
 
+  const handleLocationSelect = (name: string, coords: { lat: number; lng: number }) => {
+    setMapCenter(coords);           // 지도의 중심 좌표를 선택한 지역으로 변경
+    setCurrentLocationName(name);   // 헤더에 표시되는 지역 이름을 변경 (예: "성수", "강남")
+    setIsLocationSelectorOpen(false); // 지역 선택 모달 닫기
+  };
+
   // --- [연산: 검색 및 필터링 통합 로직] ---
 const visibleStores = useMemo(() => {
     let filtered = allStores;
@@ -439,16 +445,15 @@ return (
         
         {/* [C] 위치 선택 모달 */}
         {isLocationSelectorOpen && (
-          <div key="location-selector-root" className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <LocationSelector 
-              onSelect={(name, coords) => { 
-              setCurrentLocationName(name);   // 헤더 이름 변경
-              setMapCenter(coords);           // 지도 좌표 이동 (핵심)
-              setIsLocationSelectorOpen(false); 
-            }} 
+          <div className="fixed inset-0 z-[110] flex items-end justify-center lg:items-center p-0 lg:p-4">
+          {/* 배경 오버레이 */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsLocationSelectorOpen(false)} />
+    
+          <LocationSelector 
+            onSelect={handleLocationSelect} 
             onClose={() => setIsLocationSelectorOpen(false)} 
-            />
-        </div>
+          />
+          </div>
         )}
 
         {/* [D] 검색 오버레이 */}
