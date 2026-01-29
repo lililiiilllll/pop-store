@@ -137,25 +137,27 @@ const MapArea: React.FC<MapAreaProps> = ({
     }
   }, []);
 
-  useEffect(() => {
-    const { kakao } = window as any;
+    useEffect(() => {
+      const { kakao } = window as any;
+      
+      if (mapRef.current && kakao && mapCenter) {
+        const currentCenter = mapRef.current.getCenter();
+        const newCenter = new kakao.maps.LatLng(mapCenter.lat, mapCenter.lng);
     
-    // mapRef.current에 지도 객체가 저장되어 있고, 
-    // App.tsx에서 새로운 mapCenter를 내려줬을 때 실행됩니다.
-    if (mapRef.current && kakao && mapCenter) {
-    const currentCenter = mapRef.current.getCenter();
-    const newCenter = new kakao.maps.LatLng(mapCenter.lat, mapCenter.lng);
-
-    // 현재 지도의 실제 중심과 새로 들어온 mapCenter의 차이가 아주 작으면 이동하지 않음
-    // (약 1m 이내의 미세한 차이는 무시하여 떨림 방지)
-    const latDiff = Math.abs(currentCenter.getLat() - mapCenter.lat);
-    const lngDiff = Math.abs(currentCenter.getLng() - mapCenter.lng);
-
-    if (latDiff > 0.0001 || lngDiff > 0.0001) {
-      mapRef.current.panTo(newCenter);
-    }
-  }
-}, [mapCenter]);
+        // 1. 기존 유지: 미세한 차이(약 10m 이내)면 이동하지 않아 떨림 방지
+        const latDiff = Math.abs(currentCenter.getLat() - mapCenter.lat);
+        const lngDiff = Math.abs(currentCenter.getLng() - mapCenter.lng);
+    
+        if (latDiff > 0.0001 || lngDiff > 0.0001) {
+          // 2. 기존 유지: 부드럽게 해당 위치로 이동
+          mapRef.current.panTo(newCenter);
+    
+          // 3. 🌟 추가: 이동 후 지도를 적절한 크기로 확대 (레벨 4)
+          // 숫자가 작을수록 더 많이 확대됩니다.
+          mapRef.current.setLevel(4, { animate: true }); 
+        }
+      }
+    }, [mapCenter]);
   // ==========================================
 
   // 2. [내 위치 핀] 실시간 userLocation 동기화
