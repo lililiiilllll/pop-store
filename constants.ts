@@ -71,6 +71,21 @@ export const CATEGORIES = [
   { id: 'character', label: '캐릭터' },
 ];
 
+export const REGIONS = [
+  { name: '성수', lat: 37.5445, lng: 127.0560 },
+  { name: '강남', lat: 37.4979, lng: 127.0276 },
+  { name: '홍대', lat: 37.5562, lng: 126.9225 },
+  { name: '잠실', lat: 37.5133, lng: 127.1028 },
+  { name: '한남', lat: 37.5317, lng: 127.0025 },
+  { name: '여의도', lat: 37.5259, lng: 126.9242 },
+  { name: '부산', lat: 35.1796, lng: 129.0756 },
+  { name: '대구', lat: 35.8714, lng: 128.6014 },
+  { name: '인천', lat: 37.4563, lng: 126.7052 },
+  { name: '광주', lat: 35.1595, lng: 126.8526 },
+  { name: '대전', lat: 36.3504, lng: 127.3845 },
+  { name: '제주', lat: 33.4890, lng: 126.4983 },
+];
+
 // 샘플 팝업 스토어 데이터 (App.tsx PopupStore 인터페이스에 맞춤)
 export const POPUP_STORES: PopupStore[] = [
   {
