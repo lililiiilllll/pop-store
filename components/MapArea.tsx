@@ -142,12 +142,19 @@ const MapArea: React.FC<MapAreaProps> = ({
     // mapRef.current에 지도 객체가 저장되어 있고, 
     // App.tsx에서 새로운 mapCenter를 내려줬을 때 실행됩니다.
     if (mapRef.current && kakao && mapCenter) {
-      const newCenter = new kakao.maps.LatLng(mapCenter.lat, mapCenter.lng);
-      
-      // 부드럽게 해당 좌표로 이동
+    const currentCenter = mapRef.current.getCenter();
+    const newCenter = new kakao.maps.LatLng(mapCenter.lat, mapCenter.lng);
+
+    // 현재 지도의 실제 중심과 새로 들어온 mapCenter의 차이가 아주 작으면 이동하지 않음
+    // (약 1m 이내의 미세한 차이는 무시하여 떨림 방지)
+    const latDiff = Math.abs(currentCenter.getLat() - mapCenter.lat);
+    const lngDiff = Math.abs(currentCenter.getLng() - mapCenter.lng);
+
+    if (latDiff > 0.0001 || lngDiff > 0.0001) {
       mapRef.current.panTo(newCenter);
     }
-  }, [mapCenter]); // mapCenter가 바뀔 때마다 실행됨
+  }
+}, [mapCenter]);
   // ==========================================
 
   // 2. [내 위치 핀] 실시간 userLocation 동기화
