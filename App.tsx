@@ -17,7 +17,10 @@ import SearchOverlay from './components/SearchOverlay';
 import LocationSelector from './components/LocationSelector';
 import SuccessModal from './components/SuccessModal';
 import BottomNav from './components/BottomNav';
-const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+const App = () => {
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false); 
+  // ...
+}
 
 const getDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
   const R = 6371; // 지구 반지름
