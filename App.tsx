@@ -500,6 +500,57 @@ return (
           </div>
         )}
 
+
+        <AnimatePresence>
+  {isLoginModalOpen && (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+      {/* 배경 딤드 */}
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }}
+        onClick={() => setIsLoginModalOpen(false)}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+      />
+      
+      {/* 모달 콘텐츠 */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="relative w-full max-w-[400px] bg-white rounded-[32px] p-8 shadow-2xl z-[121]"
+      >
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-[#f2f4f6] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Icons.User className="w-8 h-8 text-[#3182f6]" />
+          </div>
+          <h2 className="text-2xl font-bold text-[#191f28]">로그인이 필요해요</h2>
+          <p className="text-[#8b95a1] mt-2">팝업 스토어 정보를 저장하고<br/>나만의 리스트를 만들어보세요!</p>
+        </div>
+
+        <div className="space-y-3">
+          <button 
+            onClick={() => {
+              signInWithSocial('kakao');
+              setIsLoginModalOpen(false);
+            }}
+            className="w-full py-4 px-6 bg-[#FEE500] text-[#191f28] rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
+          >
+            카카오로 시작하기
+          </button>
+          
+          <button 
+            onClick={() => setIsLoginModalOpen(false)}
+            className="w-full py-4 text-[#8b95a1] font-medium hover:text-[#4e5968] transition-colors"
+          >
+            다음에 할게요
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
+
         {/* [F] 성공 알림 모달 */}
         {successConfig.isOpen && (
           <SuccessModal 
