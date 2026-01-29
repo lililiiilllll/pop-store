@@ -573,31 +573,91 @@ return (
 
       {/* 로그인 모달 */}
       <AnimatePresence>
-        {isLoginModalOpen && (
-          <div key="login-modal-root" className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginModalOpen(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm pointer-events-auto" />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-[360px] bg-white rounded-[32px] p-8 shadow-2xl z-[151] pointer-events-auto text-center"
-            >
-              <div className="w-16 h-16 bg-[#f2f4f6] rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Icons.User className="w-8 h-8 text-[#3182f6]" />
-              </div>
-              <h2 className="text-2xl font-bold text-[#191f28]">로그인이 필요해요</h2>
-              <p className="text-[#8b95a1] mt-2 mb-8 leading-relaxed">팝업 스토어 정보를 저장하고<br/>나만의 리스트를 만들어보세요!</p>
-              <div className="space-y-3">
-                <button 
-                  onClick={() => { signInWithSocial('kakao'); setIsLoginModalOpen(false); }}
-                  className="w-full py-4 bg-[#FEE500] text-[#191f28] rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform"
-                >
-                  카카오 로그인
-                </button>
-                <button onClick={() => setIsLoginModalOpen(false)} className="w-full py-3 text-[#8b95a1] font-medium">다음에 할게요</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {isLoginModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsLoginModalOpen(false)}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            className="relative w-full max-w-sm bg-white rounded-t-[32px] sm:rounded-[32px] p-8 pointer-events-auto text-center"
+          >
+            <div className="w-16 h-16 bg-[#f2f4f6] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Icons.User className="w-8 h-8 text-[#3182f6]" />
+            </div>
+            <h2 className="text-2xl font-bold text-[#191f28]">로그인이 필요해요</h2>
+            <p className="text-[#8b95a1] mt-2 mb-8 leading-relaxed">
+              팝업 스토어 정보를 저장하고<br/>나만의 리스트를 만들어보세요!
+            </p>
+            
+            <div className="space-y-3">
+              {/* [로그인 버튼 활성화 설정] 
+                false로 바꾸면 해당 버튼이 화면에서 사라집니다.
+              */}
+              {(() => {
+                const loginConfig = {
+                  kakao: false,
+                  naver: false,
+                  toss: true
+                };
+    
+                return (
+                  <>
+                    {/* 1. 카카오 로그인 */}
+                    {loginConfig.kakao && (
+                      <button 
+                        onClick={() => handleSocialLogin('kakao')}
+                        className="w-full py-4 bg-[#FEE500] text-[#191f28] rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform"
+                      >
+                        <span className="w-5 h-5 flex items-center justify-center bg-black rounded-full text-[10px] text-[#FEE500]">K</span>
+                        카카오 로그인
+                      </button>
+                    )}
+    
+                    {/* 2. 네이버 로그인 */}
+                    {loginConfig.naver && (
+                      <button 
+                        onClick={() => handleSocialLogin('naver')}
+                        className="w-full py-4 bg-[#03C75A] text-white rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform"
+                      >
+                        <span className="w-5 h-5 flex items-center justify-center font-black">N</span>
+                        네이버 로그인
+                      </button>
+                    )}
+    
+                    {/* 3. 토스 로그인 */}
+                    {loginConfig.toss && (
+                      <button 
+                        onClick={() => handleSocialLogin('toss')}
+                        className="w-full py-4 bg-[#3182F6] text-white rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform"
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M13 10V3L4 14H11V21L20 10H13Z" fill="white" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        토스 로그인
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+    
+              <button 
+                onClick={() => setIsLoginModalOpen(false)} 
+                className="w-full py-3 text-[#8b95a1] font-medium mt-2"
+              >
+                다음에 할게요
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
 
       {/* 성공 알림 모달 */}
       <AnimatePresence>
