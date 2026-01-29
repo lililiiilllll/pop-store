@@ -48,65 +48,66 @@ const MapArea: React.FC<MapAreaProps> = ({
         mapRef.current = map;
 
         // 닫기 로직을 하나의 함수로 공통화
-    const closeOverlay = () => {
-      if (infoOverlayRef.current) {
-        infoOverlayRef.current.setMap(null);
-      }
-      onMapClick(); // 부모 상태 초기화 (selectedStoreId -> null)
-    };
+        const closeOverlay = () => {
+          if (infoOverlayRef.current) {
+            infoOverlayRef.current.setMap(null);
+          }
+          onMapClick(); // 부모 상태 초기화 (selectedStoreId -> null)
+        };
 
-    // ✅ 상황 1: 지도의 빈 곳을 '클릭'했을 때
-    kakao.maps.event.addListener(map, 'click', () => {
-      closeOverlay();
-    });
+        // ✅ 상황 1: 지도의 빈 곳을 '클릭'했을 때
+        kakao.maps.event.addListener(map, 'click', () => {
+          closeOverlay();
+        });
 
-    // ✅ 상황 2: 지도를 '드래그'하기 시작할 때
-    kakao.maps.event.addListener(map, 'dragstart', () => {
-      closeOverlay();
-    });
+        // ✅ 상황 2: 지도를 '드래그'하기 시작할 때
+        kakao.maps.event.addListener(map, 'dragstart', () => {
+          closeOverlay();
+        });
 
-        // 지도 클릭 시 정보창 닫기
+        // 지도 클릭 시 정보창 닫기 (중복 로직이지만 원본 유지)
         kakao.maps.event.addListener(map, 'click', () => {
           if (infoOverlayRef.current) infoOverlayRef.current.setMap(null);
           onMapClick();
         });
 
-TypeScript
         // --- 롱프레스 제보 기능 완벽 수정 버전 ---
-const handleStart = (e: any) => {
-  isDragging = false; 
-  if (longPressTimer.current) clearTimeout(longPressTimer.current);
+        let isDragging = false; // ✅ 변수 선언 추가 (ReferenceError 방지)
 
-  longPressTimer.current = setTimeout(() => {
-    if (!isDragging) {
-      setSelectedCoord({ lat: e.latLng.getLat(), lng: e.latLng.getLng() });
-      setIsReportModalOpen(true);
-      if (navigator.vibrate) navigator.vibrate(50);
-    }
-  }, 800);
-};
+        const handleStart = (e: any) => {
+          isDragging = false; 
+          if (longPressTimer.current) clearTimeout(longPressTimer.current);
 
-const handleEnd = () => {
-  if (longPressTimer.current) {
-    clearTimeout(longPressTimer.current);
-    longPressTimer.current = null;
-  }
-};
+          longPressTimer.current = setTimeout(() => {
+            if (!isDragging) {
+              setSelectedCoord({ lat: e.latLng.getLat(), lng: e.latLng.getLng() });
+              setIsReportModalOpen(true);
+              if (navigator.vibrate) navigator.vibrate(50);
+            }
+          }, 800);
+        };
 
-// PC/모바일 이벤트 통합 등록
-kakao.maps.event.addListener(map, 'mousedown', handleStart);
-kakao.maps.event.addListener(map, 'mouseup', handleEnd);
-kakao.maps.event.addListener(map, 'touchstart', handleStart);
-kakao.maps.event.addListener(map, 'touchend', handleEnd);
+        const handleEnd = () => {
+          if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+          }
+        };
 
-// ✅ 드래그 발생 시 제보 기능 무효화 (핵심)
-kakao.maps.event.addListener(map, 'dragstart', () => {
-  isDragging = true;
-  handleEnd();
-  // 기존 드래그 시 닫기 기능 유지하려면 아래 코드 추가
-  if (infoOverlayRef.current) infoOverlayRef.current.setMap(null);
-  onMapClick();
-});
+        // PC/모바일 이벤트 통합 등록
+        kakao.maps.event.addListener(map, 'mousedown', handleStart);
+        kakao.maps.event.addListener(map, 'mouseup', handleEnd);
+        kakao.maps.event.addListener(map, 'touchstart', handleStart);
+        kakao.maps.event.addListener(map, 'touchend', handleEnd);
+
+        // ✅ 드래그 발생 시 제보 기능 무효화 (핵심)
+        kakao.maps.event.addListener(map, 'dragstart', () => {
+          isDragging = true;
+          handleEnd();
+          // 기존 드래그 시 닫기 기능 유지하려면 아래 코드 추가
+          if (infoOverlayRef.current) infoOverlayRef.current.setMap(null);
+          onMapClick();
+        });
 
         // 지도 이동 완료(Idle)
         kakao.maps.event.addListener(map, 'idle', () => {
@@ -135,35 +136,35 @@ kakao.maps.event.addListener(map, 'dragstart', () => {
     }
   }, []);
 
-// 2. [내 위치 핀] 실시간 userLocation 동기화
-useEffect(() => {
-  const { kakao } = window as any;
-  // mapRef.current가 없을 때 실행되는 것을 방지
-  if (!mapRef.current || !userLocation || !kakao) return;
+  // 2. [내 위치 핀] 실시간 userLocation 동기화
+  useEffect(() => {
+    const { kakao } = window as any;
+    // mapRef.current가 없을 때 실행되는 것을 방지
+    if (!mapRef.current || !userLocation || !kakao) return;
 
-  if (userMarkerRef.current) userMarkerRef.current.setMap(null);
+    if (userMarkerRef.current) userMarkerRef.current.setMap(null);
 
-  const content = document.createElement('div');
-  content.innerHTML = `
-    <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-      <div style="position: absolute; width: 30px; height: 30px; background: #3182f6; border-radius: 50%; opacity: 0.2; animation: user-pulse 2s infinite;"></div>
-      <div style="width: 14px; height: 14px; background: #3182f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>
-    </div>
-    <style>
-      @keyframes user-pulse { 0% { transform: scale(0.5); opacity: 0.5; } 100% { transform: scale(2.2); opacity: 0; } }
-    </style>
-  `;
+    const content = document.createElement('div');
+    content.innerHTML = `
+      <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+        <div style="position: absolute; width: 30px; height: 30px; background: #3182f6; border-radius: 50%; opacity: 0.2; animation: user-pulse 2s infinite;"></div>
+        <div style="width: 14px; height: 14px; background: #3182f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>
+      </div>
+      <style>
+        @keyframes user-pulse { 0% { transform: scale(0.5); opacity: 0.5; } 100% { transform: scale(2.2); opacity: 0; } }
+      </style>
+    `;
 
-  userMarkerRef.current = new kakao.maps.CustomOverlay({
-    position: new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
-    content: content,
-    zIndex: 10,
-    xAnchor: 0.5,
-    yAnchor: 0.5
-  });
-  
-  userMarkerRef.current.setMap(mapRef.current);
-}, [userLocation, mapRef.current]); // mapRef.current가 준비되었을 때도 다시 체크하도록 추가
+    userMarkerRef.current = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
+      content: content,
+      zIndex: 10,
+      xAnchor: 0.5,
+      yAnchor: 0.5
+    });
+    
+    userMarkerRef.current.setMap(mapRef.current);
+  }, [userLocation, mapRef.current]); // mapRef.current가 준비되었을 때도 다시 체크하도록 추가
 
   // 3. [마커] 스토어 마커 렌더링 및 미승인 토스트
   useEffect(() => {
@@ -201,61 +202,61 @@ useEffect(() => {
     });
   }, [stores, onMarkerClick]);
 
-// 4. [오버레이] 선택된 마커 상단 정보창 (에러 완벽 방지 버전)
-useEffect(() => {
-  const { kakao } = window as any;
-  // mapRef.current나 kakao 객체가 없으면 실행 중단
-  if (!mapRef.current || !selectedStoreId || !kakao) return;
-  
-  // 기존 오버레이가 있다면 제거
-  if (infoOverlayRef.current) infoOverlayRef.current.setMap(null);
+  // 4. [오버레이] 선택된 마커 상단 정보창 (에러 완벽 방지 버전)
+  useEffect(() => {
+    const { kakao } = window as any;
+    // mapRef.current나 kakao 객체가 없으면 실행 중단
+    if (!mapRef.current || !selectedStoreId || !kakao) return;
+    
+    // 기존 오버레이가 있다면 제거
+    if (infoOverlayRef.current) infoOverlayRef.current.setMap(null);
 
-  const store = stores.find(s => s.id === selectedStoreId);
-  if (!store) return;
+    const store = stores.find(s => s.id === selectedStoreId);
+    if (!store) return;
 
-  // ✅ 1. 변수 선언 (ReferenceError 방지)
-  const currentImageUrl = store.image_url || 'https://placehold.co/400x400?text=No+Image'; 
-  const overlayDiv = document.createElement('div'); 
-  
-  overlayDiv.style.cssText = 'margin-bottom: 48px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
-  
-  // ✅ 2. HTML 삽입 (imageUrl 대신 위에서 선언한 currentImageUrl 사용)
-  overlayDiv.innerHTML = `
-    <div style="background: white; padding: 12px; border-radius: 20px; display: flex; align-items: center; gap: 12px; min-width: 220px; border: 1px solid #f2f4f6; position: relative; z-index: 10;">
-      <img src="${currentImageUrl}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/150'"/>
-      <div style="display: flex; flex-direction: column; text-align: left;">
-        <div style="display: flex; gap: 4px; margin-bottom: 2px;">
-          <span style="font-size: 10px; color: #3182f6; font-weight: bold;">${store.category || '팝업'}</span>
-          <span style="font-size: 10px; color: #00d084; font-weight: bold; background: #e6f9f2; padding: 1px 4px; border-radius: 4px;">정보</span>
+    // ✅ 1. 변수 선언 (ReferenceError 방지)
+    const currentImageUrl = store.image_url || 'https://placehold.co/400x400?text=No+Image'; 
+    const overlayDiv = document.createElement('div'); 
+    
+    overlayDiv.style.cssText = 'margin-bottom: 48px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); cursor: pointer;';
+    
+    // ✅ 2. HTML 삽입 (imageUrl 대신 위에서 선언한 currentImageUrl 사용)
+    overlayDiv.innerHTML = `
+      <div style="background: white; padding: 12px; border-radius: 20px; display: flex; align-items: center; gap: 12px; min-width: 220px; border: 1px solid #f2f4f6; position: relative; z-index: 10;">
+        <img src="${currentImageUrl}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/150'"/>
+        <div style="display: flex; flex-direction: column; text-align: left;">
+          <div style="display: flex; gap: 4px; margin-bottom: 2px;">
+            <span style="font-size: 10px; color: #3182f6; font-weight: bold;">${store.category || '팝업'}</span>
+            <span style="font-size: 10px; color: #00d084; font-weight: bold; background: #e6f9f2; padding: 1px 4px; border-radius: 4px;">정보</span>
+          </div>
+          <span style="font-size: 14px; font-weight: 800; color: #191f28; line-height: 1.2;">${store.title || '제목 없음'}</span>
+          <span style="font-size: 11px; color: #8b95a1; margin-top: 2px;">${(store.start_date || '').slice(5)} ~ ${(store.end_date || '').slice(5)}</span>
         </div>
-        <span style="font-size: 14px; font-weight: 800; color: #191f28; line-height: 1.2;">${store.title || '제목 없음'}</span>
-        <span style="font-size: 11px; color: #8b95a1; margin-top: 2px;">${(store.start_date || '').slice(5)} ~ ${(store.end_date || '').slice(5)}</span>
       </div>
-    </div>
-    <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 14px; height: 14px; background: white; border-right: 1px solid #f2f4f6; border-bottom: 1px solid #f2f4f6; z-index: 5;"></div>
-  `;
-  
-  // ✅ 3. 클릭 이벤트 바인딩
-  overlayDiv.onclick = (e) => {
-    e.stopPropagation();
-    onDetailOpen(store);
-  };
+      <div style="position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 14px; height: 14px; background: white; border-right: 1px solid #f2f4f6; border-bottom: 1px solid #f2f4f6; z-index: 5;"></div>
+    `;
+    
+    // ✅ 3. 클릭 이벤트 바인딩
+    overlayDiv.onclick = (e) => {
+      e.stopPropagation();
+      onDetailOpen(store);
+    };
 
-  // ✅ 4. 오버레이 객체 생성 및 지도 표시
-  infoOverlayRef.current = new kakao.maps.CustomOverlay({
-    position: new kakao.maps.LatLng(store.lat, store.lng),
-    content: overlayDiv, 
-    yAnchor: 1.0,
-    zIndex: 50
-  });
-  
-  infoOverlayRef.current.setMap(mapRef.current);
-  mapRef.current.panTo(new kakao.maps.LatLng(store.lat, store.lng));
+    // ✅ 4. 오버레이 객체 생성 및 지도 표시
+    infoOverlayRef.current = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(store.lat, store.lng),
+      content: overlayDiv, 
+      yAnchor: 1.0,
+      zIndex: 50
+    });
+    
+    infoOverlayRef.current.setMap(mapRef.current);
+    mapRef.current.panTo(new kakao.maps.LatLng(store.lat, store.lng));
 
-}, [selectedStoreId, stores, onDetailOpen]);
+  }, [selectedStoreId, stores, onDetailOpen]);
 
   return (
-    <div className="w-full h-full relative" style={{ WebkitTouchCallout: 'none',WebkitUserSelect: 'none', userSelect: 'none', touchAction: 'pan-x pan-y'  }}>
+    <div className="w-full h-full relative" style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none', touchAction: 'pan-x pan-y'  }}>
       <div ref={mapContainerRef} className="w-full h-full absolute inset-0" />
       
       {/* 내 위치 이동 버튼 */}
@@ -275,14 +276,13 @@ useEffect(() => {
       </button>
 
       {isReportModalOpen && selectedCoord && (
-  <div className="fixed inset-0 z-[999999]">
-    <ReportModal 
-      coord={selectedCoord} 
-      // 만약 ReportModal에서 currentUser.id를 쓴다면 아래처럼 안전하게 전달
-      onClose={() => setIsReportModalOpen(false)} 
-    />
-  </div>
-)}
+        <div className="fixed inset-0 z-[999999]">
+          <ReportModal 
+            coord={selectedCoord} 
+            onClose={() => setIsReportModalOpen(false)} 
+          />
+        </div>
+      )}
     </div>
   );
 };
