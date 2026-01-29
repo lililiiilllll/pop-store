@@ -259,7 +259,18 @@ const visibleStores = useMemo(() => {
     let filtered = allStores;
 
     // 1. 검색어 필터링 (생략 - 기존과 동일)
-    if (searchQuery.trim()) { /* ... 기존 코드 ... */ }
+     if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(s => 
+        (s.title || "").toLowerCase().includes(q) || 
+        (s.category && s.category.toLowerCase().includes(q)) ||
+        (s.description && s.description.toLowerCase().includes(q)) ||
+        (s.address && s.address.toLowerCase().includes(q)) ||
+        (s.nearby_station && s.nearby_station.toLowerCase().includes(q)) ||
+        (Array.isArray(s.keywords) && s.keywords.some((k: string) => k.toLowerCase().includes(q)))
+      );
+      return filtered;
+    }
 
     // 2. 탭 필터링 (찜한 목록)
     if (activeTab === 'saved') {
