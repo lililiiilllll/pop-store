@@ -306,7 +306,7 @@ const visibleStores = useMemo(() => {
     // D+1 ~ D+3 상태 flag 부여 (MapArea에서 사용)
     return {
       ...s,
-      isEnded: today > end_date 
+      isEnded: today > enddate 
     };
   });
 
