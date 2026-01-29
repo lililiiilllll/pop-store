@@ -290,8 +290,8 @@ const visibleStores = useMemo(() => {
 
     // 4.🌟 [추가] 날짜 필터링 및 상태 부여 로직 🌟
   filtered = filtered.filter(s => {
-    if (!s.endDate) return true; // 날짜 정보 없으면 노출
-    const endDate = new Date(s.endDate);
+    if (!s.end_date) return true; // 날짜 정보 없으면 노출
+    const endDate = new Date(s.end_date);
     endDate.setHours(0, 0, 0, 0);
 
     const diffTime = today.getTime() - endDate.getTime();
@@ -301,12 +301,12 @@ const visibleStores = useMemo(() => {
     if (diffDays >= 4) return false;
     return true;
   }).map(s => {
-    const endDate = new Date(s.endDate);
+    const endDate = new Date(s.end_date);
     endDate.setHours(0, 0, 0, 0);
     // D+1 ~ D+3 상태 flag 부여 (MapArea에서 사용)
     return {
       ...s,
-      isEnded: today > endDate 
+      isEnded: today > end_date 
     };
   });
 
