@@ -441,131 +441,155 @@ return (
           </div>
         )}
 
-        {/* [B] 검색 및 위치 선택 배경 딤드 */}
-        {(isSearchOpen || isLocationSelectorOpen) && (
-        <motion.div 
-          key="global-dimmer" 
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }} 
-          exit={{ opacity: 0 }} 
-          className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[90]" // z-index 90
-          onClick={() => { 
-            setIsSearchOpen(false); 
-            setIsLocationSelectorOpen(false); 
-          }} 
-        />
-        )}
-        
-        {/* [C] 위치 선택 모달: 배경보다 높은 z-index 부여 */}
-        {isLocationSelectorOpen && (
-        /* fixed 레이어 자체가 AnimatePresence 안에 있어야 애니메이션이 씹히지 않습니다 */
-        <div key="location-modal-container" className="fixed inset-0 z-[110] flex items-center justify-center p-4 pointer-events-none">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.2 }}
-            className="pointer-events-auto w-full max-w-md"
-          >
-            <LocationSelector 
-              onSelect={handleLocationSelect} 
-              onClose={() => setIsLocationSelectorOpen(false)} 
+{/* [B] 배경 딤드 */}
+        <AnimatePresence>
+          {(isSearchOpen || isLocationSelectorOpen || isLoginModalOpen) && (
+            <motion.div 
+              key="global-dimmer" 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[90]" 
+              onClick={() => { 
+                setIsSearchOpen(false); 
+                setIsLocationSelectorOpen(false); 
+                setIsLoginModalOpen(false);
+              }} 
             />
-          </motion.div>
-        </div>
-      )}
+          )}
+        </AnimatePresence>
+
+        {/* [C] 위치 선택 모달 */}
+        <AnimatePresence>
+          {isLocationSelectorOpen && (
+            <div key="location-selector-root" className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="pointer-events-auto w-full max-w-md"
+              >
+                <LocationSelector 
+                  onSelect={handleLocationSelect} 
+                  onClose={() => setIsLocationSelectorOpen(false)} 
+                />
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* [D] 검색 오버레이 */}
-        {isSearchOpen && (
-          <SearchOverlay key="search-root" isOpen={isSearchOpen} onClose={() => { setIsSearchOpen(false); setSearchQuery(""); }} stores={allStores} onSelectResult={handleStoreSelect} onSearchChange={setSearchQuery} />
-        )}
+        <AnimatePresence>
+          {isSearchOpen && (
+            <SearchOverlay 
+              isOpen={isSearchOpen} 
+              onClose={() => setIsSearchOpen(false)} 
+              stores={stores} 
+              onStoreSelect={(store) => {
+                setMapCenter({ lat: store.lat, lng: store.lng });
+                setDetailStore(store);
+                setIsSearchOpen(false);
+              }} 
+            />
+          )}
+        </AnimatePresence>
 
         {/* [E] 상세 정보 모달 */}
-        {detailStore && (
-          <div key="detail-modal-root" className="fixed inset-0 z-[1000] flex items-end lg:items-center justify-center">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDetailStore(null)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-            <motion.div 
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} 
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="relative w-full lg:max-w-[480px] bg-white rounded-t-[32px] lg:rounded-[32px] overflow-hidden max-h-[95vh] overflow-y-auto"
-            >
-              <DetailModal 
-                store={detailStore} 
-                isSaved={savedStoreIds.includes(detailStore.id)}
-                userProfile={userProfile}
-                onToggleSave={() => toggleSaveStore(detailStore.id)} 
-                onClose={() => setDetailStore(null)} 
-                onShowSuccess={(t, m) => setSuccessConfig({ isOpen: true, title: t, message: m })} 
-                currentUser={userProfile} 
-                isAdmin={userProfile?.role === 'admin'}
+        <AnimatePresence>
+          {detailStore && (
+            <div className="fixed inset-0 z-[110] flex items-end lg:items-center justify-center pointer-events-none">
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                onClick={() => setDetailStore(null)} 
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm pointer-events-auto" 
               />
-            </motion.div>
-          </div>
-        )}
+              <motion.div 
+                initial={{ y: "100%" }} 
+                animate={{ y: 0 }} 
+                exit={{ y: "100%" }} 
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                className="relative w-full lg:max-w-[480px] bg-white rounded-t-[32px] lg:rounded-[32px] overflow-hidden max-h-[95vh] overflow-y-auto pointer-events-auto"
+              >
+                <DetailModal 
+                  store={detailStore} 
+                  isSaved={savedStoreIds.includes(detailStore.id)}
+                  userProfile={userProfile}
+                  onToggleSave={() => toggleSaveStore(detailStore.id)} 
+                  onClose={() => setDetailStore(null)} 
+                  onShowSuccess={(t, m) => setSuccessConfig({ isOpen: true, title: t, message: m })} 
+                  currentUser={userProfile} 
+                  isAdmin={userProfile?.role === 'admin'}
+                />
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
+        {/* [F] 로그인 모달 */}
+        <AnimatePresence>
+          {isLoginModalOpen && (
+            <div key="login-modal-root" className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                onClick={() => setIsLoginModalOpen(false)}
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm pointer-events-auto" 
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-[360px] bg-white rounded-[32px] p-8 shadow-2xl z-[151] pointer-events-auto"
+              >
+                <div className="text-center mb-8">
+                  <div className="w-16 h-16 bg-[#f2f4f6] rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Icons.User className="w-8 h-8 text-[#3182f6]" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-[#191f28]">로그인이 필요해요</h2>
+                  <p className="text-[#8b95a1] mt-2 leading-relaxed">
+                    팝업 스토어 정보를 저장하고<br/>나만의 리스트를 만들어보세요!
+                  </p>
+                </div>
 
-   <AnimatePresence>
-  {isLoginModalOpen && (
-    <div key="login-modal-root" className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-      {/* 배경 딤드 */}
-      <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }} 
-        exit={{ opacity: 0 }}
-        onClick={() => setIsLoginModalOpen(false)}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm pointer-events-auto" 
-      />
-      
-      {/* 모달 콘텐츠 */}
-      <motion.div 
-       initial={{ opacity: 0, scale: 0.9, y: 20 }}
-       animate={{ opacity: 1, scale: 1, y: 0 }}
-       exit={{ opacity: 0, scale: 0.9, y: 20 }}
-      className="relative w-full max-w-[360px] bg-white rounded-[32px] p-8 shadow-2xl z-[151] pointer-events-auto"
-      >
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[#f2f4f6] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Icons.User className="w-8 h-8 text-[#3182f6]" />
-          </div>
-          <h2 className="text-2xl font-bold text-[#191f28]">로그인이 필요해요</h2>
-          <p className="text-[#8b95a1] mt-2">팝업 스토어 정보를 저장하고<br/>나만의 리스트를 만들어보세요!</p>
-        </div>
+                <div className="space-y-3">
+                  <button 
+                    onClick={() => {
+                      signInWithSocial('kakao');
+                      setIsLoginModalOpen(false);
+                    }}
+                    className="w-full py-4 px-6 bg-[#FEE500] text-[#191f28] rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
+                  >
+                    카카오로 시작하기
+                  </button>
+                  <button 
+                    onClick={() => setIsLoginModalOpen(false)}
+                    className="w-full py-4 text-[#8b95a1] font-medium hover:text-[#4e5968] transition-colors"
+                  >
+                    다음에 할게요
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
-        <div className="space-y-3">
-          <button 
-            onClick={() => {
-              signInWithSocial('kakao');
-              setIsLoginModalOpen(false);
-            }}
-            className="w-full py-4 px-6 bg-[#FEE500] text-[#191f28] rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
-          >
-            카카오로 시작하기
-          </button>
-          
-          <button 
-            onClick={() => setIsLoginModalOpen(false)}
-            className="w-full py-4 text-[#8b95a1] font-medium hover:text-[#4e5968] transition-colors"
-          >
-            다음에 할게요
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  )}
-</AnimatePresence>
-
-        {/* [F] 성공 알림 모달 */}
-        {successConfig.isOpen && (
-          <SuccessModal 
-            key="success-root"
-            isOpen={successConfig.isOpen} 
-            title={successConfig.title} 
-            message={successConfig.message} 
-            onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} 
-          />
-        )}
-    </div>
-  );
+        {/* [G] 성공 알림 모달 */}
+        <AnimatePresence>
+          {successConfig.isOpen && (
+            <SuccessModal 
+              key="success-root"
+              isOpen={successConfig.isOpen} 
+              title={successConfig.title} 
+              message={successConfig.message} 
+              onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} 
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    );
 };
 
 export default App;
