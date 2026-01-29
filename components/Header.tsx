@@ -37,6 +37,9 @@ const Header: React.FC<HeaderProps> = ({
         <span className="text-[19px] font-black text-[#191f28] tracking-tighter">
           Pin It
         </span>
+        <span className="text-[10px] font-black text-[#191f28] tracking-tighter">
+          핀 잇
+        </span>
       </div>
 
       {/* [중앙] ✅ 성수/서울숲 위치 선택 (완전 중앙 배치) */}
