@@ -440,7 +440,17 @@ return (
 
         {/* [B] 검색 및 위치 선택 배경 딤드 */}
         {(isSearchOpen || isLocationSelectorOpen) && (
-          <motion.div key="global-dimmer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[90]" onClick={() => { setIsSearchOpen(false); setIsLocationSelectorOpen(false); }} />
+        <motion.div 
+          key="global-dimmer" 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          exit={{ opacity: 0 }} 
+          className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[90]" // z-index 90
+          onClick={() => { 
+            setIsSearchOpen(false); 
+            setIsLocationSelectorOpen(false); 
+          }} 
+        />
         )}
         
         {/* [C] 위치 선택 모달 */}
