@@ -24,27 +24,30 @@ const Header: React.FC<HeaderProps> = ({
   const ChevronDownIcon = Icons.ChevronDown || (() => <span>▼</span>);
   const SettingsIcon = Icons.Settings || (() => <span>⚙️</span>);
 
-  return (
-    <header className="flex items-center justify-between px-5 py-3 bg-white/80 backdrop-blur-md sticky top-0 z-[60] border-b border-gray-100/50 h-16">
+return (
+    <header className="flex items-center justify-between px-5 py-4 bg-white/80 backdrop-blur-md sticky top-0 z-[60] border-b border-gray-100/50">
       
-      {/* [왼쪽] 위치 선택 아이콘만 배치 (또는 빈 공간) */}
-      <div className="flex-1 flex items-center">
-        <div 
-          className="p-2 hover:bg-gray-100 rounded-full cursor-pointer transition-colors"
-          onClick={onLocationClick}
-        >
-          <ChevronDownIcon size={20} className="text-gray-600" />
+      {/* [왼쪽] 기존 location 텍스트 자리에 로고 삽입 */}
+      <div 
+        className="flex items-center gap-2 cursor-pointer active:opacity-60 transition-opacity"
+        onClick={onLocationClick}
+      >
+        {/* 심볼 아이콘 */}
+        <div className="w-8 h-8 bg-[#3182F6] rounded-xl flex items-center justify-center shadow-sm">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zM12 11.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
         </div>
-      </div>
 
-      {/* [중앙] ✅ 로고 삽입 (기존 성수/서울숲 글자 위치) */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center cursor-pointer active:scale-95 transition-transform" onClick={onLocationClick}>
-        <h1 className="text-[20px] font-black text-[#191f28] tracking-tight leading-none">
-          Pin It
-        </h1>
-        <div className="flex items-center gap-1 mt-0.5">
-          <span className="text-[12px] font-bold text-[#3182f6]">{location}</span>
-          <div className="w-1 h-1 bg-[#3182f6] rounded-full animate-pulse" />
+        {/* 로고 텍스트 및 위치 정보 결합 */}
+        <div className="flex flex-col">
+          <h1 className="text-[17px] font-black text-[#191f28] leading-none tracking-tight">
+            Pin It
+          </h1>
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="text-[12px] font-bold text-[#3182f6]">{location}</span>
+            <ChevronDownIcon size={12} className="text-[#3182f6]" />
+          </div>
         </div>
       </div>
       
