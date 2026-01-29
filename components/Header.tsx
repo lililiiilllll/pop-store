@@ -30,20 +30,28 @@ const Header: React.FC<HeaderProps> = ({
       {/* [왼쪽] 서비스 로고 고정 */}
       <div className="flex-1 flex items-center gap-2">
         <div className="w-8 h-8 bg-[#3182F6] rounded-xl flex items-center justify-center shadow-sm shrink-0">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M13 10V3L4 14H11V21L20 10H13Z" fill="white" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zM12 11.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
           </svg>
         </div>
-        <span className="text-xl font-bold tracking-tight text-[#191F28] hidden sm:block">팝업나우</span>
+        <span className="text-[19px] font-black text-[#191f28] tracking-tighter">
+          Pin It
+        </span>
+        <span className="text-[10px] font-black text-[#3182f6] tracking-tighter">
+          핀 잇
+        </span>
       </div>
 
-      {/* [중앙] 위치 선택 */}
+      {/* [중앙] ✅ 성수/서울숲 위치 선택 (완전 중앙 배치) */}
       <div 
+        className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 cursor-pointer active:scale-95 transition-transform"
         onClick={onLocationClick}
-        className="flex items-center gap-1.5 px-4 py-2 bg-gray-50/80 rounded-full cursor-pointer hover:bg-gray-100 transition-all active:scale-95"
       >
-        <span className="text-[14px] font-bold text-[#333D4B]">{location}</span>
-        <ChevronDownIcon size={14} className="text-[#8B95A1]" />
+        <span className="text-[14px] font-bold text-[#3182f6] whitespace-nowrap">
+          {location}
+        </span>
+        {/* ✅ Icons.ChevronDown 대신 정의된 변수 사용 */}
+        <ChevronDownIcon size={14} className="text-[#3182f6]" />
       </div>
 
       {/* [오른쪽] 검색 및 프로필 */}
