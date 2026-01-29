@@ -258,16 +258,7 @@ useEffect(() => {
 }, [selectedStoreId, stores, onDetailOpen]);
 
   return (
-    <div className="w-full h-full relative" style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}>
-      <div 
-      className="w-full h-full relative" 
-      style={{ 
-        WebkitTouchCallout: 'none', // iOS에서 꾹 눌렀을 때 메뉴 뜨는 것 방지
-        WebkitUserSelect: 'none',    // 텍스트 선택 방지
-        userSelect: 'none',
-        touchAction: 'none'         // 브라우저 기본 터치 액션 제어
-      }}
-    >
+    <div className="w-full h-full relative" style={{ WebkitTouchCallout: 'none',WebkitUserSelect: 'none', userSelect: 'none', touchAction: 'none'  }}>
       <div ref={mapContainerRef} className="w-full h-full absolute inset-0" />
       
       {/* 내 위치 이동 버튼 */}
