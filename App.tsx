@@ -58,6 +58,7 @@ const App: React.FC = () => {
   const [userCoords, setUserCoords] = useState<{lat: number, lng: number} | null>(null);
   
   // --- [상태 관리: 지도 및 검색] ---
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [searchQuery, setSearchQuery] = useState(""); 
   const [mapBounds, setMapBounds] = useState<any>(null);
   const [mapCenter, setMapCenter] = useState<{lat: number, lng: number} | undefined>(undefined);
@@ -146,26 +147,25 @@ const App: React.FC = () => {
 // --- [핸들러: 인증 및 로그인 액션] ---
 
 const handleProfileClick = useCallback(() => {
-  if (!currentUser) { // userProfile 대신 App에서 사용하는 currentUser 사용
-    // ⭐ 중요: setIsProfileModalOpen이 아니라 isLoginModalOpen을 true로 바꿔야 합니다.
-    setIsLoginModalOpen(true); 
-    console.log("로그인 모달 오픈 요청"); // 작동 확인용
-  } else {
-    // 이미 로그인 된 경우 마이페이지(테스트 패널) 오픈
-    setIsTestPanelOpen(true); 
-  }
-}, [currentUser]); // 의존성 배열도 currentUser로 변경
+    console.log("Profile Clicked, Current User:", currentUser);
+    
+    if (!currentUser) {
+      // 로그인 안 된 경우 로그인 모달 오픈
+      setIsLoginModalOpen(true); 
+    } else {
+      // 로그인 된 경우 관리자 패널 또는 마이페이지 오픈
+      setIsTestPanelOpen(true); 
+    }
+  }, [currentUser]); // ⭐ currentUser가 바뀔 때마다 함수를 새로 정의해야 에러가 안 남
 
-const handleSocialLogin = async (provider: 'kakao' | 'naver' | 'toss') => {
-  try {
-    await signInWithSocial(provider);
-    // 로그인 시도 후 모달 닫기
-    setIsLoginModalOpen(false);
-  } catch (e: any) {
-    console.error("로그인 에러:", e.message);
-    alert("로그인 중 오류가 발생했습니다.");
-  }
-};
+  const handleSocialLogin = async (provider: 'kakao' | 'naver' | 'toss') => {
+    try {
+      await signInWithSocial(provider);
+      setIsLoginModalOpen(false); // 로그인 시도 시 모달 닫기
+    } catch (e: any) {
+      console.error("로그인 에러:", e.message);
+    }
+  };
 
   // [DELETE-ON-PRODUCTION] 디버그용 통합 테스트 로그인 핸들러 (비밀번호 인자 추가)
   const loginAsTestAccount = async (email: string, password: string, roleName: string) => {
