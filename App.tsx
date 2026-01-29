@@ -337,6 +337,26 @@ return (
 
       {/* 3. 메인 콘텐츠 영역: 지도 및 모바일 레이어 */}
       <main className="flex-1 relative">
+        <div className="absolute inset-0 z-[10] flex items-center justify-center pointer-events-none">
+          {/* 지도의 '성수동' 글자 위치(중앙에서 살짝 위)에 맞춤 */}
+          <div className="mb-20 flex flex-col items-center">
+            <h1 
+              className="text-[32px] font-black text-[#191f28] tracking-tighter opacity-90"
+              style={{ 
+                // 지도 글씨 특유의 흰색 외곽선 효과
+                textShadow: '0 0 8px #fff, 0 0 8px #fff, 0 0 8px #fff, 0 0 8px #fff' 
+              }}
+            >
+              Pin It
+            </h1>
+            <div className="flex items-center gap-1.5 -mt-1">
+               <div className="w-1.5 h-1.5 bg-[#3182F6] rounded-full animate-pulse" />
+               <span className="text-[#3182F6] font-extrabold text-[14px] tracking-widest drop-shadow-sm">
+                 성수 / 서울숲
+               </span>
+            </div>
+          </div>
+        </div>
         <MapArea 
           stores={visibleStores} 
           selectedStoreId={selectedStoreId} 
