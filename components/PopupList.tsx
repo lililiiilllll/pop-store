@@ -140,7 +140,7 @@ const PopupList: React.FC<PopupListProps> = ({
               <div className="flex items-center gap-2 mt-1">
                 <div className="flex items-center gap-1.5 overflow-hidden">
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${
-                    store.isEnded ? 'bg-gray-100 text-gray-400' : : 'bg-green-50 text-green-600'
+                    store.isEnded ? 'bg-gray-100 text-gray-400' : 'bg-green-50 text-green-600'
                   }`}>
                     {store.isEnded ? '종료됨' : '진행중'}
                   </span>
