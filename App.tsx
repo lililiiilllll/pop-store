@@ -195,7 +195,7 @@ const App: React.FC = () => {
   setMapCenter(coords);
   
   // 2. 지역 이름을 업데이트 (만약 setCurrentLocationName이 없다면 아래 2번 항목 참고)
-  // setCurrentLocationName(name); 
+   setCurrentLocationName(name); 
   
   // 3. 지역 선택 모달을 닫음
   setIsLocationSelectorOpen(false);
