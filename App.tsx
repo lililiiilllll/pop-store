@@ -443,6 +443,7 @@ return (
       {/* [3] 메인 콘텐츠 영역 (지도 & 모바일 UI) */}
       <main className="flex-1 relative">
         <MapArea 
+          level={mapLevel}
           stores={visibleStores} 
           selectedStoreId={selectedStoreId} 
           onMarkerClick={handleStoreSelect} 
