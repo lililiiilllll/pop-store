@@ -37,7 +37,7 @@ const Header: React.FC<HeaderProps> = ({
         <span className="text-[19px] font-black text-[#191f28] tracking-tighter">
           Pin It
         </span>
-        <span className="text-[10px] font-black text-[#191f28] tracking-tighter">
+        <span className="text-[10px] font-black text-[#3182f6] tracking-tighter">
           핀 잇
         </span>
       </div>
