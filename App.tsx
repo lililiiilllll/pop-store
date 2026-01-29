@@ -431,6 +431,9 @@ return (
             stores={visibleStores} 
             onStoreClick={(s) => handleStoreSelect(s.id)} 
             userLocation={userCoords}
+            activeTab={activeTab}
+            userProfile={userProfile}    
+            onLoginClick={() => setIsLoginModalOpen(true)}
           />
         </div>
       </aside>
