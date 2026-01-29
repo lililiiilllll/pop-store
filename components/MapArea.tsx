@@ -71,16 +71,21 @@ const MapArea: React.FC<MapAreaProps> = ({
           onMapClick();
         });
 
-        // --- 롱프레스 제보 기능 개선 영역 ---
+TypeScript
+        // --- 롱프레스 제보 기능 완벽 수정 버전 ---
+        let isDragging = false; // 드래그 상태 확인용 변수
+
         const handleStart = (e: any) => {
-          // 혹시 실행 중인 타이머가 있다면 초기화 (중복 방지)
+          isDragging = false; // 시작할 때는 드래그가 아님
           if (longPressTimer.current) clearTimeout(longPressTimer.current);
 
           longPressTimer.current = setTimeout(() => {
-            // 800ms 동안 떼지 않았을 때만 실행
-            setSelectedCoord({ lat: e.latLng.getLat(), lng: e.latLng.getLng() });
-            setIsReportModalOpen(true);
-            if (navigator.vibrate) navigator.vibrate(50); // 모바일 진동 피드백
+            // 800ms 동안 드래그가 발생하지 않았을 때만 실행
+            if (!isDragging) {
+              setSelectedCoord({ lat: e.latLng.getLat(), lng: e.latLng.getLng() });
+              setIsReportModalOpen(true);
+              if (navigator.vibrate) navigator.vibrate(50);
+            }
             longPressTimer.current = null;
           }, 800);
         };
@@ -92,13 +97,19 @@ const MapArea: React.FC<MapAreaProps> = ({
           }
         };
 
-        // 1. PC 마우스 이벤트
+        // 1. PC 이벤트
         kakao.maps.event.addListener(map, 'mousedown', handleStart);
         kakao.maps.event.addListener(map, 'mouseup', handleEnd);
 
-        // 2. 모바일 터치 이벤트
+        // 2. 모바일 이벤트 (정확한 터치 이벤트 바인딩)
         kakao.maps.event.addListener(map, 'touchstart', handleStart);
         kakao.maps.event.addListener(map, 'touchend', handleEnd);
+
+        // 3. ✅ 핵심: 드래그가 감지되면 즉시 타이머 무효화
+        kakao.maps.event.addListener(map, 'dragstart', () => {
+          isDragging = true; // 드래그 시작됨을 표시
+          handleEnd(); // 타이머 즉시 종료
+        });
 
         // 지도 이동 완료(Idle)
         kakao.maps.event.addListener(map, 'idle', () => {
