@@ -358,12 +358,12 @@ return (
       {/* [2] 사이드바 영역 (PC) */}
       <aside className="hidden lg:flex w-[400px] flex-col z-10 bg-white border-r border-[#f2f4f6] shadow-sm">
         <Header 
-          userProfile={userProfile} 
+          userProfile={currentUser} // App의 currentUser를 Header의 userProfile로 전달
           onSearchClick={() => setIsSearchOpen(true)}
-          onLoginClick={() => setIsLoginModalOpen(true)}
-          currentLocationName={currentLocationName}
+            // Header 내부에서는 onProfileClick을 사용하므로 아래와 같이 연결합니다.
+          onProfileClick={handleProfileClick} 
+          location={currentLocationName} // currentLocationName을 Header의 location으로 전달
           onLocationClick={() => setIsLocationSelectorOpen(true)}
-          onProfileClick={handleProfileClick}
           onAdminClick={() => setIsAdminOpen(true)}
         />
         
@@ -420,15 +420,15 @@ return (
         
         {/* 모바일 상단 바 */}
         <div className="lg:hidden absolute top-0 left-0 right-0 z-20 bg-white/80 backdrop-blur-xl border-b border-[#f2f4f6]">
-          <Header 
-            userProfile={userProfile} 
-            onSearchClick={() => setIsSearchOpen(true)}
-            onLoginClick={() => setIsLoginModalOpen(true)}
-            currentLocationName={currentLocationName}
-            onLocationClick={() => setIsLocationSelectorOpen(true)} 
-            onProfileClick={handleProfileClick}
-            onAdminClick={() => setIsAdminOpen(true)}
-          />
+        <Header 
+          userProfile={currentUser} // App의 currentUser를 Header의 userProfile로 전달
+          onSearchClick={() => setIsSearchOpen(true)}
+          // Header 내부에서는 onProfileClick을 사용하므로 아래와 같이 연결합니다.
+          onProfileClick={handleProfileClick} 
+          location={currentLocationName} // currentLocationName을 Header의 location으로 전달
+          onLocationClick={() => setIsLocationSelectorOpen(true)}
+          onAdminClick={() => setIsAdminOpen(true)}
+        />
           <div className="no-scrollbar overflow-x-auto">
             <CategoryFilter selected={selectedFilter} onSelect={setSelectedFilter} />
           </div>
