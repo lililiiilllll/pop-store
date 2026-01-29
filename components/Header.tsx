@@ -36,11 +36,6 @@ const Header: React.FC<HeaderProps> = ({
       xmlns="http://www.w3.org/2000/svg" 
       className="w-full h-full drop-shadow-sm"
     >
-      {/* 토스 블루 색상의 P 형태 배경 */}
-      <path 
-        d="M25 15C25 10.5817 28.5817 7 33 7H65C81.5685 7 95 20.4315 95 37C95 53.5685 81.5685 67 65 67H43V85C43 89.4183 39.4183 93 35 93H33C28.5817 93 25 89.4183 25 85V15Z" 
-        fill="#3182F6" 
-      />
       {/* P 내부에 뚫린 핀(Pin) 모양의 구멍 (Hole) */}
       <path 
         fillRule="evenodd" 
