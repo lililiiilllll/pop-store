@@ -17,6 +17,7 @@ import SearchOverlay from './components/SearchOverlay';
 import LocationSelector from './components/LocationSelector';
 import SuccessModal from './components/SuccessModal';
 import BottomNav from './components/BottomNav';
+const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
 const getDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
   const R = 6371; // 지구 반지름
@@ -339,6 +340,7 @@ return (
           location={currentLocationName} 
           userProfile={userProfile} 
           onSearchClick={() => setIsSearchOpen(true)} 
+          onLoginClick={() => setIsLoginModalOpen(true)}
           onAdminClick={() => userProfile?.role === 'admin' ? setIsAdminOpen(true) : alert("권한이 없습니다.")} 
           onProfileClick={handleProfileClick} 
           onLocationClick={() => setIsLocationSelectorOpen(true)} 
