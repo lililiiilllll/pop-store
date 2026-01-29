@@ -256,6 +256,8 @@ const handleProfileClick = useCallback(() => {
 
   // --- [연산: 검색 및 필터링 통합 로직] ---
 const visibleStores = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     let filtered = allStores;
 
     // 1. 검색어 필터링 (생략 - 기존과 동일)
@@ -286,7 +288,29 @@ const visibleStores = useMemo(() => {
       }
     }
 
-    // 4. 지도 중심 기준 "가장 가까운 곳 추천" 로직
+    // 4.🌟 [추가] 날짜 필터링 및 상태 부여 로직 🌟
+  filtered = filtered.filter(s => {
+    if (!s.endDate) return true; // 날짜 정보 없으면 노출
+    const endDate = new Date(s.endDate);
+    endDate.setHours(0, 0, 0, 0);
+
+    const diffTime = today.getTime() - endDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    // D+4일부터는 지도/리스트에서 아예 삭제
+    if (diffDays >= 4) return false;
+    return true;
+  }).map(s => {
+    const endDate = new Date(s.endDate);
+    endDate.setHours(0, 0, 0, 0);
+    // D+1 ~ D+3 상태 flag 부여 (MapArea에서 사용)
+    return {
+      ...s,
+      isEnded: today > endDate 
+    };
+  });
+
+    // 5. 지도 중심 기준 "가장 가까운 곳 추천" 로직
     if (activeTab === 'home' && mapBounds) {
       const inBounds = filtered.filter(s => 
         s.lat >= mapBounds.minLat && s.lat <= mapBounds.maxLat && 
