@@ -341,6 +341,7 @@ return (
           userProfile={userProfile} 
           onSearchClick={() => setIsSearchOpen(true)} 
           onLoginClick={() => setIsLoginModalOpen(true)}
+          currentLocationName={currentLocationName}
           onAdminClick={() => userProfile?.role === 'admin' ? setIsAdminOpen(true) : alert("권한이 없습니다.")} 
           onProfileClick={handleProfileClick} 
           onLocationClick={() => setIsLocationSelectorOpen(true)} 
@@ -503,24 +504,24 @@ return (
         )}
 
 
-        <AnimatePresence>
+   <AnimatePresence>
   {isLoginModalOpen && (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+    <div key="login-modal-root" className="fixed inset-0 z-[150] flex items-center justify-center p-4">
       {/* 배경 딤드 */}
       <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         exit={{ opacity: 0 }}
         onClick={() => setIsLoginModalOpen(false)}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm pointer-events-auto" 
       />
       
       {/* 모달 콘텐츠 */}
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="relative w-full max-w-[400px] bg-white rounded-[32px] p-8 shadow-2xl z-[121]"
+       initial={{ opacity: 0, scale: 0.9, y: 20 }}
+       animate={{ opacity: 1, scale: 1, y: 0 }}
+       exit={{ opacity: 0, scale: 0.9, y: 20 }}
+      className="relative w-full max-w-[360px] bg-white rounded-[32px] p-8 shadow-2xl z-[151] pointer-events-auto"
       >
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-[#f2f4f6] rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -563,7 +564,6 @@ return (
             onClose={() => setSuccessConfig(p => ({...p, isOpen: false}))} 
           />
         )}
-      </AnimatePresence>
     </div>
   );
 };
