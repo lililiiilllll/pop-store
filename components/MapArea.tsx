@@ -136,6 +136,20 @@ const MapArea: React.FC<MapAreaProps> = ({
     }
   }, []);
 
+  useEffect(() => {
+    const { kakao } = window as any;
+    
+    // mapRef.current에 지도 객체가 저장되어 있고, 
+    // App.tsx에서 새로운 mapCenter를 내려줬을 때 실행됩니다.
+    if (mapRef.current && kakao && mapCenter) {
+      const newCenter = new kakao.maps.LatLng(mapCenter.lat, mapCenter.lng);
+      
+      // 부드럽게 해당 좌표로 이동
+      mapRef.current.panTo(newCenter);
+    }
+  }, [mapCenter]); // mapCenter가 바뀔 때마다 실행됨
+  // ==========================================
+
   // 2. [내 위치 핀] 실시간 userLocation 동기화
   useEffect(() => {
     const { kakao } = window as any;
