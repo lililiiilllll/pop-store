@@ -16,7 +16,9 @@ interface MapAreaProps {
 
 const PIN_SVG = {
   verified: `data:image/svg+xml;base64,${btoa(`<svg width="34" height="42" viewBox="0 0 34 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 0C7.61117 0 0 7.61117 0 17C0 27.2 17 42 17 42C17 42 34 27.2 34 17C34 7.61117 26.3888 0 17 0Z" fill="#3182F6"/><circle cx="17" cy="17" r="7" fill="white"/></svg>`)}`,
-  unverified: `data:image/svg+xml;base64,${btoa(`<svg width="34" height="42" viewBox="0 0 34 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 0C7.61117 0 0 7.61117 0 17C0 27.2 17 42 17 42C17 42 34 27.2 34 17C34 7.61117 26.3888 0 17 0Z" fill="#ADB5BD"/><circle cx="17" cy="17" r="7" fill="white"/></svg>`)}`
+  unverified: `data:image/svg+xml;base64,${btoa(`<svg width="34" height="42" viewBox="0 0 34 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 0C7.61117 0 0 7.61117 0 17C0 27.2 17 42 17 42C17 42 34 27.2 34 17C34 7.61117 26.3888 0 17 0Z" fill="#ADB5BD"/><circle cx="17" cy="17" r="7" fill="white"/></svg>`)}`,
+  // ✅ 종료된 팝업용 어두운 회색 핀 추가
+  ended: `data:image/svg+xml;base64,${btoa(`<svg width="34" height="42" viewBox="0 0 34 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 0C7.61117 0 0 7.61117 0 17C0 27.2 17 42 17 42C17 42 34 27.2 34 17C34 7.61117 26.3888 0 17 0Z" fill="#4E5968"/><circle cx="17" cy="17" r="7" fill="white"/></svg>`)}`
 };
 
 const MapArea: React.FC<MapAreaProps> = ({ 
@@ -196,16 +198,25 @@ const MapArea: React.FC<MapAreaProps> = ({
     markersRef.current.clear();
 
     stores.forEach((store) => {
-      const marker = new kakao.maps.Marker({
-        position: new kakao.maps.LatLng(store.lat, store.lng),
-        map: mapRef.current,
-        image: new kakao.maps.MarkerImage(
-          store.is_verified ? PIN_SVG.verified : PIN_SVG.unverified,
-          new kakao.maps.Size(28, 35), { offset: new kakao.maps.Point(14, 35) }
-        )
-      });
+      // ✅ 핀 이미지 결정 로직 수정
+    let markerImageSrc = PIN_SVG.verified;
+    if (store.isEnded) {
+      markerImageSrc = PIN_SVG.ended; // 종료된 경우 어두운 색
+    } else if (!store.is_verified) {
+      markerImageSrc = PIN_SVG.unverified; // 미승인인 경우 밝은 회색
+    }
 
-      kakao.maps.event.addListener(marker, 'click', () => {
+    const marker = new kakao.maps.Marker({
+      position: new kakao.maps.LatLng(store.lat, store.lng),
+      map: mapRef.current,
+      image: new kakao.maps.MarkerImage(
+        markerImageSrc, // 수정된 변수 사용
+        new kakao.maps.Size(28, 35), 
+        { offset: new kakao.maps.Point(14, 35) }
+      )
+    });
+
+    kakao.maps.event.addListener(marker, 'click', () => {
         if (!store.is_verified) {
           const toastContent = `<div style="padding: 10px 16px; background: rgba(0,0,0,0.8); color:#fff; font-size:13px; border-radius:12px; margin-bottom:50px; white-space:nowrap;">승인 대기 중인 장소입니다</div>`;
           const toast = new kakao.maps.CustomOverlay({
