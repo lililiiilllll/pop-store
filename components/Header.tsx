@@ -26,29 +26,28 @@ const Header: React.FC<HeaderProps> = ({
 
 return (
     <header className="flex items-center justify-between px-5 py-4 bg-white/80 backdrop-blur-md sticky top-0 z-[60] border-b border-gray-100/50 h-16 w-full">
-      {/* 왼쪽: 대칭을 위한 빈 공간 */}
-      <div className="flex-1" />
-
-      {/* 중앙: ✅ Pin It 로고와 지역 선택 통합 */}
-      <div 
-        className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 cursor-pointer active:scale-95 transition-transform"
-        onClick={onLocationClick}
-      >
-        {/* 파란색 핀 아이콘 (보내주신 이미지 스타일) */}
-        <div className="w-8 h-8 bg-[#3182F6] rounded-xl flex items-center justify-center shadow-sm shrink-0">
+      
+      {/* [왼쪽] ✅ Pin It 서비스 로고 배치 */}
+      <div className="flex-1 flex items-center gap-2">
+        <div className="w-8 h-8 bg-[#3182F6] rounded-xl flex items-center justify-center shadow-sm">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zM12 11.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
           </svg>
         </div>
+        <span className="text-[19px] font-black text-[#191f28] tracking-tighter">
+          Pin It
+        </span>
+      </div>
 
-        {/* 텍스트 정보 */}
-        <div className="flex flex-col items-start min-w-max">
-          <span className="text-[17px] font-black text-[#191f28] leading-none tracking-tighter">Pin It</span>
-          <div className="flex items-center gap-0.5 mt-0.5">
-            <span className="text-[12px] font-bold text-[#3182f6] leading-none">{location}</span>
-            <ChevronDownIcon size={10} className="text-[#3182f6]" />
-          </div>
-        </div>
+      {/* [중앙] ✅ 성수/서울숲 위치 선택 버튼 배치 */}
+      <div 
+        className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 cursor-pointer bg-gray-50 px-4 py-2 rounded-full hover:bg-gray-100 active:scale-95 transition-all border border-gray-100 shadow-sm"
+        onClick={onLocationClick}
+      >
+        <span className="text-[14px] font-bold text-[#3182f6] whitespace-nowrap">
+          {location}
+        </span>
+        <Icons.ChevronDown size={14} className="text-[#3182f6]" />
       </div>
       
       {/* 오른쪽: 검색 및 유저 버튼 세트 */}
