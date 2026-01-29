@@ -289,24 +289,25 @@ const visibleStores = useMemo(() => {
     }
 
     // 4.🌟 [추가] 날짜 필터링 및 상태 부여 로직 🌟
-  filtered = filtered.filter(s => {
-    if (!s.end_date) return true; // 날짜 정보 없으면 노출
-    const endDate = new Date(s.end_date);
-    endDate.setHours(0, 0, 0, 0);
+filtered = filtered.filter(s => {
+    const dateStr = s.end_date || s.endDate; // 둘 중 존재하는 값 사용
+    if (!dateStr) return true; 
 
-    const diffTime = today.getTime() - endDate.getTime();
+    const endDateObj = new Date(dateStr);
+    endDateObj.setHours(0, 0, 0, 0);
+
+    const diffTime = today.getTime() - endDateObj.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    // D+4일부터는 지도/리스트에서 아예 삭제
-    if (diffDays >= 4) return false;
-    return true;
+    // D+4일부터는 완전히 제외
+    return diffDays < 4;
   }).map(s => {
-    const endDate = new Date(s.end_date);
-    endDate.setHours(0, 0, 0, 0);
-    // D+1 ~ D+3 상태 flag 부여 (MapArea에서 사용)
+    const dateStr = s.end_date || s.endDate;
+    const endDateObj = dateStr ? new Date(dateStr) : null;
+    if (endDateObj) endDateObj.setHours(0, 0, 0, 0);
     return {
       ...s,
-      isEnded: today > enddate 
+      // 오늘 날짜가 종료일보다 크면 종료된 것으로 간주
+      isEnded: endDateObj ? today > endDateObj : false 
     };
   });
 
