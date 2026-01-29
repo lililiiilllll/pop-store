@@ -453,16 +453,15 @@ return (
         />
         )}
         
-        {/* [C] 위치 선택 모달 */}
+        {/* [C] 위치 선택 모달: 배경보다 높은 z-index 부여 */}
         {isLocationSelectorOpen && (
-          <div className="fixed inset-0 z-[110] flex items-end justify-center lg:items-center p-0 lg:p-4">
-          {/* 배경 오버레이 */}
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsLocationSelectorOpen(false)} />
-    
-          <LocationSelector 
-            onSelect={handleLocationSelect} 
-            onClose={() => setIsLocationSelectorOpen(false)} 
-          />
+          <div key="location-selector-root" className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+             <div className="pointer-events-auto w-full max-w-md">
+               <LocationSelector 
+                 onSelect={handleLocationSelect} 
+                 onClose={() => setIsLocationSelectorOpen(false)} 
+               />
+             </div>
           </div>
         )}
 
