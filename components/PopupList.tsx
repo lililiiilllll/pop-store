@@ -6,6 +6,9 @@ interface PopupListProps {
   onStoreClick: (store: PopupStore) => void;
   userLocation: { lat: number; lng: number } | null;
   onFindNearest?: () => void;
+  activeTab?: string;
+  userProfile?: any;
+  onLoginClick?: () => void; // 로그인 유도용
 }
 
 const PopupList: React.FC<PopupListProps> = ({ stores, onStoreClick, userLocation, onFindNearest }) => {
@@ -44,6 +47,57 @@ const PopupList: React.FC<PopupListProps> = ({ stores, onStoreClick, userLocatio
       </div>
     );
   }
+    
+      return (
+        <div className="flex flex-col pb-20">
+          {stores.map((store) => (
+            <div 
+              key={store.id}
+              onClick={() => onStoreClick(store)}
+              // 🌟 [2] 종료된 팝업 스타일 적용 (opacity-50, 흑백처리)
+              className={`flex items-center gap-4 p-5 border-b border-[#f9fafb] cursor-pointer transition-all active:bg-gray-50 ${
+                store.isEnded ? 'opacity-40 grayscale-[0.8]' : ''
+              }`}
+            >
+              <div className="relative w-24 h-24 shrink-0">
+                <img 
+                  src={store.image_url || 'https://placehold.co/400x400?text=No+Image'} 
+                  className="w-full h-full rounded-2xl object-cover shadow-sm"
+                  alt={store.title}
+                />
+                {/* 종료 뱃지 추가 (선택사항) */}
+                {store.isEnded && (
+                  <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
+                    <span className="text-white text-[11px] font-bold border border-white/50 px-2 py-1 rounded">종료</span>
+                  </div>
+                )}
+              </div>
+    
+              <div className="flex flex-col flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[11px] font-bold text-[#3182f6] uppercase tracking-wider">{store.category}</span>
+                  {store.isRecommendation && (
+                    <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">추천</span>
+                  )}
+                </div>
+                <h3 className="text-[16px] font-bold text-[#191f28] truncate mb-1">{store.title}</h3>
+                <p className="text-[13px] text-[#4e5968] truncate mb-2">{store.address}</p>
+                
+                <div className="flex items-center gap-3">
+                   <span className="text-[12px] font-medium text-[#8b95a1]">
+                    {userLocation ? getDistance(userLocation.lat, userLocation.lng, store.lat, store.lng) : ''}
+                  </span>
+                  <span className="text-[12px] text-[#adb5bd]">|</span>
+                  <span className="text-[12px] font-medium text-[#8b95a1]">
+                    {(store.end_date || '').slice(5).replace('-', '.')} 종료
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    };
 
   return (
     <div className="flex flex-col gap-3 p-4">
