@@ -337,6 +337,21 @@ return (
 
       {/* 3. 메인 콘텐츠 영역: 지도 및 모바일 레이어 */}
       <main className="flex-1 relative">
+        <div className="absolute top-10 left-0 right-0 z-[40] flex flex-col items-center pointer-events-none">
+          <h1 
+            className="text-[28px] font-black text-[#191f28] tracking-tighter"
+            style={{ 
+              textShadow: '2px 2px 4px rgba(255,255,255,0.9), -2px -2px 4px rgba(255,255,255,0.9)' 
+            }}
+          >
+            Pin It
+          </h1>
+          <div className="mt-0.5 bg-white/30 backdrop-blur-[1px] px-3 py-0.5 rounded-full border border-white/10">
+            <span className="text-[#3182F6] font-bold text-[13px] tracking-tight">
+              성수 / 서울숲 팝업지도
+            </span>
+          </div>
+        </div>
         <MapArea 
           stores={visibleStores} 
           selectedStoreId={selectedStoreId} 
