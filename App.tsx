@@ -17,10 +17,6 @@ import SearchOverlay from './components/SearchOverlay';
 import LocationSelector from './components/LocationSelector';
 import SuccessModal from './components/SuccessModal';
 import BottomNav from './components/BottomNav';
-const App = () => {
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false); 
-  // ...
-}
 
 const getDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
   const R = 6371; // 지구 반지름
@@ -69,6 +65,7 @@ const App: React.FC = () => {
   const [isMobileListOpen, setIsMobileListOpen] = useState(false);
 
   // --- [상태 관리: 모달 및 오버레이] ---
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLocationSelectorOpen, setIsLocationSelectorOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
